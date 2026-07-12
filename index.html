@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NPBデータビューア</title>
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Zen+Kaku+Gothic+New:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --dark:#431407; --brown:#7C2D12; --brown2:#9A3412;
+    --primary:#EA580C; --orange:#F97316; --gold:#FBBF24;
+    --cream:#FFF7ED; --cream2:#FFEDD5;
+    --body:#5C3A21; --muted:#9C6B4A; --board:#2A1508;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Zen Kaku Gothic New',sans-serif; background:var(--cream); color:var(--dark); min-height:100vh;}
+  .hero{background:var(--brown); padding:26px 20px 80px; position:relative; overflow:hidden;}
+  .hero::after{content:""; position:absolute; right:-60px; top:-60px; width:190px; height:190px; border-radius:50%; background:var(--brown2);}
+  .wrap{max-width:760px; margin:0 auto; padding:0 16px; position:relative; z-index:1;}
+  .tag{display:inline-block; background:var(--orange); color:#fff; font-weight:900; font-size:12px; letter-spacing:.14em; padding:4px 12px; border-radius:6px;}
+  h1{color:#fff; font-size:clamp(20px,5vw,28px); font-weight:900; margin:12px 0 4px; line-height:1.3;}
+  .hero p{color:var(--cream2); font-size:13px;}
+  .card{background:#fff; border-radius:14px; box-shadow:0 6px 24px rgba(124,45,18,.14); padding:16px;}
+  .datecard{margin-top:-56px;}
+  .label{font-size:13px; font-weight:900; color:var(--primary); margin-bottom:8px;}
+  .daterow{display:flex; gap:8px; flex-wrap:wrap; align-items:center;}
+  input[type=date]{font-family:inherit; font-size:16px; font-weight:700; color:var(--dark); border:2px solid var(--cream2); border-radius:10px; padding:10px 12px; background:var(--cream); flex:1 1 150px; min-width:140px;}
+  .qbtn{font-family:inherit; font-size:13px; font-weight:700; color:var(--brown); background:var(--cream2); border:none; border-radius:999px; padding:9px 14px; cursor:pointer;}
+  .qbtn:active{background:var(--orange); color:#fff;}
+  .path{margin-top:12px; font-family:'DotGothic16',monospace; font-size:12.5px; color:var(--gold); background:var(--board); border-radius:8px; padding:8px 12px; overflow-x:auto; white-space:nowrap;}
+  .games{margin-top:16px; display:flex; flex-direction:column; gap:10px;}
+  .game{background:#fff; border-radius:12px; box-shadow:0 3px 14px rgba(124,45,18,.1); padding:14px; cursor:pointer; border:2px solid transparent;}
+  .game.active{border-color:var(--primary);}
+  .game h3{font-size:15px; margin-bottom:4px;}
+  .game .meta{font-size:12px; color:var(--muted);}
+  .atbat{border-top:1px solid var(--cream2); padding:12px 0;}
+  .atbat:first-child{border-top:none;}
+  .atbat .head{display:flex; justify-content:space-between; align-items:center; font-weight:700; font-size:14px; margin-bottom:8px;}
+  .badge{font-size:11px; color:#fff; background:var(--primary); border-radius:6px; padding:2px 8px;}
+  .pitch{display:grid; grid-template-columns:28px 1fr auto; gap:8px; align-items:center; padding:5px 0; font-size:13px;}
+  .pno{width:26px; height:26px; border-radius:50%; background:var(--primary); color:#fff; font-weight:900; font-size:12px; display:flex; align-items:center; justify-content:center;}
+  .ptype{font-weight:700;} .pspeed{font-family:'DotGothic16',monospace; color:var(--primary);}
+  .pcourse{font-size:11px; color:var(--muted);}
+  .presult{text-align:right; color:var(--body);}
+  .none{background:var(--cream2); color:var(--muted); text-align:center; padding:20px; border-radius:12px; margin-top:16px; font-size:14px;}
+  .spinner{color:var(--muted); font-size:13px; padding:14px; text-align:center;}
+  .note{font-size:12px; color:var(--muted); margin:18px 0 40px; line-height:1.7; background:var(--cream2); border-radius:10px; padding:12px 14px;}
+</style>
+</head>
+<body>
+  <div class="hero">
+    <div class="wrap">
+      <span class="tag">NPB DATA VIEWER</span>
+      <h1>一球速報データビューア</h1>
+      <p>球種・球速・コース・結果を日付ごとに表示</p>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="card datecard">
+      <div class="label">&#128197; 日付を指定</div>
+      <div class="daterow">
+        <input type="date" id="datePicker">
+        <button class="qbtn" onclick="shiftDate(-1)">&larr; 前日</button>
+        <button class="qbtn" onclick="setToday()">今日</button>
+        <button class="qbtn" onclick="shiftDate(1)">翌日 &rarr;</button>
+      </div>
+      <div class="path" id="pathDisplay"></div>
+    </div>
+
+    <div id="games" class="games"></div>
+    <div id="detail"></div>
+
+    <div class="note">
+      &#128161; データは毎晩 JST 23時台に自動収集されます。過去の日付は
+      GitHubのActions（スマホはGitHubアプリ）から「Run workflow」で日付を入力して収集できます。
+      コースの「高め・外」などは配球図の座標を5×5に近似した目安です。
+    </div>
+  </div>
+
+<script>
+  function todayJST(){ return new Date(Date.now()+9*3600*1000).toISOString().slice(0,10); }
+  const picker=document.getElementById("datePicker");
+  const pathEl=document.getElementById("pathDisplay");
+  const gamesEl=document.getElementById("games");
+  const detailEl=document.getElementById("detail");
+
+  function summaryPath(dateStr){
+    const [y,m,d]=dateStr.split("-");
+    return `data/${y}/${m}/${d}/_summary.json`;
+  }
+  function gamePath(dateStr,gid){
+    const [y,m,d]=dateStr.split("-");
+    return `data/${y}/${m}/${d}/${gid}.json`;
+  }
+
+  async function loadDay(){
+    const dateStr=picker.value;
+    pathEl.textContent="\u53c2\u7167\u5148 \u25b8 "+summaryPath(dateStr);
+    gamesEl.innerHTML='<div class="spinner">読み込み中…</div>';
+    detailEl.innerHTML="";
+    try{
+      const res=await fetch(summaryPath(dateStr)+"?t="+Date.now());
+      if(!res.ok) throw new Error("no data");
+      const sum=await res.json();
+      if(!sum.games||!sum.games.length){ throw new Error("empty"); }
+      gamesEl.innerHTML="";
+      sum.games.forEach(g=>{
+        const div=document.createElement("div");
+        div.className="game";
+        div.innerHTML=`<h3>試合 ${g.game_id}</h3>
+          <div class="meta">${g.atbat_count} 打席 ／ ${g.pitch_count} 球　＜タップで詳細＞</div>`;
+        div.onclick=()=>loadGame(dateStr,g.game_id,div);
+        gamesEl.appendChild(div);
+      });
+    }catch(e){
+      gamesEl.innerHTML='<div class="none">この日のデータはまだありません<br>Actionsで収集するとここに表示されます</div>';
+    }
+  }
+
+  async function loadGame(dateStr,gid,el){
+    document.querySelectorAll(".game").forEach(g=>g.classList.remove("active"));
+    if(el) el.classList.add("active");
+    detailEl.innerHTML='<div class="spinner">試合データ読み込み中…</div>';
+    try{
+      const res=await fetch(gamePath(dateStr,gid)+"?t="+Date.now());
+      const g=await res.json();
+      let html='<div class="card" style="margin-top:14px;">';
+      (g.atbats||[]).forEach(ab=>{
+        html+=`<div class="atbat"><div class="head">
+          <span>${ab.inning}回${ab.top_bottom}</span>
+          <span class="badge">${ab.result_summary||""}</span></div>`;
+        (ab.pitches||[]).forEach(p=>{
+          const course=p.course&&p.course.label?p.course.label:"-";
+          html+=`<div class="pitch">
+            <div class="pno">${p.no??""}</div>
+            <div><span class="ptype">${p.type||""}</span>
+              <span class="pspeed">${p.speed_kmh?p.speed_kmh+"km/h":""}</span>
+              <div class="pcourse">${course}</div></div>
+            <div class="presult">${p.result||""}</div></div>`;
+        });
+        html+='</div>';
+      });
+      html+='</div>';
+      detailEl.innerHTML=html;
+    }catch(e){
+      detailEl.innerHTML='<div class="none">試合データの読み込みに失敗しました</div>';
+    }
+  }
+
+  function shiftDate(n){
+    const t=new Date(picker.value+"T00:00:00");
+    t.setDate(t.getDate()+n);
+    picker.value=t.toISOString().slice(0,10);
+    loadDay();
+  }
+  function setToday(){ picker.value=todayJST(); loadDay(); }
+
+  picker.addEventListener("change",loadDay);
+  setToday();
+</script>
+</body>
+</html>

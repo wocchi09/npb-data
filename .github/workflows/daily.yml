@@ -1,0 +1,53 @@
+name: Daily NPB Data Collection
+
+on:
+  schedule:
+    # JST 23:47 = UTC 14:47（試合終了後・毎時0分を避けて混雑回避）
+    - cron: "47 14 * * *"
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "収集する日付（YYYY-MM-DD）。空欄なら今日"
+        required: false
+        default: ""
+      game:
+        description: "特定の試合IDだけ収集（任意）"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run scraper
+        run: |
+          ARGS=""
+          if [ -n "${{ github.event.inputs.date }}" ]; then
+            ARGS="$ARGS --date ${{ github.event.inputs.date }}"
+          fi
+          if [ -n "${{ github.event.inputs.game }}" ]; then
+            ARGS="$ARGS --game ${{ github.event.inputs.game }}"
+          fi
+          python scraper/main.py $ARGS
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/
+          git diff --cached --quiet || git commit -m "data: auto collect $(date +'%Y-%m-%d %H:%M')"
+          git push

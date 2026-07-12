@@ -1,0 +1,37 @@
+name: HTML Probe
+
+# スポナビ一球速報ページの構造調査用（初回だけ使う。以降は不要）
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: "調査するURL"
+        required: false
+        default: "https://baseball.yahoo.co.jp/npb/game/2021038864/score?index=0910100"
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install requests beautifulsoup4
+      - name: Probe
+        run: |
+          python - <<'PYEOF'
+          import re, requests
+          url = "${{ github.event.inputs.url }}"
+          h = {"User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"}
+          r = requests.get(url, headers=h, timeout=30)
+          open("probe_raw.html","w",encoding="utf-8").write(r.text)
+          print("saved probe_raw.html", r.status_code, len(r.text))
+          PYEOF
+      - uses: actions/upload-artifact@v4
+        with:
+          name: probe-raw-html
+          path: probe_raw.html
