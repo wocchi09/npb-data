@@ -3,171 +3,241 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NPBデータビューア</title>
-<link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Zen+Kaku+Gothic+New:wght@400;700;900&display=swap" rel="stylesheet">
+<title>NPB SCOREBOARD</title>
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
 <style>
   :root{
-    --dark:#431407; --brown:#7C2D12; --brown2:#9A3412;
-    --primary:#EA580C; --orange:#F97316; --gold:#FBBF24;
-    --cream:#FFF7ED; --cream2:#FFEDD5;
-    --body:#5C3A21; --muted:#9C6B4A; --board:#2A1508;
+    --bg:#0B0F0A;
+    --panel:#111811;
+    --panel2:#0D140D;
+    --line:#1E2C1E;
+    --amber:#FFB627;
+    --amber-dim:#8A6415;
+    --green:#4ADE5C;
+    --red:#FF4D3D;
+    --white:#E8EDE4;
+    --muted:#5F7A5F;
   }
-  *{box-sizing:border-box; margin:0; padding:0;}
-  body{font-family:'Zen Kaku Gothic New',sans-serif; background:var(--cream); color:var(--dark); min-height:100vh;}
-  .hero{background:var(--brown); padding:26px 20px 80px; position:relative; overflow:hidden;}
-  .hero::after{content:""; position:absolute; right:-60px; top:-60px; width:190px; height:190px; border-radius:50%; background:var(--brown2);}
-  .wrap{max-width:760px; margin:0 auto; padding:0 16px; position:relative; z-index:1;}
-  .tag{display:inline-block; background:var(--orange); color:#fff; font-weight:900; font-size:12px; letter-spacing:.14em; padding:4px 12px; border-radius:6px;}
-  h1{color:#fff; font-size:clamp(20px,5vw,28px); font-weight:900; margin:12px 0 4px; line-height:1.3;}
-  .hero p{color:var(--cream2); font-size:13px;}
-  .card{background:#fff; border-radius:14px; box-shadow:0 6px 24px rgba(124,45,18,.14); padding:16px;}
-  .datecard{margin-top:-56px;}
-  .label{font-size:13px; font-weight:900; color:var(--primary); margin-bottom:8px;}
-  .daterow{display:flex; gap:8px; flex-wrap:wrap; align-items:center;}
-  input[type=date]{font-family:inherit; font-size:16px; font-weight:700; color:var(--dark); border:2px solid var(--cream2); border-radius:10px; padding:10px 12px; background:var(--cream); flex:1 1 150px; min-width:140px;}
-  .qbtn{font-family:inherit; font-size:13px; font-weight:700; color:var(--brown); background:var(--cream2); border:none; border-radius:999px; padding:9px 14px; cursor:pointer;}
-  .qbtn:active{background:var(--orange); color:#fff;}
-  .path{margin-top:12px; font-family:'DotGothic16',monospace; font-size:12.5px; color:var(--gold); background:var(--board); border-radius:8px; padding:8px 12px; overflow-x:auto; white-space:nowrap;}
-  .games{margin-top:16px; display:flex; flex-direction:column; gap:10px;}
-  .game{background:#fff; border-radius:12px; box-shadow:0 3px 14px rgba(124,45,18,.1); padding:14px; cursor:pointer; border:2px solid transparent;}
-  .game.active{border-color:var(--primary);}
-  .game h3{font-size:15px; margin-bottom:4px;}
-  .game .meta{font-size:12px; color:var(--muted);}
-  .atbat{border-top:1px solid var(--cream2); padding:12px 0;}
-  .atbat:first-child{border-top:none;}
-  .atbat .head{display:flex; justify-content:space-between; align-items:center; font-weight:700; font-size:14px; margin-bottom:8px;}
-  .badge{font-size:11px; color:#fff; background:var(--primary); border-radius:6px; padding:2px 8px;}
-  .pitch{display:grid; grid-template-columns:28px 1fr auto; gap:8px; align-items:center; padding:5px 0; font-size:13px;}
-  .pno{width:26px; height:26px; border-radius:50%; background:var(--primary); color:#fff; font-weight:900; font-size:12px; display:flex; align-items:center; justify-content:center;}
-  .ptype{font-weight:700;} .pspeed{font-family:'DotGothic16',monospace; color:var(--primary);}
-  .pcourse{font-size:11px; color:var(--muted);}
-  .presult{text-align:right; color:var(--body);}
-  .none{background:var(--cream2); color:var(--muted); text-align:center; padding:20px; border-radius:12px; margin-top:16px; font-size:14px;}
-  .spinner{color:var(--muted); font-size:13px; padding:14px; text-align:center;}
-  .note{font-size:12px; color:var(--muted); margin:18px 0 40px; line-height:1.7; background:var(--cream2); border-radius:10px; padding:12px 14px;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    font-family:'DotGothic16',monospace;
+    background:var(--bg);
+    color:var(--white);
+    min-height:100vh;
+    background-image:repeating-linear-gradient(
+      0deg, rgba(255,255,255,.018) 0 1px, transparent 1px 3px);
+  }
+  .wrap{max-width:820px;margin:0 auto;padding:0 14px;}
+
+  .hero{border-bottom:3px double var(--line);padding:22px 0 18px;text-align:center;}
+  .hero .sub{font-size:11px;letter-spacing:.4em;color:var(--muted);}
+  .hero h1{
+    font-size:clamp(22px,6vw,34px);
+    color:var(--amber);letter-spacing:.14em;margin:6px 0 4px;
+    text-shadow:0 0 12px rgba(255,182,39,.45);
+  }
+  .lamp{
+    display:inline-block;width:7px;height:7px;border-radius:50%;
+    background:var(--red);box-shadow:0 0 8px var(--red);
+    margin:0 8px;vertical-align:middle;
+  }
+
+  .panel{background:var(--panel);border:2px solid var(--line);border-radius:4px;padding:14px;margin-top:16px;}
+  .plabel{font-size:11px;color:var(--muted);letter-spacing:.2em;margin-bottom:8px;}
+  .daterow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+  input[type=date]{
+    font-family:inherit;font-size:16px;
+    background:var(--panel2);color:var(--amber);
+    border:2px solid var(--line);border-radius:3px;
+    padding:9px 10px;flex:1 1 150px;min-width:140px;color-scheme:dark;
+  }
+  .btn{
+    font-family:inherit;font-size:12px;letter-spacing:.08em;
+    background:var(--panel2);color:var(--white);
+    border:2px solid var(--line);border-radius:3px;
+    padding:9px 13px;cursor:pointer;
+  }
+  .btn:hover{border-color:var(--amber);color:var(--amber);}
+  .btn:active{background:var(--amber);color:var(--bg);}
+  .path{
+    margin-top:10px;font-size:11px;color:var(--amber-dim);
+    background:var(--panel2);border:1px solid var(--line);
+    padding:6px 9px;overflow-x:auto;white-space:nowrap;
+  }
+
+  .games{margin-top:16px;display:flex;flex-direction:column;gap:9px;}
+  .game{
+    background:var(--panel);border:2px solid var(--line);
+    border-left:5px solid var(--amber-dim);
+    padding:13px 14px;cursor:pointer;
+  }
+  .game:hover{border-left-color:var(--amber);background:var(--panel2);}
+  .game.on{border-left-color:var(--green);}
+  .gcard{font-size:17px;color:var(--white);letter-spacing:.06em;}
+  .gmeta{font-size:11px;color:var(--muted);margin-top:5px;}
+
+  .detail{margin-top:14px;}
+  .dhead{
+    background:var(--panel2);border:2px solid var(--line);
+    padding:11px 14px;font-size:16px;color:var(--amber);letter-spacing:.1em;
+  }
+  .inning{border:2px solid var(--line);border-top:none;background:var(--panel);}
+  .ihead{
+    display:flex;justify-content:space-between;align-items:center;gap:8px;
+    padding:9px 14px;background:var(--panel2);
+    border-bottom:1px solid var(--line);font-size:13px;
+  }
+  .ino{color:var(--green);letter-spacing:.1em;}
+  .ires{color:var(--amber);font-size:12px;text-align:right;}
+  .players{
+    padding:8px 14px;font-size:12px;color:var(--muted);
+    border-bottom:1px dashed var(--line);line-height:1.7;
+  }
+  .players b{color:var(--white);font-weight:normal;}
+  .pnum{color:var(--amber-dim);font-size:11px;}
+  .pitches{padding:6px 0;}
+  .pitch{display:grid;grid-template-columns:26px 1fr auto;gap:10px;align-items:center;padding:6px 14px;}
+  .pitch:nth-child(odd){background:rgba(255,255,255,.015);}
+  .pno{
+    width:22px;height:22px;line-height:20px;text-align:center;
+    background:var(--panel2);border:1px solid var(--amber-dim);
+    color:var(--amber);font-size:11px;
+  }
+  .ptype{font-size:13px;color:var(--white);}
+  .pspeed{color:var(--green);font-size:13px;}
+  .pcourse{font-size:10px;color:var(--muted);letter-spacing:.05em;}
+  .presult{font-size:12px;color:var(--white);text-align:right;}
+  .presult.hit{color:var(--amber);}
+  .presult.out{color:var(--red);}
+
+  .msg{
+    border:2px dashed var(--line);padding:26px 14px;text-align:center;
+    color:var(--muted);font-size:13px;margin-top:16px;line-height:1.9;
+  }
+  .note{
+    margin:18px 0 40px;padding:12px;border-top:1px solid var(--line);
+    font-size:11px;color:var(--muted);line-height:1.9;
+  }
+  .blink{animation:bl 1.2s steps(2,start) infinite;}
+  @keyframes bl{to{opacity:.35;}}
 </style>
 </head>
 <body>
-  <div class="hero">
-    <div class="wrap">
-      <span class="tag">NPB DATA VIEWER</span>
-      <h1>一球速報データビューア</h1>
-      <p>球種・球速・コース・結果を日付ごとに表示</p>
-    </div>
-  </div>
-
   <div class="wrap">
-    <div class="card datecard">
-      <div class="label">&#128197; 日付を指定</div>
+    <div class="hero">
+      <div class="sub">NIPPON PROFESSIONAL BASEBALL</div>
+      <h1><span class="lamp"></span>SCOREBOARD<span class="lamp"></span></h1>
+      <div class="sub">PITCH BY PITCH DATA</div>
+    </div>
+
+    <div class="panel">
+      <div class="plabel">▼ DATE SELECT</div>
       <div class="daterow">
-        <input type="date" id="datePicker">
-        <button class="qbtn" onclick="shiftDate(-1)">&larr; 前日</button>
-        <button class="qbtn" onclick="setToday()">今日</button>
-        <button class="qbtn" onclick="shiftDate(1)">翌日 &rarr;</button>
+        <input type="date" id="dp">
+        <button class="btn" onclick="shift(-1)">◀ PREV</button>
+        <button class="btn" onclick="today()">TODAY</button>
+        <button class="btn" onclick="shift(1)">NEXT ▶</button>
       </div>
-      <div class="path" id="pathDisplay"></div>
+      <div class="path" id="path"></div>
     </div>
 
     <div id="games" class="games"></div>
-    <div id="detail"></div>
+    <div id="detail" class="detail"></div>
 
     <div class="note">
-      &#128161; データは毎晩 JST 23時台に自動収集されます。過去の日付は
-      GitHubのActions（スマホはGitHubアプリ）から「Run workflow」で日付を入力して収集できます。
-      コースの「高め・外」などは配球図の座標を5×5に近似した目安です。
+      ▸ データは毎晩 JST 23時台に自動収集。過去の日付は GitHub Actions の
+      「Run workflow」で日付を指定して収集できます。<br>
+      ▸ コース表記（高め・外 など）は配球図の座標を5×5に近似した目安です。
     </div>
   </div>
 
 <script>
-  function todayJST(){ return new Date(Date.now()+9*3600*1000).toISOString().slice(0,10); }
-  const picker=document.getElementById("datePicker");
-  const pathEl=document.getElementById("pathDisplay");
+  const dp=document.getElementById("dp");
+  const pathEl=document.getElementById("path");
   const gamesEl=document.getElementById("games");
   const detailEl=document.getElementById("detail");
 
-  function summaryPath(dateStr){
-    const [y,m,d]=dateStr.split("-");
-    return `data/${y}/${m}/${d}/_summary.json`;
-  }
-  function gamePath(dateStr,gid){
-    const [y,m,d]=dateStr.split("-");
-    return `data/${y}/${m}/${d}/${gid}.json`;
+  function todayJST(){return new Date(Date.now()+9*3600*1000).toISOString().slice(0,10);}
+  function sumPath(d){const p=d.split("-");return "data/"+p[0]+"/"+p[1]+"/"+p[2]+"/_summary.json";}
+  function gamePath(d,g){const p=d.split("-");return "data/"+p[0]+"/"+p[1]+"/"+p[2]+"/"+g+".json";}
+  function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;");}
+
+  function resultClass(r){
+    if(!r) return "";
+    if(/安打|本塁打|二塁打|三塁打|適時/.test(r)) return "hit";
+    if(/三振|ゴロ|フライ|併殺|邪飛|直/.test(r)) return "out";
+    return "";
   }
 
   async function loadDay(){
-    const dateStr=picker.value;
-    pathEl.textContent="\u53c2\u7167\u5148 \u25b8 "+summaryPath(dateStr);
-    gamesEl.innerHTML='<div class="spinner">読み込み中…</div>';
+    const d=dp.value;
+    pathEl.textContent="▸ "+sumPath(d);
+    gamesEl.innerHTML='<div class="msg blink">LOADING...</div>';
     detailEl.innerHTML="";
     try{
-      const res=await fetch(summaryPath(dateStr)+"?t="+Date.now());
-      if(!res.ok) throw new Error("no data");
-      const sum=await res.json();
-      if(!sum.games||!sum.games.length){ throw new Error("empty"); }
+      const r=await fetch(sumPath(d)+"?t="+Date.now());
+      if(!r.ok) throw 0;
+      const s=await r.json();
+      if(!s.games||!s.games.length) throw 0;
       gamesEl.innerHTML="";
-      sum.games.forEach(g=>{
-        const div=document.createElement("div");
-        div.className="game";
-        const card = g.card || `試合 ${g.game_id}`;
-        div.innerHTML=`<h3>${card}</h3>
-          <div class="meta">${g.atbat_count} 打席 ／ ${g.pitch_count} 球　＜タップで詳細＞</div>`;
-        div.onclick=()=>loadGame(dateStr,g.game_id,div);
-        gamesEl.appendChild(div);
+      s.games.forEach(function(g){
+        const el=document.createElement("div");
+        el.className="game";
+        el.innerHTML='<div class="gcard">'+esc(g.card||("GAME "+g.game_id))+'</div>'+
+          '<div class="gmeta">'+g.atbat_count+' AB / '+g.pitch_count+' PITCH ▸ TAP TO OPEN</div>';
+        el.onclick=function(){loadGame(d,g.game_id,el);};
+        gamesEl.appendChild(el);
       });
     }catch(e){
-      gamesEl.innerHTML='<div class="none">この日のデータはまだありません<br>Actionsで収集するとここに表示されます</div>';
+      gamesEl.innerHTML='<div class="msg">NO DATA<br>この日のデータはまだありません</div>';
     }
   }
 
-  async function loadGame(dateStr,gid,el){
-    document.querySelectorAll(".game").forEach(g=>g.classList.remove("active"));
-    if(el) el.classList.add("active");
-    detailEl.innerHTML='<div class="spinner">試合データ読み込み中…</div>';
+  async function loadGame(d,gid,el){
+    const list=document.querySelectorAll(".game");
+    for(let i=0;i<list.length;i++) list[i].classList.remove("on");
+    if(el) el.classList.add("on");
+    detailEl.innerHTML='<div class="msg blink">LOADING...</div>';
     try{
-      const res=await fetch(gamePath(dateStr,gid)+"?t="+Date.now());
-      const g=await res.json();
-      const cardTitle = g.card || `試合 ${g.game_id}`;
-      let html='<div class="card" style="margin-top:14px;">';
-      html+=`<h3 style="font-size:16px;margin-bottom:10px;color:var(--primary);">${cardTitle}</h3>`;
-      (g.atbats||[]).forEach(ab=>{
-        const batter = ab.batter&&ab.batter.name ? ab.batter.name : "";
-        const pitcher = ab.pitcher&&ab.pitcher.name ? ab.pitcher.name : "";
-        html+=`<div class="atbat"><div class="head">
-          <span>${ab.inning}回${ab.top_bottom}</span>
-          <span class="badge">${ab.result_summary||""}</span></div>`;
-        if(batter||pitcher){
-          html+=`<div style="font-size:12px;color:var(--muted);margin-bottom:6px;">
-            &#9918; 打者 <b style="color:var(--dark)">${batter}</b>
-            ${pitcher?`／ 投手 <b style="color:var(--dark)">${pitcher}</b>`:""}</div>`;
-        }
-        (ab.pitches||[]).forEach(p=>{
-          const course=p.course&&p.course.label?p.course.label:"-";
-          html+=`<div class="pitch">
-            <div class="pno">${p.no??""}</div>
-            <div><span class="ptype">${p.type||""}</span>
-              <span class="pspeed">${p.speed_kmh?p.speed_kmh+"km/h":""}</span>
-              <div class="pcourse">${course}</div></div>
-            <div class="presult">${p.result||""}</div></div>`;
+      const r=await fetch(gamePath(d,gid)+"?t="+Date.now());
+      const g=await r.json();
+      let h='<div class="dhead">'+esc(g.card||gid)+'</div>';
+      (g.atbats||[]).forEach(function(ab){
+        const b=ab.batter||{},p=ab.pitcher||{};
+        h+='<div class="inning"><div class="ihead">'+
+          '<span class="ino">'+ab.inning+'回'+ab.top_bottom+
+            (ab.batting_team?'　'+esc(ab.batting_team)+' 攻撃':'')+'</span>'+
+          '<span class="ires">'+esc(ab.result_summary||"")+'</span></div>'+
+          '<div class="players">打者 <b>'+esc(b.name||"-")+'</b> '+
+            '<span class="pnum">'+(b.number?"#"+b.number:"")+' '+esc(b.hand||"")+'</span>'+
+            ' ／ 投手 <b>'+esc(p.name||"-")+'</b> '+
+            '<span class="pnum">'+(p.number?"#"+p.number:"")+' '+esc(p.hand||"")+'</span></div>'+
+          '<div class="pitches">';
+        (ab.pitches||[]).forEach(function(pt){
+          const c=(pt.course&&pt.course.label)?pt.course.label:"-";
+          h+='<div class="pitch"><div class="pno">'+(pt.no==null?"":pt.no)+'</div>'+
+            '<div><span class="ptype">'+esc(pt.type||"")+'</span> '+
+            '<span class="pspeed">'+(pt.speed_kmh?pt.speed_kmh+"km/h":"")+'</span>'+
+            '<div class="pcourse">'+esc(c)+'</div></div>'+
+            '<div class="presult '+resultClass(pt.result)+'">'+esc(pt.result||"")+'</div></div>';
         });
-        html+='</div>';
+        h+='</div></div>';
       });
-      html+='</div>';
-      detailEl.innerHTML=html;
+      detailEl.innerHTML=h;
     }catch(e){
-      detailEl.innerHTML='<div class="none">試合データの読み込みに失敗しました</div>';
+      detailEl.innerHTML='<div class="msg">LOAD ERROR</div>';
     }
   }
 
-  function shiftDate(n){
-    const t=new Date(picker.value+"T00:00:00");
+  function shift(n){
+    const t=new Date(dp.value+"T00:00:00");
     t.setDate(t.getDate()+n);
-    picker.value=t.toISOString().slice(0,10);
+    dp.value=t.toISOString().slice(0,10);
     loadDay();
   }
-  function setToday(){ picker.value=todayJST(); loadDay(); }
-
-  picker.addEventListener("change",loadDay);
-  setToday();
+  function today(){dp.value=todayJST();loadDay();}
+  dp.addEventListener("change",loadDay);
+  today();
 </script>
 </body>
 </html>
