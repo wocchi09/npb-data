@@ -1,0 +1,130 @@
+name: Probe AtBat Walk
+
+# 打席巡回ロジックの検証用
+# index の「打者番号」を進めたときにページが存在するかを調べる
+
+on:
+  workflow_dispatch:
+    inputs:
+      game_id:
+        description: "調査する試合ID"
+        required: false
+        default: "2021039164"
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install requests beautifulsoup4
+
+      - name: Walk probe
+        run: |
+          python - <<'PYEOF'
+          import re, time, requests
+          from bs4 import BeautifulSoup
+
+          GID = "${{ github.event.inputs.game_id }}" or "2021039164"
+          BASE = "https://baseball.yahoo.co.jp"
+          H = {"User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"}
+
+          def get(url):
+              time.sleep(1.2)
+              r = requests.get(url, headers=H, timeout=30)
+              return r.status_code, r.text
+
+          def info(html):
+              """打者名・投手名・球数を返す"""
+              soup = BeautifulSoup(html, "html.parser")
+              out = {}
+              for key, label in [("batter","打者"),("pitcher","投手")]:
+                  i = html.find(f"<em>{label}</em>")
+                  if i >= 0:
+                      block = html[i:i+600]
+                      nm = re.search(r'alt="([^"]+)"', block)
+                      out[key] = nm.group(1).strip() if nm else None
+                  else:
+                      out[key] = None
+              # 球数
+              n = 0
+              for tr in soup.find_all("tr"):
+                  if tr.find("td", class_="bb-splitsTable__data--ballType"):
+                      n += 1
+              out["pitches"] = n
+              # 結果
+              rd = soup.find("div", id="result")
+              out["result"] = rd.get_text(strip=True)[:30] if rd else None
+              return out
+
+          lines = ["# 打席巡回プローブ", "", f"- 試合ID: {GID}", ""]
+
+          # 1回表の打者を 01 から 12 まで進めてみる
+          lines.append("## 1回表：打者番号を進めた結果")
+          lines.append("")
+          lines.append("| index | HTTP | 打者 | 投手 | 球数 | 結果 |")
+          lines.append("|---|---|---|---|---|---|")
+          for b in range(1, 13):
+              idx = f"011{b:02d}00"
+              url = f"{BASE}/npb/game/{GID}/score?index={idx}"
+              try:
+                  st, html = get(url)
+                  d = info(html)
+                  lines.append(f"| {idx} | {st} | {d['batter']} | {d['pitcher']} | {d['pitches']} | {d['result']} |")
+                  if st != 200:
+                      break
+              except Exception as e:
+                  lines.append(f"| {idx} | ERR | - | - | - | {e} |")
+                  break
+
+          # 1回裏も同様に
+          lines.append("")
+          lines.append("## 1回裏：打者番号を進めた結果")
+          lines.append("")
+          lines.append("| index | HTTP | 打者 | 投手 | 球数 | 結果 |")
+          lines.append("|---|---|---|---|---|---|")
+          for b in range(1, 13):
+              idx = f"012{b:02d}00"
+              url = f"{BASE}/npb/game/{GID}/score?index={idx}"
+              try:
+                  st, html = get(url)
+                  d = info(html)
+                  lines.append(f"| {idx} | {st} | {d['batter']} | {d['pitcher']} | {d['pitches']} | {d['result']} |")
+                  if st != 200:
+                      break
+              except Exception as e:
+                  lines.append(f"| {idx} | ERR | - | - | - | {e} |")
+                  break
+
+          # 起点ページに載っているindex一覧
+          st, html = get(f"{BASE}/npb/game/{GID}/score")
+          idxs = sorted(set(re.findall(r"score\?index=(\d+)", html)))
+          lines.append("")
+          lines.append(f"## 起点ページのindexリンク（{len(idxs)}件）")
+          lines.append("")
+          lines.append("```")
+          lines.append(", ".join(idxs))
+          lines.append("```")
+
+          # タイトル（対戦カード確認用）
+          m = re.search(r"<title>(.*?)</title>", html, re.S)
+          lines.append("")
+          lines.append(f"- title: {m.group(1).strip() if m else '-'}")
+
+          open("probe_walk.md","w",encoding="utf-8").write("\n".join(lines))
+          print("\n".join(lines))
+          PYEOF
+
+      - name: Commit report
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add probe_walk.md
+          git diff --cached --quiet || git commit -m "probe: atbat walk report"
+          git pull --rebase origin main
+          git push
