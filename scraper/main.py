@@ -22,7 +22,7 @@ from datetime import datetime, timedelta, timezone
 
 import requests
 
-from parser import parse_atbat, extract_atbat_indexes
+from parser import parse_atbat, extract_atbat_indexes, parse_teams
 
 JST = timezone(timedelta(hours=9))
 BASE = "https://baseball.yahoo.co.jp"
@@ -87,8 +87,10 @@ def collect_game(game_id: str) -> dict:
         print(f"[WARN] 試合{game_id}取得失敗: {e}")
         return {"game_id": game_id, "error": str(e), "atbats": []}
 
+    teams = parse_teams(html)
     indexes = extract_atbat_indexes(html)
-    print(f"[INFO] 試合{game_id}: {len(indexes)}打席を巡回")
+    card = f"{teams['away'] or '?'} vs {teams['home'] or '?'}"
+    print(f"[INFO] 試合{game_id}: {card} / {len(indexes)}打席を巡回")
 
     atbats = []
     for i, idx in enumerate(indexes, 1):
@@ -105,6 +107,11 @@ def collect_game(game_id: str) -> dict:
     return {
         "game_id": game_id,
         "collected_at": datetime.now(JST).isoformat(),
+        "away": teams["away"],
+        "home": teams["home"],
+        "away_full": teams["away_full"],
+        "home_full": teams["home_full"],
+        "card": card,
         "atbat_count": len(atbats),
         "pitch_count": total_pitches,
         "atbats": atbats,
@@ -129,7 +136,10 @@ def save_summary(date: datetime, results: list[dict]) -> str:
         "collected_at": datetime.now(JST).isoformat(),
         "game_count": len(results),
         "games": [
-            {"game_id": r["game_id"], "atbat_count": r.get("atbat_count", 0),
+            {"game_id": r["game_id"],
+             "away": r.get("away"), "home": r.get("home"),
+             "card": r.get("card"),
+             "atbat_count": r.get("atbat_count", 0),
              "pitch_count": r.get("pitch_count", 0)}
             for r in results
         ],

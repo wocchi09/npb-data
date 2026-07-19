@@ -37,6 +37,29 @@ def _to_zone(top_px: float | None, left_px: float | None) -> dict:
     return {"grid_row": row, "grid_col": col, "label": label}
 
 
+def _parse_players(soup):
+    """打者・投手の名前・選手ID・投打を取得"""
+    import re as _re
+    players = {"batter": None, "pitcher": None}
+    html = str(soup)
+    for key, label in [("batter", "打者"), ("pitcher", "投手")]:
+        i = html.find(f"<em>{label}</em>")
+        if i < 0:
+            continue
+        block = html[i:i + 600]
+        pid = _re.search(r"/npb/player/(\d+)/", block)
+        name = _re.search(r'alt="([^"]+)"', block)
+        bats = _re.search(r"(左打|右打|両打)", block)
+        throws = _re.search(r"(左投|右投)", block)
+        players[key] = {
+            "name": name.group(1).strip() if name else None,
+            "player_id": pid.group(1) if pid else None,
+            "bats": bats.group(1) if bats else None,
+            "throws": throws.group(1) if throws else None,
+        }
+    return players
+
+
 def parse_atbat(html: str, index: str) -> dict:
     """1打席ぶんのHTMLをパースして辞書で返す"""
     soup = BeautifulSoup(html, "html.parser")
@@ -94,10 +117,14 @@ def parse_atbat(html: str, index: str) -> dict:
         if c:
             p["course"] = c
 
+    players = _parse_players(soup)
+
     return {
         "index": index,
         "inning": int(index[0:2]) if len(index) >= 2 else None,
         "top_bottom": "表" if len(index) >= 3 and index[2] == "1" else "裏",
+        "batter": players["batter"],
+        "pitcher": players["pitcher"],
         "result_summary": result_summary,
         "result_detail": result_detail,
         "pitch_count": len(pitches),
@@ -109,3 +136,51 @@ def extract_atbat_indexes(html: str) -> list[str]:
     """試合ページ内に載っている全打席のindex一覧を取得（重複除去・昇順）"""
     idxs = sorted(set(re.findall(r"score\?index=(\d+)", html)))
     return idxs
+
+
+# 正式名称 → 短縮名の対応表
+TEAM_SHORT = {
+    "福岡ソフトバンクホークス": "ソフトバンク",
+    "東北楽天ゴールデンイーグルス": "楽天",
+    "北海道日本ハムファイターズ": "日本ハム",
+    "千葉ロッテマリーンズ": "ロッテ",
+    "埼玉西武ライオンズ": "西武",
+    "オリックス・バファローズ": "オリックス",
+    "読売ジャイアンツ": "巨人",
+    "阪神タイガース": "阪神",
+    "中日ドラゴンズ": "中日",
+    "広島東洋カープ": "広島",
+    "東京ヤクルトスワローズ": "ヤクルト",
+    "横浜DeNAベイスターズ": "DeNA",
+}
+
+
+def parse_teams(html: str) -> dict:
+    """
+    <title>から対戦カードを取得する。
+    例: 「…東北楽天…vs.福岡ソフトバンク… 一球速報 …」
+        → {away:楽天, home:ソフトバンク, ...}
+    先攻(away)＝vsの前、後攻(home)＝vsの後。
+    """
+    m = re.search(r"<title>(.*?)</title>", html, re.S)
+    if not m:
+        return {"away": None, "home": None, "away_full": None, "home_full": None, "date_text": None}
+    title = m.group(1)
+
+    # 日付テキスト（例: 2026年5月15日）
+    dm = re.search(r"(\d{4}年\d{1,2}月\d{1,2}日)", title)
+    date_text = dm.group(1) if dm else None
+
+    vm = re.search(r"(\S+?)vs\.?(\S+?)\s*一球速報", title)
+    if not vm:
+        return {"away": None, "home": None, "away_full": None, "home_full": None, "date_text": date_text}
+
+    away_full = vm.group(1).strip()
+    home_full = vm.group(2).strip()
+    return {
+        "away": TEAM_SHORT.get(away_full, away_full),
+        "home": TEAM_SHORT.get(home_full, home_full),
+        "away_full": away_full,
+        "home_full": home_full,
+        "date_text": date_text,
+    }

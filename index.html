@@ -108,7 +108,8 @@
       sum.games.forEach(g=>{
         const div=document.createElement("div");
         div.className="game";
-        div.innerHTML=`<h3>試合 ${g.game_id}</h3>
+        const card = g.card || `試合 ${g.game_id}`;
+        div.innerHTML=`<h3>${card}</h3>
           <div class="meta">${g.atbat_count} 打席 ／ ${g.pitch_count} 球　＜タップで詳細＞</div>`;
         div.onclick=()=>loadGame(dateStr,g.game_id,div);
         gamesEl.appendChild(div);
@@ -125,11 +126,20 @@
     try{
       const res=await fetch(gamePath(dateStr,gid)+"?t="+Date.now());
       const g=await res.json();
+      const cardTitle = g.card || `試合 ${g.game_id}`;
       let html='<div class="card" style="margin-top:14px;">';
+      html+=`<h3 style="font-size:16px;margin-bottom:10px;color:var(--primary);">${cardTitle}</h3>`;
       (g.atbats||[]).forEach(ab=>{
+        const batter = ab.batter&&ab.batter.name ? ab.batter.name : "";
+        const pitcher = ab.pitcher&&ab.pitcher.name ? ab.pitcher.name : "";
         html+=`<div class="atbat"><div class="head">
           <span>${ab.inning}回${ab.top_bottom}</span>
           <span class="badge">${ab.result_summary||""}</span></div>`;
+        if(batter||pitcher){
+          html+=`<div style="font-size:12px;color:var(--muted);margin-bottom:6px;">
+            &#9918; 打者 <b style="color:var(--dark)">${batter}</b>
+            ${pitcher?`／ 投手 <b style="color:var(--dark)">${pitcher}</b>`:""}</div>`;
+        }
         (ab.pitches||[]).forEach(p=>{
           const course=p.course&&p.course.label?p.course.label:"-";
           html+=`<div class="pitch">
