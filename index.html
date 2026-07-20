@@ -6,160 +6,91 @@
 <title>NPB SCOREBOARD</title>
 <link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=M+PLUS+1p:wght@400;500;700;900&display=swap" rel="stylesheet">
 <style>
-  /* ===== ライトモード（既定） ===== */
   :root{
-    --bg:#FFF9F0;
-    --panel:#FFFFFF;
-    --panel2:#FFF4E3;
-    --line:#F0D9B5;
-    --line2:#E5C596;
-    --ink:#3D2510;          /* 本文（濃い茶）読みやすさ優先 */
-    --ink2:#6B4A28;
-    --muted:#9A7B57;
-    --accent:#E8590C;       /* オレンジ */
-    --accent2:#F59F00;      /* 黄 */
-    --gold:#FFC93C;
-    --hit:#D9480F;
-    --out:#1C7ED6;
-    --board-bg:#2B1B0E;     /* スコアボードは常に暗色 */
-    --board-ink:#FFD43B;
-    --board-line:#5A4028;
+    --bg:#FFF9F0;--panel:#FFFFFF;--panel2:#FFF4E3;
+    --line:#F0D9B5;--line2:#E5C596;
+    --ink:#3D2510;--ink2:#6B4A28;--muted:#9A7B57;
+    --accent:#E8590C;--accent2:#F59F00;--gold:#FFC93C;
+    --hit:#D9480F;--out:#1C7ED6;
+    --board-bg:#2B1B0E;--board-ink:#FFD43B;--board-line:#5A4028;
+    --field:#2F6B3A;--field2:#C9A227;--dirt:#B07C4A;
     --shadow:0 2px 10px rgba(120,70,20,.10);
   }
-  /* ===== ダークモード ===== */
   [data-theme="dark"]{
-    --bg:#1A1208;
-    --panel:#241809;
-    --panel2:#2E1F0D;
-    --line:#3D2A13;
-    --line2:#54391B;
-    --ink:#FFF0DB;
-    --ink2:#E8CFA8;
-    --muted:#A98858;
-    --accent:#FF922B;
-    --accent2:#FFC93C;
-    --gold:#FFD43B;
-    --hit:#FFA94D;
-    --out:#74C0FC;
-    --board-bg:#120C05;
-    --board-ink:#FFD43B;
-    --board-line:#3D2A13;
+    --bg:#1A1208;--panel:#241809;--panel2:#2E1F0D;
+    --line:#3D2A13;--line2:#54391B;
+    --ink:#FFF0DB;--ink2:#E8CFA8;--muted:#A98858;
+    --accent:#FF922B;--accent2:#FFC93C;--gold:#FFD43B;
+    --hit:#FFA94D;--out:#74C0FC;
+    --board-bg:#120C05;--board-ink:#FFD43B;--board-line:#3D2A13;
+    --field:#1E4A28;--field2:#8A6415;--dirt:#7A5433;
     --shadow:0 2px 10px rgba(0,0,0,.35);
   }
-
   *{box-sizing:border-box;margin:0;padding:0;}
-  body{
-    font-family:'M PLUS 1p',sans-serif;
-    background:var(--bg);color:var(--ink);
-    min-height:100vh;font-size:15px;line-height:1.6;
-    transition:background .2s,color .2s;
-  }
-  .dot{font-family:'DotGothic16',monospace;}
+  body{font-family:'M PLUS 1p',sans-serif;background:var(--bg);color:var(--ink);
+    min-height:100vh;font-size:15px;line-height:1.6;transition:background .2s,color .2s;}
   .wrap{max-width:900px;margin:0 auto;padding:0 14px 60px;}
 
-  /* ---- ヘッダ ---- */
-  .hero{
-    background:linear-gradient(135deg,var(--accent) 0%,var(--accent2) 100%);
-    padding:18px 0 16px;margin-bottom:16px;
-    position:relative;overflow:hidden;
-  }
+  .hero{background:linear-gradient(135deg,var(--accent) 0%,var(--accent2) 100%);
+    padding:18px 0 16px;margin-bottom:16px;}
   .hero-in{max-width:900px;margin:0 auto;padding:0 14px;
     display:flex;justify-content:space-between;align-items:center;gap:10px;}
-  .hero h1{
-    font-family:'DotGothic16',monospace;
-    font-size:clamp(20px,5vw,28px);color:#fff;letter-spacing:.1em;
-    text-shadow:0 2px 6px rgba(120,50,0,.35);
-  }
+  .hero h1{font-family:'DotGothic16',monospace;font-size:clamp(20px,5vw,28px);
+    color:#fff;letter-spacing:.1em;text-shadow:0 2px 6px rgba(120,50,0,.35);}
   .hero p{font-size:11px;color:rgba(255,255,255,.9);letter-spacing:.15em;}
-  .theme-btn{
-    background:rgba(255,255,255,.22);border:2px solid rgba(255,255,255,.55);
-    color:#fff;font-family:inherit;font-size:19px;font-weight:700;
-    width:42px;height:42px;border-radius:10px;cursor:pointer;flex-shrink:0;
-  }
+  .theme-btn{background:rgba(255,255,255,.22);border:2px solid rgba(255,255,255,.55);
+    color:#fff;font-size:19px;font-weight:700;width:42px;height:42px;
+    border-radius:10px;cursor:pointer;flex-shrink:0;}
   .theme-btn:hover{background:rgba(255,255,255,.34);}
 
-  /* ---- 日付バー ---- */
-  .datebar{
-    background:var(--panel);border:2px solid var(--line);
-    border-radius:12px;padding:12px;box-shadow:var(--shadow);
-  }
+  .datebar{background:var(--panel);border:2px solid var(--line);
+    border-radius:12px;padding:12px;box-shadow:var(--shadow);}
   .drow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
-  input[type=date]{
-    font-family:inherit;font-size:16px;font-weight:700;
-    background:var(--panel2);color:var(--ink);
-    border:2px solid var(--line2);border-radius:9px;
-    padding:9px 11px;flex:1 1 160px;min-width:150px;
-  }
+  input[type=date]{font-family:inherit;font-size:16px;font-weight:700;
+    background:var(--panel2);color:var(--ink);border:2px solid var(--line2);
+    border-radius:9px;padding:9px 11px;flex:1 1 160px;min-width:150px;}
   [data-theme="dark"] input[type=date]{color-scheme:dark;}
-  .btn{
-    font-family:inherit;font-size:13px;font-weight:700;
-    background:var(--panel2);color:var(--accent);
-    border:2px solid var(--line2);border-radius:9px;
-    padding:9px 13px;cursor:pointer;white-space:nowrap;
-  }
+  .btn{font-family:inherit;font-size:13px;font-weight:700;background:var(--panel2);
+    color:var(--accent);border:2px solid var(--line2);border-radius:9px;
+    padding:9px 13px;cursor:pointer;white-space:nowrap;}
   .btn:hover{background:var(--accent);color:#fff;border-color:var(--accent);}
   .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent);}
 
-  /* ---- 試合カード ---- */
   .games{margin-top:14px;display:grid;gap:10px;
     grid-template-columns:repeat(auto-fill,minmax(250px,1fr));}
-  .game{
-    background:var(--panel);border:2px solid var(--line);
-    border-radius:12px;padding:13px 15px;cursor:pointer;
-    box-shadow:var(--shadow);transition:transform .12s,border-color .12s;
-  }
+  .game{background:var(--panel);border:2px solid var(--line);border-radius:12px;
+    padding:13px 15px;cursor:pointer;box-shadow:var(--shadow);
+    transition:transform .12s,border-color .12s;}
   .game:hover{border-color:var(--accent);transform:translateY(-2px);}
   .game.on{border-color:var(--accent);background:var(--panel2);}
-  .gcard{font-size:17px;font-weight:900;color:var(--ink);}
+  .gcard{font-size:17px;font-weight:900;}
   .gmeta{font-size:11.5px;color:var(--muted);margin-top:4px;}
 
-  /* ---- スコアボード ---- */
-  .board{
-    background:var(--board-bg);border-radius:12px;
-    padding:12px;margin-top:16px;overflow-x:auto;
-    box-shadow:var(--shadow);
-  }
+  .board{background:var(--board-bg);border-radius:12px;padding:12px;
+    margin-top:16px;overflow-x:auto;box-shadow:var(--shadow);}
   table.sb{border-collapse:collapse;width:100%;min-width:420px;
     font-family:'DotGothic16',monospace;}
-  table.sb th,table.sb td{
-    border:1px solid var(--board-line);
-    padding:6px 4px;text-align:center;min-width:26px;
-    color:var(--board-ink);font-size:15px;
-  }
+  table.sb th,table.sb td{border:1px solid var(--board-line);padding:6px 4px;
+    text-align:center;min-width:26px;color:var(--board-ink);font-size:15px;}
   table.sb th{font-size:12px;color:#C9A227;}
-  table.sb td.team{
-    text-align:left;padding-left:10px;min-width:100px;
-    font-family:'M PLUS 1p',sans-serif;font-weight:700;
-    font-size:14px;color:#FFF3D6;white-space:nowrap;
-  }
+  table.sb td.team{text-align:left;padding-left:10px;min-width:100px;
+    font-family:'M PLUS 1p',sans-serif;font-weight:700;font-size:14px;
+    color:#FFF3D6;white-space:nowrap;}
   table.sb td.total{color:#fff;font-weight:700;background:rgba(255,212,59,.12);}
   table.sb .win{color:#FFD43B;}
 
-  /* ---- 操作バー ---- */
-  .toolbar{
-    display:flex;gap:8px;align-items:center;flex-wrap:wrap;
-    margin-top:14px;padding:11px 13px;
-    background:var(--panel);border:2px solid var(--line);
-    border-radius:12px;box-shadow:var(--shadow);
-  }
+  .toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:14px;
+    padding:11px 13px;background:var(--panel);border:2px solid var(--line);
+    border-radius:12px;box-shadow:var(--shadow);}
   .toolbar .lb{font-size:12px;color:var(--muted);font-weight:700;}
-  select{
-    font-family:inherit;font-size:13px;font-weight:700;
-    background:var(--panel2);color:var(--ink);
-    border:2px solid var(--line2);border-radius:9px;
-    padding:7px 9px;cursor:pointer;
-  }
+  select{font-family:inherit;font-size:13px;font-weight:700;background:var(--panel2);
+    color:var(--ink);border:2px solid var(--line2);border-radius:9px;
+    padding:7px 9px;cursor:pointer;}
 
-  /* ---- イニング ---- */
-  .inn{
-    margin-top:12px;background:var(--panel);
-    border:2px solid var(--line);border-radius:12px;
-    overflow:hidden;box-shadow:var(--shadow);
-  }
-  .inn-h{
-    display:flex;justify-content:space-between;align-items:center;gap:8px;
-    padding:11px 14px;cursor:pointer;background:var(--panel2);
-  }
+  .inn{margin-top:12px;background:var(--panel);border:2px solid var(--line);
+    border-radius:12px;overflow:hidden;box-shadow:var(--shadow);}
+  .inn-h{display:flex;justify-content:space-between;align-items:center;gap:8px;
+    padding:11px 14px;cursor:pointer;background:var(--panel2);}
   .inn-h:hover{background:var(--line);}
   .inn-t{font-size:15px;font-weight:900;color:var(--accent);}
   .inn-m{font-size:11.5px;color:var(--muted);font-weight:500;}
@@ -168,49 +99,68 @@
   .inn-b{display:none;}
   .inn.open .inn-b{display:block;}
 
-  /* ---- 打席 ---- */
   .ab{border-top:2px solid var(--line);}
-  .ab-h{
-    display:flex;justify-content:space-between;align-items:flex-start;gap:10px;
-    padding:10px 14px;background:var(--panel);
-  }
-  .ab-p{font-size:13.5px;line-height:1.7;}
-  .ab-p b{font-weight:900;color:var(--ink);}
+  /* 打席ヘッダ：左＝選手情報 / 右＝ダイヤモンド＋カウント */
+  .ab-h{display:grid;grid-template-columns:1fr auto;gap:12px;
+    padding:11px 14px;align-items:start;}
+  .ab-p{font-size:13.5px;line-height:1.75;}
+  .ab-p b{font-weight:900;}
   .ab-p .lbl{color:var(--muted);font-size:11.5px;}
   .no{font-family:'DotGothic16',monospace;color:var(--accent2);font-size:11.5px;}
-  .res{
-    font-size:12.5px;font-weight:900;color:#fff;background:var(--accent);
-    padding:4px 10px;border-radius:20px;white-space:nowrap;flex-shrink:0;
-  }
+  .res{display:inline-block;font-size:12.5px;font-weight:900;color:#fff;
+    background:var(--accent);padding:3px 10px;border-radius:20px;margin-top:5px;}
   .res.hit{background:var(--hit);}
   .res.out{background:var(--out);}
 
-  .pt{
-    display:grid;grid-template-columns:26px 1fr auto;gap:10px;
-    align-items:center;padding:7px 14px;border-top:1px dashed var(--line);
-  }
-  .pt-n{
-    width:24px;height:24px;line-height:22px;text-align:center;
-    font-family:'DotGothic16',monospace;font-size:12px;
-    border-radius:50%;background:var(--panel2);
-    border:2px solid var(--line2);color:var(--accent);
-  }
+  /* ---- ダイヤモンド（走者図） ---- */
+  .situ{display:flex;gap:10px;align-items:center;flex-shrink:0;}
+  .dia{width:58px;height:58px;position:relative;}
+  .bs{position:absolute;width:14px;height:14px;background:var(--panel2);
+    border:2px solid var(--line2);transform:rotate(45deg);}
+  .bs.on{background:var(--gold);border-color:var(--accent);}
+  .bs.b1{right:0;top:22px;} .bs.b2{left:22px;top:0;} .bs.b3{left:0;top:22px;}
+  .bs.home{left:22px;bottom:0;top:auto;background:var(--line2);border-color:var(--muted);}
+  .cnt{font-size:11px;line-height:1.5;}
+  .cnt .row{display:flex;align-items:center;gap:4px;}
+  .cnt .k{width:12px;font-weight:900;color:var(--muted);font-family:'DotGothic16',monospace;}
+  .dotc{width:9px;height:9px;border-radius:50%;background:var(--panel2);
+    border:1.5px solid var(--line2);display:inline-block;}
+  .dotc.b{background:#40C057;border-color:#2B8A3E;}
+  .dotc.s{background:#FAB005;border-color:#E67700;}
+  .dotc.o{background:#FA5252;border-color:#C92A2A;}
+
+  /* ---- 打球方向フィールド ---- */
+  .fieldbox{margin:4px 14px 10px;padding:8px;background:var(--panel2);
+    border:2px solid var(--line);border-radius:10px;
+    display:flex;gap:12px;align-items:center;}
+  .fieldsvg{width:110px;height:92px;flex-shrink:0;}
+  .fieldtxt{font-size:12px;color:var(--ink2);line-height:1.7;}
+  .fieldtxt b{color:var(--accent);font-weight:900;}
+
+  .pt{display:grid;grid-template-columns:26px 1fr auto;gap:10px;align-items:center;
+    padding:7px 14px;border-top:1px dashed var(--line);}
+  .pt-n{width:24px;height:24px;line-height:21px;text-align:center;
+    font-family:'DotGothic16',monospace;font-size:12px;border-radius:50%;
+    background:var(--panel2);border:2px solid var(--line2);color:var(--accent);}
+  .pt-n.k-ball{border-color:#40C057;color:#2B8A3E;}
+  .pt-n.k-strike{border-color:#FAB005;color:#E67700;}
+  .pt-n.k-hit{border-color:var(--accent);background:var(--accent);color:#fff;}
+  .pt-n.k-out{border-color:#1C7ED6;color:#1C7ED6;}
   .pt-t{font-size:14px;font-weight:700;}
   .pt-s{font-family:'DotGothic16',monospace;color:var(--accent);font-size:14px;}
   .pt-c{font-size:11px;color:var(--muted);}
   .pt-r{font-size:12.5px;text-align:right;color:var(--ink2);font-weight:700;}
-  .pt-r.hit{color:var(--hit);}
-  .pt-r.out{color:var(--out);}
+  .pt-r.hit{color:var(--hit);} .pt-r.out{color:var(--out);}
 
-  .msg{
-    margin-top:16px;padding:30px 14px;text-align:center;
+  .msg{margin-top:16px;padding:30px 14px;text-align:center;
     border:2px dashed var(--line2);border-radius:12px;
-    color:var(--muted);font-size:14px;line-height:2;
-  }
+    color:var(--muted);font-size:14px;line-height:2;}
   .foot{margin-top:22px;font-size:11.5px;color:var(--muted);line-height:1.9;
     border-top:2px solid var(--line);padding-top:12px;}
-  @media(max-width:520px){
+  @media(max-width:560px){
     .games{grid-template-columns:1fr;}
+    .ab-h{grid-template-columns:1fr;}
+    .situ{margin-top:6px;}
     .pt{grid-template-columns:24px 1fr;}
     .pt-r{grid-column:2;text-align:left;padding-top:2px;}
   }
@@ -219,10 +169,7 @@
 <body>
   <div class="hero">
     <div class="hero-in">
-      <div>
-        <h1>NPB SCOREBOARD</h1>
-        <p>PITCH BY PITCH DATA</p>
-      </div>
+      <div><h1>NPB SCOREBOARD</h1><p>PITCH BY PITCH DATA</p></div>
       <button class="theme-btn" id="tb" onclick="toggleTheme()" title="ライト／ダーク切替">◐</button>
     </div>
   </div>
@@ -236,13 +183,11 @@
         <button class="btn" onclick="shift(1)">翌日 ▶</button>
       </div>
     </div>
-
     <div id="games" class="games"></div>
     <div id="detail"></div>
-
     <div class="foot">
-      ▸ データは毎晩 JST 23時台に自動収集。過去の日付は GitHub Actions の「Run workflow」で収集できます。<br>
-      ▸ コース表記は配球図の座標を5×5に近似した目安です。
+      ▸ データは毎晩 JST 23時台に自動収集。過去の日付は Actions の「Run workflow」で収集できます。<br>
+      ▸ 得点・カウントは打席データからの推定値です。コースは配球図座標の近似です。
     </div>
   </div>
 
@@ -252,39 +197,32 @@
       detailEl=document.getElementById("detail"),
       curGame=null;
 
-  /* ---- テーマ ---- */
   function applyTheme(t){
     if(t==="dark") document.documentElement.setAttribute("data-theme","dark");
     else document.documentElement.removeAttribute("data-theme");
-    document.getElementById("tb").textContent = (t==="dark") ? "☀" : "☾";
+    document.getElementById("tb").textContent=(t==="dark")?"☀":"☾";
     try{localStorage.setItem("npbTheme",t);}catch(e){}
   }
   function toggleTheme(){
-    var cur=document.documentElement.getAttribute("data-theme")==="dark"?"dark":"light";
-    applyTheme(cur==="dark"?"light":"dark");
+    var c=document.documentElement.getAttribute("data-theme")==="dark"?"dark":"light";
+    applyTheme(c==="dark"?"light":"dark");
   }
-  (function(){
-    var t="light";
-    try{t=localStorage.getItem("npbTheme")||"light";}catch(e){}
-    applyTheme(t);
-  })();
+  (function(){var t="light";try{t=localStorage.getItem("npbTheme")||"light";}catch(e){}applyTheme(t);})();
 
-  /* ---- ユーティリティ ---- */
   function todayJST(){return new Date(Date.now()+9*3600*1000).toISOString().slice(0,10);}
   function sumPath(d){var p=d.split("-");return "data/"+p[0]+"/"+p[1]+"/"+p[2]+"/_summary.json";}
   function gamePath(d,g){var p=d.split("-");return "data/"+p[0]+"/"+p[1]+"/"+p[2]+"/"+g+".json";}
   function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;");}
   function rcls(r){
     if(!r) return "";
-    if(/本塁打|安打|二塁打|三塁打|適時|四球|死球/.test(r)) return "hit";
-    if(/三振|ゴロ|フライ|併殺|邪飛|直|飛|犠/.test(r)) return "out";
+    if(/本塁打|安打|塁打|適時|四球|死球|安$|本$|２$|2$/.test(r)) return "hit";
+    if(/三振|ゴロ|フライ|併殺|邪飛|直|飛$|犠/.test(r)) return "out";
     return "";
   }
 
-  /* ---- 得点をイニング別に集計してスコアボードを作る ---- */
+  /* スコアボード */
   function buildBoard(g){
-    var maxInn=1,i;
-    var away={},home={};
+    var maxInn=1,i,away={},home={};
     (g.atbats||[]).forEach(function(ab){
       if(ab.inning>maxInn) maxInn=ab.inning;
       var m=/＋(\d+)点/.exec(ab.result_summary||"");
@@ -295,16 +233,12 @@
     if(maxInn<9) maxInn=9;
     var ta=0,th=0;
     for(i=1;i<=maxInn;i++){ta+=(away[i]||0);th+=(home[i]||0);}
-
     var h='<div class="board"><table class="sb"><thead><tr><th class="team"></th>';
     for(i=1;i<=maxInn;i++) h+='<th>'+i+'</th>';
     h+='<th>計</th></tr></thead><tbody>';
     [[g.away,away,ta],[g.home,home,th]].forEach(function(row){
       h+='<tr><td class="team">'+esc(row[0]||"-")+'</td>';
-      for(i=1;i<=maxInn;i++){
-        var v=row[1][i];
-        h+='<td>'+(v==null?"-":v)+'</td>';
-      }
+      for(i=1;i<=maxInn;i++){var v=row[1][i];h+='<td>'+(v==null?"-":v)+'</td>';}
       var win=(row[2]===Math.max(ta,th)&&ta!==th);
       h+='<td class="total'+(win?" win":"")+'">'+row[2]+'</td></tr>';
     });
@@ -314,7 +248,45 @@
     return h;
   }
 
-  /* ---- 日付のデータ読み込み ---- */
+  /* ダイヤモンド＋カウント */
+  function buildSitu(ab){
+    var r=ab.runners||{},c=ab.count||{};
+    var h='<div class="situ"><div class="dia">'+
+      '<div class="bs b2'+(r.second?" on":"")+'"></div>'+
+      '<div class="bs b3'+(r.third?" on":"")+'"></div>'+
+      '<div class="bs b1'+(r.first?" on":"")+'"></div>'+
+      '<div class="bs home"></div></div><div class="cnt">';
+    var rows=[["B",c.ball||0,3,"b"],["S",c.strike||0,2,"s"]];
+    rows.forEach(function(x){
+      h+='<div class="row"><span class="k">'+x[0]+'</span>';
+      for(var i=0;i<x[2];i++){
+        h+='<span class="dotc '+(i<x[1]?x[3]:"")+'"></span>';
+      }
+      h+='</div>';
+    });
+    h+='</div></div>';
+    return h;
+  }
+
+  /* 打球方向フィールド図 */
+  function buildField(ab){
+    var d=ab.hit_direction||{};
+    if(!d.dir) return "";
+    var x=d.x,y=d.y;
+    // SVG座標に変換（viewBox 0 0 100 84、ホームは(50,76)）
+    var hx=50,hy=76;
+    var s='<div class="fieldbox"><svg class="fieldsvg" viewBox="0 0 100 84">'+
+      '<path d="M50 78 L4 32 A62 62 0 0 1 96 32 Z" fill="var(--field)" opacity=".5"/>'+
+      '<path d="M50 78 L26 54 A34 34 0 0 1 74 54 Z" fill="var(--dirt)" opacity=".55"/>'+
+      '<polygon points="50,74 62,62 50,50 38,62" fill="none" stroke="var(--field2)" stroke-width="1.6"/>'+
+      '<line x1="'+hx+'" y1="'+hy+'" x2="'+x+'" y2="'+y+'" stroke="var(--accent)" stroke-width="2.4" stroke-linecap="round"/>'+
+      '<circle cx="'+x+'" cy="'+y+'" r="4.5" fill="var(--accent)"/>'+
+      '<circle cx="'+hx+'" cy="'+hy+'" r="2.6" fill="var(--ink)"/>'+
+      '</svg><div class="fieldtxt">打球方向<br><b>'+esc(d.dir_name||"")+'</b>方向<br>'+
+      '<span style="font-size:11px;color:var(--muted)">'+esc(ab.result_summary||"")+'</span></div></div>';
+    return s;
+  }
+
   async function loadDay(){
     var d=dp.value;
     gamesEl.innerHTML='<div class="msg">読み込み中…</div>';
@@ -339,10 +311,9 @@
     }
   }
 
-  /* ---- 試合詳細 ---- */
   async function loadGame(d,gid,el){
-    var list=document.querySelectorAll(".game"),i;
-    for(i=0;i<list.length;i++) list[i].classList.remove("on");
+    var l=document.querySelectorAll(".game"),i;
+    for(i=0;i<l.length;i++) l[i].classList.remove("on");
     if(el) el.classList.add("on");
     detailEl.innerHTML='<div class="msg">読み込み中…</div>';
     try{
@@ -355,74 +326,72 @@
     }
   }
 
-  /* ---- 描画（フィルタ対応） ---- */
   function render(){
-    var g=curGame;
-    if(!g) return;
-    var fv=document.getElementById("flt")?document.getElementById("flt").value:"all";
+    var g=curGame;if(!g) return;
+    var fe=document.getElementById("flt");
+    var fv=fe?fe.value:"all";
 
     var h=buildBoard(g);
-    h+='<div class="toolbar">'+
-       '<span class="lb">表示</span>'+
+    h+='<div class="toolbar"><span class="lb">表示</span>'+
        '<select id="flt" onchange="render()">'+
          '<option value="all">全打席</option>'+
          '<option value="'+esc(g.away)+'">'+esc(g.away)+' の攻撃</option>'+
          '<option value="'+esc(g.home)+'">'+esc(g.home)+' の攻撃</option>'+
          '<option value="score">得点した打席</option>'+
+         '<option value="hit">安打・本塁打</option>'+
        '</select>'+
        '<button class="btn" onclick="toggleAll(true)">全部ひらく</button>'+
-       '<button class="btn" onclick="toggleAll(false)">全部とじる</button>'+
-       '</div>';
+       '<button class="btn" onclick="toggleAll(false)">全部とじる</button></div>';
 
-    // イニングごとにまとめる
     var groups={},order=[];
     (g.atbats||[]).forEach(function(ab){
-      if(fv==="score" && !/＋\d+点/.test(ab.result_summary||"")) return;
-      if(fv!=="all" && fv!=="score" && ab.batting_team!==fv) return;
+      var rs=ab.result_summary||"";
+      if(fv==="score" && !/＋\d+点/.test(rs)) return;
+      if(fv==="hit" && !/安打|本塁打|塁打/.test(rs)) return;
+      if(fv!=="all"&&fv!=="score"&&fv!=="hit"&&ab.batting_team!==fv) return;
       var k=ab.inning+"-"+ab.top_bottom;
       if(!groups[k]){groups[k]=[];order.push(k);}
       groups[k].push(ab);
     });
 
     if(!order.length){
-      h+='<div class="msg">該当する打席がありません</div>';
-      detailEl.innerHTML=h;
+      detailEl.innerHTML=h+'<div class="msg">該当する打席がありません</div>';
+      var s0=document.getElementById("flt");if(s0)s0.value=fv;
       return;
     }
 
     order.forEach(function(k,gi){
-      var abs=groups[k],first=abs[0];
-      var pts=0;
+      var abs=groups[k],first=abs[0],pts=0,np=0;
       abs.forEach(function(a){
         var m=/＋(\d+)点/.exec(a.result_summary||"");
         if(m) pts+=parseInt(m[1],10);
+        np+=(a.pitch_count||0);
       });
-      var np=0;abs.forEach(function(a){np+=(a.pitch_count||0);});
       h+='<div class="inn'+(gi<2?' open':'')+'">'+
         '<div class="inn-h" onclick="this.parentNode.classList.toggle(\'open\')">'+
           '<div><span class="inn-t">'+first.inning+'回'+first.top_bottom+'</span> '+
           '<span class="inn-m">'+esc(first.batting_team||"")+' の攻撃</span></div>'+
           '<div><span class="inn-m">'+abs.length+'打席 / '+np+'球'+
-            (pts?' <b style="color:var(--accent)">'+pts+'点</b>':'')+'</span> '+
-          '<span class="caret">▶</span></div>'+
-        '</div><div class="inn-b">';
+          (pts?' <b style="color:var(--accent)">'+pts+'点</b>':'')+'</span> '+
+          '<span class="caret">▶</span></div></div><div class="inn-b">';
 
       abs.forEach(function(ab){
-        var b=ab.batter||{},p=ab.pitcher||{};
-        h+='<div class="ab"><div class="ab-h">'+
-          '<div class="ab-p">'+
-            '<span class="lbl">打者</span> <b>'+esc(b.name||"-")+'</b> '+
-            '<span class="no">'+(b.number?"#"+b.number:"")+'</span> '+
-            '<span class="lbl">'+esc(b.hand||"")+'</span><br>'+
-            '<span class="lbl">投手</span> <b>'+esc(p.name||"-")+'</b> '+
-            '<span class="no">'+(p.number?"#"+p.number:"")+'</span> '+
-            '<span class="lbl">'+esc(p.hand||"")+'</span>'+
-          '</div>'+
+        var b=ab.batter||{},p=ab.pitcher||{},r=ab.runners||{};
+        h+='<div class="ab"><div class="ab-h"><div class="ab-p">'+
+          '<span class="lbl">打者</span> <b>'+esc(b.name||"-")+'</b> '+
+          '<span class="no">'+(b.number?"#"+b.number:"")+'</span> '+
+          '<span class="lbl">'+esc(b.hand||"")+'</span><br>'+
+          '<span class="lbl">投手</span> <b>'+esc(p.name||"-")+'</b> '+
+          '<span class="no">'+(p.number?"#"+p.number:"")+'</span> '+
+          '<span class="lbl">'+esc(p.hand||"")+'</span><br>'+
+          '<span class="lbl">走者</span> <span style="font-size:12px">'+esc(r.label||"-")+'</span><br>'+
           '<span class="res '+rcls(ab.result_summary)+'">'+esc(ab.result_summary||"")+'</span>'+
-        '</div>';
+          '</div>'+buildSitu(ab)+'</div>';
+        h+=buildField(ab);
         (ab.pitches||[]).forEach(function(pt){
           var c=(pt.course&&pt.course.label)?pt.course.label:"-";
-          h+='<div class="pt"><div class="pt-n">'+(pt.no==null?"":pt.no)+'</div>'+
+          var kc=pt.kind?(" k-"+pt.kind):"";
+          h+='<div class="pt"><div class="pt-n'+kc+'">'+(pt.no==null?"":pt.no)+'</div>'+
             '<div><span class="pt-t">'+esc(pt.type||"")+'</span> '+
             '<span class="pt-s">'+(pt.speed_kmh?pt.speed_kmh+"km/h":"")+'</span>'+
             '<div class="pt-c">'+esc(c)+'</div></div>'+
@@ -434,18 +403,15 @@
     });
 
     detailEl.innerHTML=h;
-    var sel=document.getElementById("flt");
-    if(sel) sel.value=fv;
+    var sel=document.getElementById("flt");if(sel) sel.value=fv;
   }
 
   function toggleAll(open){
     var l=document.querySelectorAll(".inn"),i;
     for(i=0;i<l.length;i++){
-      if(open) l[i].classList.add("open");
-      else l[i].classList.remove("open");
+      if(open) l[i].classList.add("open"); else l[i].classList.remove("open");
     }
   }
-
   function shift(n){
     var t=new Date(dp.value+"T00:00:00");
     t.setDate(t.getDate()+n);

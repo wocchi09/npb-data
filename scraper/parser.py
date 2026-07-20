@@ -60,6 +60,115 @@ def _parse_players(soup):
     return players
 
 
+def _parse_runners(html: str) -> dict:
+    """
+    ランナー状況を取得する。
+    <div id="base" class="b000"> の3桁が [一塁, 二塁, 三塁] に対応。
+    b000=無走者 / b100=一塁 / b110=一二塁 / b111=満塁 …
+    """
+    import re as _re
+    m = _re.search(r'id="base" class="b(\d)(\d)(\d)"', html)
+    if not m:
+        return {"first": False, "second": False, "third": False, "code": None, "label": None}
+    first = m.group(1) == "1"
+    second = m.group(2) == "1"
+    third = m.group(3) == "1"
+
+    on = []
+    if first:
+        on.append("一塁")
+    if second:
+        on.append("二塁")
+    if third:
+        on.append("三塁")
+    label = "・".join(on) if on else "走者なし"
+    if first and second and third:
+        label = "満塁"
+
+    return {
+        "first": first, "second": second, "third": third,
+        "code": f"b{m.group(1)}{m.group(2)}{m.group(3)}",
+        "label": label,
+    }
+
+
+# ボール種別クラス → 意味
+# 実データ（40打席）の検証結果に基づく対応
+_BALL_KIND = {
+    "ball1": "strike",   # ファウル・見逃し・空振り（ストライク系）
+    "ball2": "ball",     # ボール
+    "ball3": "out",      # 打って凡退（ゴロ・フライ）
+    "ball4": "hit",      # 打って安打・本塁打
+    "ball5": "bunt",     # 犠打など
+}
+
+
+def _parse_ball_kinds(html: str) -> list[str]:
+    """各投球のボール種別クラス（ball1〜ball5）を出現順に返す"""
+    import re as _re
+    return _re.findall(r"bb-icon__ballCircle--(\w+)", html)
+
+
+def _count_bso(pitches: list[dict]) -> dict:
+    """
+    投球結果テキストから、打席終了時点のボール・ストライクカウントを数える。
+    ストライクは2つまで（3つ目は三振で打席終了）というルールを反映。
+    """
+    b = s = 0
+    for p in pitches:
+        r = p.get("result") or ""
+        if not r:
+            continue
+        if "ボール" in r or "四球" in r:
+            b = min(4, b + 1)
+        elif "ファウル" in r:
+            s = min(2, s + 1)  # ファウルは2ストライクまで
+        elif "見逃し" in r or "空振り" in r or "ストライク" in r:
+            s = min(3, s + 1)
+    return {"ball": min(b, 3), "strike": min(s, 2)}
+
+
+# 打球方向（結果テキストの先頭文字から判定するのが最も確実）
+_DIRECTION = {
+    "投": "ピッチャー", "捕": "キャッチャー", "一": "ファースト",
+    "二": "セカンド", "三": "サード", "遊": "ショート",
+    "左": "レフト", "中": "センター", "右": "ライト",
+}
+# 描画用のおおよその座標（0-100の相対位置。中央下がホーム）
+_DIR_POS = {
+    "投": (50, 58), "捕": (50, 88), "一": (68, 62), "二": (60, 46),
+    "三": (32, 62), "遊": (40, 46), "左": (22, 24), "中": (50, 14),
+    "右": (78, 24),
+}
+
+
+def _parse_hit_direction(result_summary: str | None, html: str) -> dict:
+    """
+    打球方向を判定する。
+    結果テキストの先頭（遊ゴロ→遊、中安打→中）が最も確実なので、それを主に使う。
+    dakyuコードは参考情報として一緒に保存する。
+    """
+    import re as _re
+    dm = _re.search(r'id="dakyu" class="(\w+)"', html)
+    dakyu = dm.group(1) if dm else None
+
+    if not result_summary:
+        return {"dir": None, "dir_name": None, "x": None, "y": None, "dakyu": dakyu}
+
+    head = result_summary[0]
+    if head not in _DIRECTION:
+        # 「空振り三振」「四球」など打球が無いケース
+        return {"dir": None, "dir_name": None, "x": None, "y": None, "dakyu": dakyu}
+
+    x, y = _DIR_POS[head]
+    return {
+        "dir": head,
+        "dir_name": _DIRECTION[head],
+        "x": x, "y": y,
+        "dakyu": dakyu,
+    }
+
+
 def parse_atbat(html: str, index: str) -> dict:
     """1打席ぶんのHTMLをパースして辞書で返す"""
     soup = BeautifulSoup(html, "html.parser")
@@ -117,11 +226,16 @@ def parse_atbat(html: str, index: str) -> dict:
         if c:
             p["course"] = c
 
+    # --- 各投球にボール種別（ストライク/ボール/打球）を紐付け ---
+    kinds = _parse_ball_kinds(html)
+    for i, p in enumerate(pitches):
+        if i < len(kinds):
+            p["kind"] = _BALL_KIND.get(kinds[i], kinds[i])
+
     players = _parse_players(soup)
     is_top = len(index) >= 3 and index[2] == "1"
 
     # 打席が存在するかの判定
-    # 「試合前」表示や、打者名が取れない場合は無効な打席
     valid = bool(players["batter"] and players["batter"].get("name"))
     if result_summary and "試合前" in result_summary:
         valid = False
@@ -134,6 +248,9 @@ def parse_atbat(html: str, index: str) -> dict:
         "valid": valid,
         "batter": players["batter"],
         "pitcher": players["pitcher"],
+        "runners": _parse_runners(html),
+        "count": _count_bso(pitches),
+        "hit_direction": _parse_hit_direction(result_summary, html),
         "result_summary": result_summary,
         "result_detail": result_detail,
         "pitch_count": len(pitches),
