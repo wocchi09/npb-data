@@ -1,0 +1,168 @@
+name: Probe Codes
+
+# ランナー状況(b***)・打球方向(dakyu**)・ボール種別(--ballN)の
+# コード対応表を作るための調査ワークフロー
+
+on:
+  workflow_dispatch:
+    inputs:
+      game_id:
+        description: "調査する試合ID"
+        required: false
+        default: "2021039164"
+      max_atbats:
+        description: "調べる打席数の上限"
+        required: false
+        default: "40"
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install requests beautifulsoup4
+
+      - name: Probe codes
+        run: |
+          python - <<'PYEOF'
+          import re, time, requests
+          from collections import Counter, defaultdict
+
+          GID = "${{ github.event.inputs.game_id }}" or "2021039164"
+          MAXAB = int("${{ github.event.inputs.max_atbats }}" or "40")
+          BASE = "https://baseball.yahoo.co.jp"
+          H = {"User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"}
+
+          def get(url):
+              time.sleep(1.3)
+              r = requests.get(url, headers=H, timeout=30)
+              return r.text
+
+          rows = []
+          base_counter = Counter()
+          dakyu_counter = Counter()
+          ball_counter = Counter()
+          # 「結果テキスト」と「コード」の対応を集める
+          dakyu_map = defaultdict(Counter)
+          base_map = defaultdict(Counter)
+          ball_map = defaultdict(Counter)
+
+          count = 0
+          stop = False
+          for inning in range(1, 10):
+              if stop: break
+              for tb in (1, 2):
+                  if stop: break
+                  for order in range(1, 12):
+                      idx = f"{inning:02d}{tb}{order:02d}00"
+                      html = get(f"{BASE}/npb/game/{GID}/score?index={idx}")
+
+                      # 打者名（無ければ打席なし）
+                      bi = html.find("<em>打者</em>")
+                      if bi < 0:
+                          break
+                      nm = re.search(r'alt="([^"]+)"', html[bi:bi+900])
+                      batter = nm.group(1).strip() if nm else None
+                      if not batter:
+                          break
+
+                      # 結果
+                      rs = re.search(r'<div id="result">\s*<span[^>]*>([^<]*)</span>\s*(?:<em>([^<]*)</em>)?', html)
+                      result = rs.group(1).strip() if rs else ""
+                      detail = (rs.group(2) or "").strip() if rs else ""
+                      if "試合前" in result:
+                          break
+
+                      # コード抽出
+                  
+b = re.search(r'id="base" class="(\w+)"', html)
+                      d = re.search(r'id="dakyu" class="(\w+)"', html)
+                      bcode = b.group(1) if b else "-"
+                      dcode = d.group(1) if d else "-"
+
+                      # ボール種別クラス（1球ごと）
+                      balls = re.findall(r'bb-icon__ballCircle--(\w+)', html)
+                      # 投球結果テキスト（球種テーブル）
+                      results = re.findall(r'bb-splitsTable__data--result[^>]*>([^<]*)<', html)
+
+                      base_counter[bcode] += 1
+                      dakyu_counter[dcode] += 1
+                      for x in balls: ball_counter[x] += 1
+
+                      dakyu_map[dcode][result] += 1
+                      base_map[bcode][result] += 1
+                      # 各球のクラスと結果テキストを対応づけ（順番が同じ想定）
+                      uniq_balls = []
+                      seen = set()
+                      for x in balls:
+                          if x not in seen:
+                              seen.add(x)
+                      for cls, res in zip(balls, results):
+                          ball_map[cls][res.strip()] += 1
+
+                      rows.append({
+                          "idx": idx, "batter": batter, "result": result,
+                          "detail": detail[:40], "base": bcode, "dakyu": dcode,
+                          "balls": ",".join(balls[:12]),
+                          "presults": " / ".join(r.strip() for r in results[:12]),
+                      })
+                      count += 1
+                      if count >= MAXAB:
+                          stop = True
+                          break
+
+          L = ["# コード解読プローブ", "", f"- 試合ID: {GID}", f"- 収集打席数: {len(rows)}", ""]
+
+          L.append("## 1. ランナー状況コード（base）")
+          L.append("")
+          L.append("| コード | 出現数 | よく出る結果 |")
+          L.append("|---|---|---|")
+          for code, n in base_counter.most_common():
+              top = ", ".join(f"{k}({v})" for k, v in base_map[code].most_common(3))
+              L.append(f"| `{code}` | {n} | {top} |")
+
+          L.append("")
+          L.append("## 2. 打球方向コード（dakyu）")
+          L.append("")
+          L.append("| コード | 出現数 | よく出る結果 |")
+          L.append("|---|---|---|")
+          for code, n in dakyu_counter.most_common():
+              top = ", ".join(f"{k}({v})" for k, v in dakyu_map[code].most_common(4))
+              L.append(f"| `{code}` | {n} | {top} |")
+
+          L.append("")
+          L.append("## 3. ボール種別クラス（ballCircle--X）")
+          L.append("")
+          L.append("| クラス | 出現数 | 対応する投球結果 |")
+          L.append("|---|---|---|")
+          for code, n in ball_counter.most_common():
+              top = ", ".join(f"{k}({v})" for k, v in ball_map[code].most_common(5))
+              L.append(f"| `{code}` | {n} | {top} |")
+
+          L.append("")
+          L.append("## 4. 打席ごとの生データ")
+          L.append("")
+          L.append("| index | 打者 | 結果 | base | dakyu | ボールクラス列 |")
+          L.append("|---|---|---|---|---|---|")
+          for r in rows:
+              L.append(f"| {r['idx']} | {r['batter']} | {r['result']} | `{r['base']}` | `{r['dakyu']}` | {r['balls']} |")
+
+          open("probe_codes.md","w",encoding="utf-8").write("\n".join(L))
+          print("\n".join(L[:60]))
+          PYEOF
+
+      - name: Commit report
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add probe_codes.md
+          git diff --cached --quiet || git commit -m "probe: code mapping report"
+          git pull --rebase origin main
+          git push
