@@ -64,6 +64,15 @@
   .game:hover{border-color:var(--accent);transform:translateY(-2px);}
   .game.on{border-color:var(--accent);background:var(--panel2);}
   .gcard{font-size:17px;font-weight:900;}
+  .gscore{font-size:19px;font-weight:900;display:flex;align-items:baseline;
+    gap:7px;flex-wrap:wrap;}
+  .gscore .w{color:var(--accent);}
+  .gscore .dash{color:var(--muted);font-size:15px;}
+  .gscore .gstate{font-size:10.5px;color:var(--muted);font-weight:500;
+    border:1px solid var(--line2);border-radius:20px;padding:1px 7px;margin-left:2px;}
+  .gpit{font-size:12px;color:var(--ink2);margin-top:5px;}
+  .gpit b{color:var(--accent);font-weight:900;font-size:11px;}
+  .ghr{font-size:11.5px;color:var(--muted);margin-top:3px;}
   .gmeta{font-size:11.5px;color:var(--muted);margin-top:4px;}
 
   .board{background:var(--board-bg);border-radius:12px;padding:12px;
@@ -399,8 +408,35 @@
       s.games.forEach(function(g){
         var el=document.createElement("div");
         el.className="game";
-        el.innerHTML='<div class="gcard">'+esc(g.card||("GAME "+g.game_id))+'</div>'+
-          '<div class="gmeta">'+g.atbat_count+' 打席 ／ '+g.pitch_count+' 球</div>';
+        var res=g.result||{};
+        var h='';
+        // スコア行（略称＋得点）
+        if(res.home_score!=null&&res.away_score!=null){
+          var hw=res.home_score>res.away_score, aw=res.away_score>res.home_score;
+          h+='<div class="gscore">'+
+            '<span class="'+(hw?"w":"")+'">'+esc(res.home_mini||res.home||"")+' '+res.home_score+'</span>'+
+            '<span class="dash">-</span>'+
+            '<span class="'+(aw?"w":"")+'">'+res.away_score+' '+esc(res.away_mini||res.away||"")+'</span>'+
+            (res.state?'<span class="gstate">'+esc(res.state)+'</span>':'')+
+            '</div>';
+        }else{
+          h+='<div class="gcard">'+esc(g.card||("GAME "+g.game_id))+'</div>';
+        }
+        // 責任投手
+        var pit=[];
+        if(res.win_pitcher) pit.push('<b>勝</b> '+esc(res.win_pitcher));
+        if(res.lose_pitcher) pit.push('<b>敗</b> '+esc(res.lose_pitcher));
+        if(res.save_pitcher) pit.push('<b>S</b> '+esc(res.save_pitcher));
+        if(pit.length) h+='<div class="gpit">'+pit.join('　')+'</div>';
+        // 本塁打
+        if(res.homeruns&&res.homeruns.length){
+          var hr=res.homeruns.map(function(x){
+            return esc(x.batter)+(x.number?" "+x.number+"号":"");
+          }).join('、');
+          h+='<div class="ghr">本塁打 '+hr+'</div>';
+        }
+        h+='<div class="gmeta">'+g.atbat_count+' 打席 ／ '+g.pitch_count+' 球</div>';
+        el.innerHTML=h;
         el.onclick=function(){loadGame(d,g.game_id,el);};
         gamesEl.appendChild(el);
       });

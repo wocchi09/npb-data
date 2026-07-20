@@ -22,7 +22,10 @@ from datetime import datetime, timedelta, timezone
 
 import requests
 
-from parser import parse_atbat, extract_atbat_indexes, parse_teams
+from parser import (
+    parse_atbat, extract_atbat_indexes, parse_teams,
+    parse_score_list, parse_homeruns, parse_battery,
+)
 
 JST = timezone(timedelta(hours=9))
 BASE = "https://baseball.yahoo.co.jp"
@@ -174,6 +177,22 @@ def collect_game(game_id: str, expected_date: datetime | None = None) -> dict:
             if empty_innings >= 2:
                 break
 
+    # 試合結果まとめ（スコア・勝敗投手・セーブ・本塁打・バッテリー）
+    # 起点ページに載っている「その日の日程・結果」から自分の試合を探す
+    result_info = {}
+    try:
+        all_games = parse_score_list(html)
+        for gg in all_games:
+            if gg["game_id"] == game_id or (
+                gg["home"] == teams["home"] and gg["away"] == teams["away"]
+            ):
+                result_info = gg
+                break
+        result_info["homeruns"] = parse_homeruns(html)
+        result_info["battery"] = parse_battery(html)
+    except Exception as e:
+        print(f"[WARN] 試合結果の取得に失敗: {e}")
+
     total_pitches = sum(a["pitch_count"] for a in atbats)
     print(f"[INFO] 試合{game_id}: {len(atbats)}打席 / {total_pitches}球")
 
@@ -193,6 +212,7 @@ def collect_game(game_id: str, expected_date: datetime | None = None) -> dict:
         "home_full": teams["home_full"],
         "card": card,
         "final_score": final_score,
+        "result": result_info,
         "atbat_count": len(atbats),
         "pitch_count": total_pitches,
         "atbats": atbats,
@@ -220,6 +240,7 @@ def save_summary(date: datetime, results: list[dict]) -> str:
             {"game_id": r["game_id"],
              "away": r.get("away"), "home": r.get("home"),
              "card": r.get("card"),
+             "result": r.get("result", {}),
              "atbat_count": r.get("atbat_count", 0),
              "pitch_count": r.get("pitch_count", 0)}
             for r in results

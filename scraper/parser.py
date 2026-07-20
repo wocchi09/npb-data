@@ -109,6 +109,118 @@ def _parse_ball_kinds(html: str) -> list[str]:
     return _re.findall(r"bb-icon__ballCircle--(\w+)", html)
 
 
+# チーム名 → 1文字略称
+TEAM_MINI = {
+    "日本ハム": "日", "楽天": "楽", "西武": "西", "ロッテ": "ロ",
+    "オリックス": "オ", "ソフトバンク": "ソ", "巨人": "巨",
+    "ヤクルト": "ヤ", "DeNA": "De", "中日": "中", "阪神": "神", "広島": "広",
+}
+
+
+def parse_score_list(html: str) -> list[dict]:
+    """
+    試合ページ内の「その日の日程・結果」一覧から、
+    全試合のスコア・勝敗投手・セーブを取得する。
+
+    1ページで6試合ぶん取れるので、日別サマリの作成に使える。
+    """
+    soup = BeautifulSoup(html, "html.parser")
+    games = []
+    for it in soup.select("li.bb-scoreList__item"):
+        hn = it.select_one(".bb-scoreList__home .bb-scoreList__teamName")
+        an = it.select_one(".bb-scoreList__away .bb-scoreList__teamName")
+        hs = it.select_one(".bb-scoreList__homeScore")
+        as_ = it.select_one(".bb-scoreList__awayScore")
+        st = it.select_one(".bb-scoreList__state")
+
+        home = hn.get_text(strip=True) if hn else None
+        away = an.get_text(strip=True) if an else None
+        if not home or not away:
+            continue
+
+        def pitchers(sel):
+            out = {}
+            for x in it.select(sel + " .bb-scoreList__player"):
+                t = x.get_text(strip=True)
+                m = re.match(r"[（(]([^）)]+)[）)](.+)", t)
+                if not m:
+                    continue
+                mark, name = m.group(1), m.group(2).strip()
+                if "勝" in mark:
+                    out["win"] = name
+                elif "敗" in mark:
+                    out["lose"] = name
+                elif "Ｓ" in mark or "S" in mark:
+                    out["save"] = name
+            return out
+
+        hp = pitchers(".bb-scoreList__homePlayer")
+        ap = pitchers(".bb-scoreList__awayPlayer")
+
+        gid = None
+        if st and st.get("href"):
+            gm = re.search(r"/npb/game/(\d+)/", st["href"])
+            gid = gm.group(1) if gm else None
+
+        merged = {}
+        merged.update(hp)
+        merged.update(ap)
+
+        games.append({
+            "game_id": gid,
+            "home": home,
+            "away": away,
+            "home_mini": TEAM_MINI.get(home, home),
+            "away_mini": TEAM_MINI.get(away, away),
+            "home_score": int(hs.get_text(strip=True)) if hs and hs.get_text(strip=True).isdigit() else None,
+            "away_score": int(as_.get_text(strip=True)) if as_ and as_.get_text(strip=True).isdigit() else None,
+            "state": st.get_text(strip=True) if st else None,
+            "win_pitcher": merged.get("win"),
+            "lose_pitcher": merged.get("lose"),
+            "save_pitcher": merged.get("save"),
+        })
+    return games
+
+
+def parse_homeruns(html: str) -> list[dict]:
+    """
+    試合ページの「本塁打」欄から、打者名・号数・詳細を取得する。
+    例: 「柳田 4号(7回表ソロ) 正木 1号(7回表ソロ)」→ 3本に分解
+
+    ※ th の直後の tbody 内だけを見る（広く探すとベンチ入り選手まで拾うため）
+    """
+    soup = BeautifulSoup(html, "html.parser")
+    out = []
+    for th in soup.select("th.bb-splitsTable__head--homeRun"):
+        tbody = th.find_parent("tbody")
+        if not tbody:
+            continue
+        for td in tbody.select("td.bb-splitsTable__data"):
+            text = " ".join(td.get_text(" ", strip=True).split())
+            # 「名前 N号(詳細)」の繰り返しを個別に切り出す
+            for m in re.finditer(r"([^\s\d]+(?:\s[^\s\d]+)?)\s*(\d+)\s*号\s*[（(]([^）)]*)[）)]", text):
+                out.append({
+                    "batter": m.group(1).strip(),
+                    "number": int(m.group(2)),
+                    "detail": m.group(3),
+                })
+    return out
+
+
+def parse_battery(html: str) -> dict:
+    """バッテリー（投手 - 捕手）を取得する"""
+    soup = BeautifulSoup(html, "html.parser")
+    for th in soup.select("th.bb-splitsTable__head--battery"):
+        table = th.find_parent("tbody") or th.find_parent("table")
+        if not table:
+            continue
+        td = table.select_one("td.bb-splitsTable__data")
+        if td:
+            text = " ".join(td.get_text(" ", strip=True).split())
+            return {"text": text}
+    return {}
+
+
 def _parse_bso(html: str) -> dict | None:
     """
     公式のB/S/Oカウントを取得する。
