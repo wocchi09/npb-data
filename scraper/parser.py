@@ -1,282 +1,196 @@
 """
-NPBデータ収集 - 本実装版
-=========================
-指定日（省略時は今日）の全試合について、一球速報を全打席巡回して収集する。
+スポナビ 一球速報パーサー
+==========================
+1打席ぶんのHTML（.../score?index=RRTBBPP）から
+球種・球速・結果・コース座標を抜き出す。
 
-使い方:
-    python scraper/main.py                     # 今日（JST）
-    python scraper/main.py --date 2026-07-10   # 日付指定
-    python scraper/main.py --game 2021038864   # 特定試合だけ
-
-保存先:
-    data/YYYY/MM/DD/<試合ID>.json   … 試合ごとの詳細（一球速報つき）
-    data/YYYY/MM/DD/_summary.json   … その日の試合一覧
-    data/index.json                 … 収集済みファイル一覧（アプリ用）
+Seleniumは不要。requests + BeautifulSoup だけで動く。
 """
 
-import argparse
-import json
-import os
-import time
-from datetime import datetime, timedelta, timezone
-
-import requests
-
-from parser import parse_atbat, extract_atbat_indexes, parse_teams
-
-JST = timezone(timedelta(hours=9))
-BASE = "https://baseball.yahoo.co.jp"
-HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
-    )
-}
-# 行儀のいいアクセス（サーバー負荷をかけない）
-SLEEP_SEC = 1.5
-# 巡回の上限（延長戦・打者一巡以上に備えた安全弁）
-MAX_INNING = 12
-MAX_BATTERS_PER_INNING = 15
+import re
+from bs4 import BeautifulSoup
 
 
-def fetch(url: str) -> str:
-    """1ページ取得（間隔を空ける）"""
-    time.sleep(SLEEP_SEC)
-    r = requests.get(url, headers=HEADERS, timeout=30)
-    r.raise_for_status()
-    return r.text
+# ゾーン変換用の定数（配球図エリアの実測ピクセル）
+# ballCircle の top/left は 0〜約63px の範囲に分布する。
+# これを 5x5 グリッド（中央3x3がストライクゾーン）に近似変換する。
+_CHART_SIZE = 63.0  # 配球図エリアの一辺(px)の目安
 
 
-def parse_args():
-    p = argparse.ArgumentParser(description="NPB一球速報コレクター")
-    p.add_argument("--date", default=None, help="収集日 YYYY-MM-DD（省略時は今日）")
-    p.add_argument("--game", default=None, help="特定の試合IDだけ収集")
-    return p.parse_args()
-
-
-def resolve_date(s):
-    if s:
-        try:
-            return datetime.strptime(s, "%Y-%m-%d").replace(tzinfo=JST)
-        except ValueError:
-            raise SystemExit(f"[ERROR] 日付形式エラー: {s}（例: 2026-07-10）")
-    return datetime.now(JST)
-
-
-def find_game_ids(date: datetime) -> list[str]:
+def _to_zone(top_px: float | None, left_px: float | None) -> dict:
     """
-    指定日の試合IDを日程ページから取得する。
-    日程ページには他日付・他カテゴリのリンクも含まれるため、
-    「その日のNPB公式戦」に絞り込む。
+    コースのピクセル座標を、人が読める位置情報に変換する。
+    - grid: 5x5マスのどこか（0-4）。中央寄り3x3がおおよそストライクゾーン
+    - label: 高さ(高め/真ん中/低め) × 横(内/中/外) の言葉  ※投手視点の左右
+    座標が無い場合は None を返す。
     """
-    import re
-    date_str = date.strftime("%Y-%m-%d")
-    url = f"{BASE}/npb/schedule/?date={date_str}"
-    try:
-        html = fetch(url)
-    except Exception as e:
-        print(f"[WARN] 日程ページ取得失敗: {e}")
-        return []
+    if top_px is None or left_px is None:
+        return {"grid_row": None, "grid_col": None, "label": None}
 
-    # その日のセクションだけを切り出す（日付アンカー以降）
-    # 取れない場合は全体から拾う
-    ids = re.findall(r"/npb/game/(\d{10})/", html)
+    # 0〜4 の5分割に量子化
+    row = min(4, max(0, int(top_px / (_CHART_SIZE / 5))))   # 0=上(高め)
+    col = min(4, max(0, int(left_px / (_CHART_SIZE / 5))))  # 0=左
 
-    # 重複除去（出現順を保つ）
-    seen = []
-    for i in ids:
-        if i not in seen:
-            seen.append(i)
-
-    print(f"[INFO] {date_str} の試合候補: {len(seen)}件")
-    return seen
+    height = ["高め", "高め", "真ん中", "低め", "低め"][row]
+    side = ["外", "外", "真ん中", "内", "内"][col]
+    label = f"{height}・{side}"
+    return {"grid_row": row, "grid_col": col, "label": label}
 
 
-def clean_day_folder(date: datetime):
-    """
-    収集前に、その日のフォルダを空にする。
-    余分な試合IDで作られた古いファイルが残り続けるのを防ぐ。
-    """
-    import shutil
-    d = os.path.join("data", date.strftime("%Y"), date.strftime("%m"), date.strftime("%d"))
-    if os.path.isdir(d):
-        shutil.rmtree(d)
-        print(f"[INFO] 既存フォルダを初期化: {d}")
+def _parse_players(soup):
+    """打者・投手の名前・選手ID・背番号・投打を取得"""
+    import re as _re
+    players = {"batter": None, "pitcher": None}
+    html = str(soup)
+    for key, label in [("batter", "打者"), ("pitcher", "投手")]:
+        i = html.find(f"<em>{label}</em>")
+        if i < 0:
+            continue
+        block = html[i:i + 900]
+        pid = _re.search(r"/npb/player/(\d+)/", block)
+        name = _re.search(r'alt="([^"]+)"', block)
+        no = _re.search(r'class="playerNo">#?(\d+)</span>', block)
+        hand = _re.search(r'class="dominantHand">([^<]+)<', block)
+        players[key] = {
+            "name": name.group(1).strip() if name else None,
+            "player_id": pid.group(1) if pid else None,
+            "number": no.group(1) if no else None,
+            "hand": hand.group(1).strip() if hand else None,
+        }
+    return players
 
 
-def collect_game(game_id: str, expected_date: datetime | None = None) -> dict:
-    """
-    1試合ぶんを全打席巡回して収集する。
+def parse_atbat(html: str, index: str) -> dict:
+    """1打席ぶんのHTMLをパースして辞書で返す"""
+    soup = BeautifulSoup(html, "html.parser")
 
-    indexの構造: RRTBBPP
-      RR = 回(01-12) / T = 表1・裏2 / BB = 打者番号(01-) / PP = 球(00)
+    # --- 打席結果サマリ ---
+    result_summary = None
+    result_detail = None
+    rdiv = soup.find("div", id="result")
+    if rdiv:
+        span = rdiv.find("span")
+        em = rdiv.find("em")
+        result_summary = span.get_text(strip=True) if span else None
+        result_detail = em.get_text(strip=True) if em else None
 
-    ページ内リンクは各イニングの1打席目しか無いため、
-    打者番号を 01, 02, 03... と自分で進めて全打席を辿る。
-    打者名が取れない or「試合前」が出たらそのイニングは終了。
+    # --- 投球明細（球種・球速・結果） ---
+    pitches = []
+    for tr in soup.find_all("tr"):
+        bt = tr.find("td", class_="bb-splitsTable__data--ballType")
+        if not bt:
+            continue
+        sp = tr.find("td", class_="bb-splitsTable__data--speed")
+        rs = tr.find("td", class_="bb-splitsTable__data--result")
+        num_td = tr.find("td", class_="bb-splitsTable__data")
+        num = num_td.get_text(strip=True) if num_td else ""
+        speed_txt = sp.get_text(strip=True) if sp else ""
+        speed = int(re.sub(r"\D", "", speed_txt)) if re.search(r"\d", speed_txt) else None
+        pitches.append({
+            "no": int(num) if num.isdigit() else None,
+            "type": bt.get_text(strip=True),
+            "speed_kmh": speed,
+            "result": rs.get_text(strip=True) if rs else None,
+        })
 
-    expected_date を渡すと、ページのタイトル日付と照合し、
-    別日の試合なら skip=True を返す（余分な試合IDの除外用）。
-    """
-    start_url = f"{BASE}/npb/game/{game_id}/score"
-    try:
-        html = fetch(start_url)
-    except Exception as e:
-        print(f"[WARN] 試合{game_id}取得失敗: {e}")
-        return {"game_id": game_id, "error": str(e), "skip": True, "atbats": []}
+    # --- コース座標（ballCircle） ---
+    # 同じ番号が複数箇所に出るため、no をキーに最初の1つを採用
+    courses = {}
+    for span in soup.find_all("span", class_="bb-icon__ballCircle"):
+        style = span.get("style", "")
+        top = re.search(r"top:\s*([\d.]+)px", style)
+        left = re.search(r"left:\s*([\d.]+)px", style)
+        numspan = span.find("span", class_="bb-icon__number")
+        no = numspan.get_text(strip=True) if numspan else ""
+        if not no.isdigit():
+            continue
+        no = int(no)
+        if no in courses:
+            continue
+        top_px = float(top.group(1)) if top else None
+        left_px = float(left.group(1)) if left else None
+        courses[no] = {"top_px": top_px, "left_px": left_px, **_to_zone(top_px, left_px)}
 
-    teams = parse_teams(html)
-    card = f"{teams['away'] or '?'} vs {teams['home'] or '?'}"
+    # --- 投球明細にコースを結合 ---
+    for p in pitches:
+        c = courses.get(p["no"])
+        if c:
+            p["course"] = c
 
-    # 日付照合（タイトルの「2026年7月12日」と収集対象日を突き合わせる）
-    if expected_date is not None and teams.get("date_text"):
-        want = f"{expected_date.year}年{expected_date.month}月{expected_date.day}日"
-        if teams["date_text"] != want:
-            print(f"[SKIP] 試合{game_id}: {teams['date_text']} は対象外（{want}を収集中）")
-            return {"game_id": game_id, "skip": True, "card": card, "atbats": []}
+    players = _parse_players(soup)
+    is_top = len(index) >= 3 and index[2] == "1"
 
-    print(f"[INFO] 試合{game_id}: {card} 巡回開始")
-
-    atbats = []
-    empty_innings = 0
-
-    for inning in range(1, MAX_INNING + 1):
-        inning_had_atbat = False
-
-        for tb in (1, 2):  # 1=表, 2=裏
-            for order in range(1, MAX_BATTERS_PER_INNING + 1):
-                idx = f"{inning:02d}{tb}{order:02d}00"
-                url = f"{BASE}/npb/game/{game_id}/score?index={idx}"
-                try:
-                    page = fetch(url)
-                except Exception as e:
-                    print(f"  [{idx}] 取得失敗: {e}")
-                    break
-
-                ab = parse_atbat(page, idx)
-                if not ab["valid"]:
-                    # この打席は存在しない → このイニング(表/裏)は終了
-                    break
-
-                # 攻撃側チームを補完（表=away、裏=home）
-                ab["batting_team"] = teams["away"] if tb == 1 else teams["home"]
-                ab["fielding_team"] = teams["home"] if tb == 1 else teams["away"]
-                atbats.append(ab)
-                inning_had_atbat = True
-
-        if inning_had_atbat:
-            empty_innings = 0
-            print(f"  {inning}回まで: 累計{len(atbats)}打席")
-        else:
-            empty_innings += 1
-            # 2イニング連続で打席が無ければ試合終了とみなす
-            if empty_innings >= 2:
-                break
-
-    total_pitches = sum(a["pitch_count"] for a in atbats)
-    print(f"[INFO] 試合{game_id}: {len(atbats)}打席 / {total_pitches}球")
+    # 打席が存在するかの判定
+    # 「試合前」表示や、打者名が取れない場合は無効な打席
+    valid = bool(players["batter"] and players["batter"].get("name"))
+    if result_summary and "試合前" in result_summary:
+        valid = False
 
     return {
-        "game_id": game_id,
-        "collected_at": datetime.now(JST).isoformat(),
-        "away": teams["away"],
-        "home": teams["home"],
-        "away_full": teams["away_full"],
-        "home_full": teams["home_full"],
-        "card": card,
-        "atbat_count": len(atbats),
-        "pitch_count": total_pitches,
-        "atbats": atbats,
+        "index": index,
+        "inning": int(index[0:2]) if len(index) >= 2 else None,
+        "top_bottom": "表" if is_top else "裏",
+        "order": int(index[3:5]) if len(index) >= 5 else None,
+        "valid": valid,
+        "batter": players["batter"],
+        "pitcher": players["pitcher"],
+        "result_summary": result_summary,
+        "result_detail": result_detail,
+        "pitch_count": len(pitches),
+        "pitches": pitches,
     }
 
 
-def save_game(data: dict, date: datetime) -> str:
-    d = os.path.join("data", date.strftime("%Y"), date.strftime("%m"), date.strftime("%d"))
-    os.makedirs(d, exist_ok=True)
-    path = os.path.join(d, f"{data['game_id']}.json")
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-    return path
+def extract_atbat_indexes(html: str) -> list[str]:
+    """試合ページ内に載っている全打席のindex一覧を取得（重複除去・昇順）"""
+    idxs = sorted(set(re.findall(r"score\?index=(\d+)", html)))
+    return idxs
 
 
-def save_summary(date: datetime, results: list[dict]) -> str:
-    d = os.path.join("data", date.strftime("%Y"), date.strftime("%m"), date.strftime("%d"))
-    os.makedirs(d, exist_ok=True)
-    path = os.path.join(d, "_summary.json")
-    summary = {
-        "date": date.strftime("%Y-%m-%d"),
-        "collected_at": datetime.now(JST).isoformat(),
-        "game_count": len(results),
-        "games": [
-            {"game_id": r["game_id"],
-             "away": r.get("away"), "home": r.get("home"),
-             "card": r.get("card"),
-             "atbat_count": r.get("atbat_count", 0),
-             "pitch_count": r.get("pitch_count", 0)}
-            for r in results
-        ],
+# 正式名称 → 短縮名の対応表
+TEAM_SHORT = {
+    "福岡ソフトバンクホークス": "ソフトバンク",
+    "東北楽天ゴールデンイーグルス": "楽天",
+    "北海道日本ハムファイターズ": "日本ハム",
+    "千葉ロッテマリーンズ": "ロッテ",
+    "埼玉西武ライオンズ": "西武",
+    "オリックス・バファローズ": "オリックス",
+    "読売ジャイアンツ": "巨人",
+    "阪神タイガース": "阪神",
+    "中日ドラゴンズ": "中日",
+    "広島東洋カープ": "広島",
+    "東京ヤクルトスワローズ": "ヤクルト",
+    "横浜DeNAベイスターズ": "DeNA",
+}
+
+
+def parse_teams(html: str) -> dict:
+    """
+    <title>から対戦カードを取得する。
+    例: 「…東北楽天…vs.福岡ソフトバンク… 一球速報 …」
+        → {away:楽天, home:ソフトバンク, ...}
+    先攻(away)＝vsの前、後攻(home)＝vsの後。
+    """
+    m = re.search(r"<title>(.*?)</title>", html, re.S)
+    if not m:
+        return {"away": None, "home": None, "away_full": None, "home_full": None, "date_text": None}
+    title = m.group(1)
+
+    # 日付テキスト（例: 2026年5月15日）
+    dm = re.search(r"(\d{4}年\d{1,2}月\d{1,2}日)", title)
+    date_text = dm.group(1) if dm else None
+
+    vm = re.search(r"(\S+?)vs\.?(\S+?)\s*一球速報", title)
+    if not vm:
+        return {"away": None, "home": None, "away_full": None, "home_full": None, "date_text": date_text}
+
+    away_full = vm.group(1).strip()
+    home_full = vm.group(2).strip()
+    return {
+        "away": TEAM_SHORT.get(away_full, away_full),
+        "home": TEAM_SHORT.get(home_full, home_full),
+        "away_full": away_full,
+        "home_full": home_full,
+        "date_text": date_text,
     }
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(summary, f, ensure_ascii=False, indent=2)
-    return path
-
-
-def update_index(paths: list[str]):
-    index_path = os.path.join("data", "index.json")
-    files = []
-    if os.path.exists(index_path):
-        with open(index_path, encoding="utf-8") as f:
-            files = json.load(f).get("files", [])
-    for p in paths:
-        rel = p.replace(os.sep, "/")
-        if rel not in files:
-            files.append(rel)
-    files.sort()
-    with open(index_path, "w", encoding="utf-8") as f:
-        json.dump({"updated_at": datetime.now(JST).isoformat(), "files": files},
-                  f, ensure_ascii=False, indent=2)
-
-
-def main():
-    args = parse_args()
-    date = resolve_date(args.date)
-    print(f"[INFO] 収集日: {date.strftime('%Y-%m-%d')}")
-
-    game_ids = [args.game] if args.game else find_game_ids(date)
-    if not game_ids:
-        print("[INFO] 対象試合なし。終了します。")
-        return
-
-    # 古いファイルが残らないよう、収集前にその日のフォルダを初期化
-    if not args.game:
-        clean_day_folder(date)
-
-    saved_paths = []
-    results = []
-    skipped = 0
-    for gid in game_ids:
-        result = collect_game(gid, expected_date=None if args.game else date)
-        if result.get("skip"):
-            skipped += 1
-            continue
-        if not result.get("atbats"):
-            print(f"[SKIP] 試合{gid}: 打席データなし")
-            skipped += 1
-            continue
-        results.append(result)
-        saved_paths.append(save_game(result, date))
-
-    if not results:
-        print(f"[INFO] 保存対象なし（スキップ{skipped}件）")
-        return
-
-    saved_paths.append(save_summary(date, results))
-    update_index(saved_paths)
-
-    total = sum(r.get("pitch_count", 0) for r in results)
-    print(f"[INFO] 完了: {len(results)}試合 / 計{total}球を保存（スキップ{skipped}件）")
-
-
-if __name__ == "__main__":
-    main()
     
