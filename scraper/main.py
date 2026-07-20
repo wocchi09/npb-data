@@ -126,7 +126,8 @@ def collect_game(game_id: str, expected_date: datetime | None = None) -> dict:
         return {"game_id": game_id, "error": str(e), "skip": True, "atbats": []}
 
     teams = parse_teams(html)
-    card = f"{teams['away'] or '?'} vs {teams['home'] or '?'}"
+    # 日本式の表記（主催＝ホームを先に書く）
+    card = f"{teams['home'] or '?'} vs {teams['away'] or '?'}"
 
     # 日付照合（タイトルの「2026年7月12日」と収集対象日を突き合わせる）
     if expected_date is not None and teams.get("date_text"):

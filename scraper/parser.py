@@ -285,8 +285,9 @@ def parse_teams(html: str) -> dict:
     """
     <title>から対戦カードを取得する。
     例: 「…東北楽天…vs.福岡ソフトバンク… 一球速報 …」
-        → {away:楽天, home:ソフトバンク, ...}
-    先攻(away)＝vsの前、後攻(home)＝vsの後。
+
+    ★重要★ 日本のプロ野球表記は「主催チーム vs 相手チーム」。
+    つまりタイトルの1番目＝ホーム（後攻）、2番目＝ビジター（先攻）。
     """
     m = re.search(r"<title>(.*?)</title>", html, re.S)
     if not m:
@@ -301,8 +302,8 @@ def parse_teams(html: str) -> dict:
     if not vm:
         return {"away": None, "home": None, "away_full": None, "home_full": None, "date_text": date_text}
 
-    away_full = vm.group(1).strip()
-    home_full = vm.group(2).strip()
+    home_full = vm.group(1).strip()  # 1番目＝ホーム
+    away_full = vm.group(2).strip()  # 2番目＝ビジター（先攻）
     return {
         "away": TEAM_SHORT.get(away_full, away_full),
         "home": TEAM_SHORT.get(home_full, home_full),
