@@ -193,4 +193,3 @@ def parse_teams(html: str) -> dict:
         "home_full": home_full,
         "date_text": date_text,
     }
-    
