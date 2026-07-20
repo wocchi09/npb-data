@@ -291,8 +291,7 @@
       '<div class="bs b3'+(r.third?" on":"")+'"></div>'+
       '<div class="bs b1'+(r.first?" on":"")+'"></div>'+
       '</div><div class="cnt">';
-    var rows=[["B",c.ball||0,3,"b"],["S",c.strike||0,2,"s"]];
-    if(c.out!=null) rows.push(["O",c.out||0,2,"o"]);
+    var rows=[["B",c.ball||0,3,"b"],["S",c.strike||0,2,"s"],["O",c.out||0,2,"o"]];
     rows.forEach(function(x){
       h+='<div class="row"><span class="k">'+x[0]+'</span>';
       for(var i=0;i<x[2];i++){
@@ -520,10 +519,16 @@
       if(open) l[i].classList.add("open"); else l[i].classList.remove("open");
     }
   }
+  function fmtDate(t){
+    var y=t.getFullYear();
+    var m=("0"+(t.getMonth()+1)).slice(-2);
+    var d=("0"+t.getDate()).slice(-2);
+    return y+"-"+m+"-"+d;
+  }
   function shift(n){
     var t=new Date(dp.value+"T00:00:00");
     t.setDate(t.getDate()+n);
-    dp.value=t.toISOString().slice(0,10);
+    dp.value=fmtDate(t);
     loadDay();
   }
   function today(){dp.value=todayJST();loadDay();}
