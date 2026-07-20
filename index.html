@@ -245,6 +245,15 @@
     if(maxInn<9) maxInn=9;
     var ta=0,th=0;
     for(i=1;i<=maxInn;i++){ta+=(away[i]||0);th+=(home[i]||0);}
+    // 公式スコアがあれば計欄はそちらを使う
+    var offA=null,offH=null,official=false;
+    if(g.final_score&&g.final_score.length){
+      g.final_score.forEach(function(s){
+        if(s.team===g.away) offA=s.score;
+        if(s.team===g.home) offH=s.score;
+      });
+      if(offA!=null&&offH!=null){ta=offA;th=offH;official=true;}
+    }
     var h='<div class="board"><table class="sb"><thead><tr><th class="team"></th>';
     for(i=1;i<=maxInn;i++) h+='<th>'+i+'</th>';
     h+='<th>計</th><th>安</th><th>失</th></tr></thead><tbody>';
@@ -261,7 +270,8 @@
     });
     h+='</tbody></table></div>';
     h+='<div style="font-size:11px;color:var(--muted);margin-top:6px;">'+
-       '※ 得点・安打・失策は打席結果からの推定値／数字をタップするとそのイニングに移動します</div>';
+       (official?'※ 合計は公式スコア／イニング別・安・失は打席結果からの推定値':'※ 得点・安打・失策は打席結果からの推定値')+
+       '／数字をタップするとそのイニングに移動します</div>';
     return h;
   }
 
@@ -273,15 +283,16 @@
     el.scrollIntoView({behavior:"smooth",block:"start"});
   }
 
-  /* ダイヤモンド＋カウント */
+  /* ダイヤモンド＋カウント（B緑・S黄・O赤）本塁なし */
   function buildSitu(ab){
     var r=ab.runners||{},c=ab.count||{};
     var h='<div class="situ"><div class="dia">'+
       '<div class="bs b2'+(r.second?" on":"")+'"></div>'+
       '<div class="bs b3'+(r.third?" on":"")+'"></div>'+
       '<div class="bs b1'+(r.first?" on":"")+'"></div>'+
-      '<div class="bs home"></div></div><div class="cnt">';
+      '</div><div class="cnt">';
     var rows=[["B",c.ball||0,3,"b"],["S",c.strike||0,2,"s"]];
+    if(c.out!=null) rows.push(["O",c.out||0,2,"o"]);
     rows.forEach(function(x){
       h+='<div class="row"><span class="k">'+x[0]+'</span>';
       for(var i=0;i<x[2];i++){
@@ -291,6 +302,70 @@
     });
     h+='</div></div>';
     return h;
+  }
+
+  /* ---- 走者名の推定エンジン ----
+     打席の流れをシミュレートして「誰が塁にいるか」を推定する。
+     各打席の塁コード(b110等)は公式値なので、毎打席それと答え合わせし、
+     矛盾したら名前を「?」に落とす（塁の有無自体は常に公式値が正）。 */
+  function inferRunnerNames(atbats){
+    var bases={1:null,2:null,3:null}; // 各塁の走者名
+    var curKey=null;
+    atbats.forEach(function(ab){
+      var key=ab.inning+"-"+ab.top_bottom;
+      if(key!==curKey){ // イニングが変わったらリセット
+        bases={1:null,2:null,3:null};
+        curKey=key;
+      }
+      var r=ab.runners||{};
+      // 公式の塁コードと答え合わせ
+      var occ={1:!!r.first,2:!!r.second,3:!!r.third};
+      for(var b=1;b<=3;b++){
+        if(occ[b]&&!bases[b]) bases[b]="?";      // いるはずなのに名前不明
+        if(!occ[b]) bases[b]=null;               // いないなら消す
+      }
+      // この打席の表示用にコピー
+      ab._runnerNames={1:bases[1],2:bases[2],3:bases[3]};
+
+      // 打席結果を反映して次の状態を作る
+      var rs=ab.result_summary||"";
+      var name=(ab.batter&&ab.batter.name)?ab.batter.name.split(/\s+/)[0]:null;
+      function advanceAll(n){
+        for(var i=3;i>=1;i--){
+          if(bases[i]){
+            var to=i+n;
+            if(to<=3) bases[to]=bases[i];
+            bases[i]=null;
+          }
+        }
+      }
+      if(/本塁打/.test(rs)){
+        bases={1:null,2:null,3:null};
+      }else if(/三塁打|3塁打|３塁打/.test(rs)){
+        advanceAll(3); bases[3]=name;
+      }else if(/二塁打|2塁打|２塁打/.test(rs)){
+        advanceAll(2); bases[2]=name;
+      }else if(/安打/.test(rs)&&!/併殺/.test(rs)){
+        advanceAll(1); bases[1]=name;
+      }else if(/四球|死球/.test(rs)){
+        // 押し出し進塁（詰まっている塁だけ進む）
+        if(bases[1]){
+          if(bases[2]){
+            if(bases[3]){/* 満塁: 三塁走者は生還扱い */ bases[3]=null;}
+            bases[3]=bases[2];
+          }
+          bases[2]=bases[1];
+        }
+        bases[1]=name;
+      }else if(/エラー/.test(rs)){
+        advanceAll(1); bases[1]=name;
+      }else if(/犠打|犠飛/.test(rs)){
+        advanceAll(1);
+      }else if(/併殺/.test(rs)){
+        bases[1]=null; // 一塁走者アウト（代表的パターン）
+      }
+      // ゴロ・フライ・三振は走者そのまま
+    });
   }
 
   /* 打球方向フィールド図 */
@@ -344,6 +419,7 @@
     try{
       var r=await fetch(gamePath(d,gid)+"?t="+Date.now());
       curGame=await r.json();
+      inferRunnerNames(curGame.atbats||[]);
       render();
       detailEl.scrollIntoView({behavior:"smooth",block:"start"});
     }catch(e){
@@ -402,6 +478,13 @@
 
       abs.forEach(function(ab){
         var b=ab.batter||{},p=ab.pitcher||{},r=ab.runners||{};
+        // 走者表示（推定名つき）
+        var rn=ab._runnerNames||{};
+        var rparts=[];
+        if(r.first) rparts.push("一塁 "+(rn[1]&&rn[1]!=="?"?rn[1]:"?"));
+        if(r.second) rparts.push("二塁 "+(rn[2]&&rn[2]!=="?"?rn[2]:"?"));
+        if(r.third) rparts.push("三塁 "+(rn[3]&&rn[3]!=="?"?rn[3]:"?"));
+        var rtext=rparts.length?rparts.join(" ／ ")+' <span style="font-size:10px;color:var(--muted)">(推定)</span>':"走者なし";
         h+='<div class="ab"><div class="ab-h"><div class="ab-p">'+
           '<span class="lbl">打者</span> <b>'+esc(b.name||"-")+'</b> '+
           '<span class="no">'+(b.number?"#"+b.number:"")+'</span> '+
@@ -409,7 +492,7 @@
           '<span class="lbl">投手</span> <b>'+esc(p.name||"-")+'</b> '+
           '<span class="no">'+(p.number?"#"+p.number:"")+'</span> '+
           '<span class="lbl">'+esc(p.hand||"")+'</span><br>'+
-          '<span class="lbl">走者</span> <span style="font-size:12px">'+esc(r.label||"-")+'</span><br>'+
+          '<span class="lbl">走者</span> <span style="font-size:12px">'+rtext+'</span><br>'+
           '<span class="res '+rcls(ab.result_summary)+'">'+esc(ab.result_summary||"")+'</span>'+
           '</div>'+buildSitu(ab)+'</div>';
         h+=buildField(ab);

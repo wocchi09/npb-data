@@ -177,6 +177,13 @@ def collect_game(game_id: str, expected_date: datetime | None = None) -> dict:
     total_pitches = sum(a["pitch_count"] for a in atbats)
     print(f"[INFO] 試合{game_id}: {len(atbats)}打席 / {total_pitches}球")
 
+    # 公式スコア（最後の打席ページに表示されている得点＝ほぼ最終スコア）
+    final_score = None
+    for ab in reversed(atbats):
+        if ab.get("score_at"):
+            final_score = ab["score_at"]
+            break
+
     return {
         "game_id": game_id,
         "collected_at": datetime.now(JST).isoformat(),
@@ -185,6 +192,7 @@ def collect_game(game_id: str, expected_date: datetime | None = None) -> dict:
         "away_full": teams["away_full"],
         "home_full": teams["home_full"],
         "card": card,
+        "final_score": final_score,
         "atbat_count": len(atbats),
         "pitch_count": total_pitches,
         "atbats": atbats,

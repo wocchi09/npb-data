@@ -109,6 +109,56 @@ def _parse_ball_kinds(html: str) -> list[str]:
     return _re.findall(r"bb-icon__ballCircle--(\w+)", html)
 
 
+def _parse_bso(html: str) -> dict | None:
+    """
+    公式のB/S/Oカウントを取得する。
+    <div class="sbo"> 内の ● の数がそのままカウント。
+    <p class="b"><em>B</em><b>●●●</b></p> → ボール3
+    """
+    import re as _re
+    m = _re.search(
+        r'class="sbo".*?class="b">.*?<b>([^<]*)</b>.*?class="s">.*?<b>([^<]*)</b>.*?class="o">.*?<b>([^<]*)</b>',
+        html, _re.S,
+    )
+    if not m:
+        return None
+    return {
+        "ball": m.group(1).count("●"),
+        "strike": m.group(2).count("●"),
+        "out": m.group(3).count("●"),
+    }
+
+
+# スポナビの1文字チーム略称
+TEAM_ABBR = {
+    "巨": "巨人", "神": "阪神", "中": "中日", "広": "広島",
+    "ヤ": "ヤクルト", "デ": "DeNA", "ソ": "ソフトバンク", "日": "日本ハム",
+    "ロ": "ロッテ", "楽": "楽天", "西": "西武", "オ": "オリックス",
+}
+
+
+def _parse_score_line(html: str) -> list[dict]:
+    """
+    ページ内のミニスコア（公式の得点）を取得する。
+    <td class="nm act">ソ</td><td>3</td> のような行が2つ並ぶ。
+    act が付いている方が攻撃中のチーム。
+    """
+    import re as _re
+    rows = _re.findall(
+        r'<td class="nm( act)?">([^<]+)</td>\s*<td>(\d+)</td>', html
+    )
+    out = []
+    for act, abbr, score in rows:
+        abbr = abbr.strip()
+        out.append({
+            "abbr": abbr,
+            "team": TEAM_ABBR.get(abbr, abbr),
+            "score": int(score),
+            "batting": bool(act),
+        })
+    return out
+
+
 def _count_bso(pitches: list[dict]) -> dict:
     """
     投球結果テキストから、打席終了時点のボール・ストライクカウントを数える。
@@ -240,6 +290,12 @@ def parse_atbat(html: str, index: str) -> dict:
     if result_summary and "試合前" in result_summary:
         valid = False
 
+    # カウント：公式のsbo表示を優先、無ければ投球結果から推定
+    official = _parse_bso(html)
+    count = official if official else _count_bso(pitches)
+    if official is None:
+        count["out"] = None  # 推定ではアウト数は分からない
+
     return {
         "index": index,
         "inning": int(index[0:2]) if len(index) >= 2 else None,
@@ -249,7 +305,8 @@ def parse_atbat(html: str, index: str) -> dict:
         "batter": players["batter"],
         "pitcher": players["pitcher"],
         "runners": _parse_runners(html),
-        "count": _count_bso(pitches),
+        "count": count,
+        "score_at": _parse_score_line(html),
         "hit_direction": _parse_hit_direction(result_summary, html),
         "result_summary": result_summary,
         "result_detail": result_detail,
