@@ -81,8 +81,7 @@ jobs:
                           break
 
                       # コード抽出
-                  
-b = re.search(r'id="base" class="(\w+)"', html)
+                      b = re.search(r'id="base" class="(\w+)"', html)
                       d = re.search(r'id="dakyu" class="(\w+)"', html)
                       bcode = b.group(1) if b else "-"
                       dcode = d.group(1) if d else "-"
