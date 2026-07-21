@@ -377,6 +377,57 @@
     });
   }
 
+  /* ---- 配球チャート（ストライクゾーンに投球位置をプロット） ----
+     コース座標は 0〜63px の範囲に分布。実データの検証から、
+     ストライクゾーンは概ね top:10-58 / left:5-50 の内側。 */
+  var CH={size:63, zTop:10, zBottom:58, zLeft:5, zRight:50};
+
+  function buildChart(ab){
+    var ps=(ab.pitches||[]).filter(function(p){
+      return p.course&&p.course.top_px!=null&&p.course.left_px!=null;
+    });
+    if(!ps.length) return "";
+
+    var V=100; // viewBox基準
+    function sx(px){return px/CH.size*V;}
+    // ゾーン枠の位置
+    var zx=sx(CH.zLeft), zy=sx(CH.zTop),
+        zw=sx(CH.zRight)-sx(CH.zLeft), zh=sx(CH.zBottom)-sx(CH.zTop);
+
+    var s='<div class="chartbox"><svg class="chartsvg" viewBox="-8 -8 116 116">';
+    // 外枠（ボールゾーン）
+    s+='<rect x="-6" y="-6" width="112" height="112" rx="4" fill="var(--panel2)" stroke="var(--line)" stroke-width="1"/>';
+    // ストライクゾーン
+    s+='<rect x="'+zx+'" y="'+zy+'" width="'+zw+'" height="'+zh+'" fill="var(--zone)" stroke="var(--accent)" stroke-width="1.6"/>';
+    // 3x3の区切り線
+    for(var i=1;i<3;i++){
+      s+='<line x1="'+(zx+zw*i/3)+'" y1="'+zy+'" x2="'+(zx+zw*i/3)+'" y2="'+(zy+zh)+'" stroke="var(--accent)" stroke-width=".5" opacity=".45"/>';
+      s+='<line x1="'+zx+'" y1="'+(zy+zh*i/3)+'" x2="'+(zx+zw)+'" y2="'+(zy+zh*i/3)+'" stroke="var(--accent)" stroke-width=".5" opacity=".45"/>';
+    }
+    // 投球をプロット
+    ps.forEach(function(p){
+      var cx=sx(p.course.left_px), cy=sx(p.course.top_px);
+      var fill="var(--panel)",stroke="var(--muted)",tc="var(--ink)";
+      if(p.kind==="ball"){fill="#40C057";stroke="#2B8A3E";tc="#fff";}
+      else if(p.kind==="strike"){fill="#FAB005";stroke="#E67700";tc="#3D2510";}
+      else if(p.kind==="hit"){fill="var(--accent)";stroke="var(--accent)";tc="#fff";}
+      else if(p.kind==="out"){fill="#1C7ED6";stroke="#1864AB";tc="#fff";}
+      s+='<circle cx="'+cx+'" cy="'+cy+'" r="7.5" fill="'+fill+'" stroke="'+stroke+'" stroke-width="1.4"/>';
+      s+='<text x="'+cx+'" y="'+(cy+2.9)+'" text-anchor="middle" font-size="8.5" '+
+         'font-family="Roboto Mono,monospace" font-weight="700" fill="'+tc+'">'+(p.no||"")+'</text>';
+    });
+    s+='</svg>';
+    // 凡例
+    s+='<div class="charttxt"><div class="charttitle">配球チャート</div>'+
+       '<div class="lg"><span class="lgd" style="background:#FAB005"></span>ストライク</div>'+
+       '<div class="lg"><span class="lgd" style="background:#40C057"></span>ボール</div>'+
+       '<div class="lg"><span class="lgd" style="background:var(--accent)"></span>安打</div>'+
+       '<div class="lg"><span class="lgd" style="background:#1C7ED6"></span>凡打</div>'+
+       '<div class="chartnote">投手から見た位置</div></div>';
+    s+='</div>';
+    return s;
+  }
+
   /* 打球方向フィールド図 */
   function buildField(ab){
     var d=ab.hit_direction||{};

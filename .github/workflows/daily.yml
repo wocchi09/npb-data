@@ -49,7 +49,31 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/
-          git diff --cached --quiet || git commit -m "data: auto collect $(date +'%Y-%m-%d %H:%M')"
-          git pull --rebase origin main
-          git push
+
+          # 変更（新規・更新・削除）をすべてステージしてコミット
+          # ここでコミットまで済ませると作業ツリーが綺麗になり、rebaseが通る
+          git add -A
+          if git diff --cached --quiet; then
+            echo "変更なし。pushをスキップします。"
+            exit 0
+          fi
+          git commit -m "data: auto collect $(date +'%Y-%m-%d %H:%M')"
+
+          # リモートの最新を取り込んでからpush（競合時は最大3回リトライ）
+          for i in 1 2 3; do
+            git fetch origin main
+            if git rebase origin/main; then
+              if git push origin HEAD:main; then
+                echo "push成功"
+                exit 0
+              fi
+            else
+              echo "rebase失敗。中断して再試行します。"
+              git rebase --abort || true
+            fi
+            echo "リトライ $i 回目"
+            sleep 5
+          done
+
+          echo "pushに3回失敗しました。"
+          exit 1
