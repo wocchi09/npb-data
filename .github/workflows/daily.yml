@@ -49,7 +49,9 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/
+          git add -A
           git diff --cached --quiet || git commit -m "data: auto collect $(date +'%Y-%m-%d %H:%M')"
-          git pull --rebase origin main
+          git fetch origin main
+          git rebase origin/main || git rebase --abort
           git push
+
