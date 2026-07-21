@@ -49,7 +49,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-<<<<<<< HEAD
 
           # 変更（新規・更新・削除）をすべてステージしてコミット
           # ここでコミットまで済ませると作業ツリーが綺麗になり、rebaseが通る
@@ -78,11 +77,3 @@ jobs:
 
           echo "pushに3回失敗しました。"
           exit 1
-=======
-          git add -A
-          git diff --cached --quiet || git commit -m "data: auto collect $(date +'%Y-%m-%d %H:%M')"
-          git fetch origin main
-          git rebase origin/main || git rebase --abort
-          git push
-
->>>>>>> 2bb2919329449473c30d56b6c5039cf62a3be53d
