@@ -1,0 +1,122 @@
+# NPB SCOREBOARD 現状調査レポート
+
+改修仕様書の「3. 最初にClaudeが調査・報告する内容」9項目に沿った現状分析。
+（調査対象：手元の最新版コード＝GitHub上のv12相当）
+
+---
+
+## 1. 現在のディレクトリ構成と使用技術
+
+```
+npb-data/
+├── .github/workflows/
+│   ├── daily.yml       … 毎日実行＋手動実行のワークフロー
+│   └── probe.yml       … 構造調査用（役目終了）
+├── scraper/
+│   ├── main.py  (311行) … 収集本体・全打席巡回・保存
+│   └── parser.py(482行) … HTMLパーサー群
+├── index.html   (627行) … ビューア（Pages公開）
+├── requirements.txt     … requests, beautifulsoup4
+├── .gitignore           … __pycache__等を除外
+└── data/                … 収集データ（自動生成）
+```
+
+使用技術：Python 3.12（requests + BeautifulSoup、Seleniumなし）、
+GitHub Actions（cron + workflow_dispatch）、GitHub Pages（静的配信）、
+ビューアは素のHTML/CSS/JS（フレームワークなし）。
+
+## 2. データ取得元と取得処理
+
+- 取得元：スポナビ（`baseball.yahoo.co.jp/npb/game/{id}/score?index=...`）
+- indexは `RRTBBPP`（回・表裏・打者・球）。ページ内リンクは各回1打席目のみのため、
+  打者番号を 01→02… と自力で進めて全打席を巡回。
+- 「試合前」表示 or 打者名なしでそのイニング終了と判定。
+- アクセス間隔1.5秒。日程は起点ページ内の`bb-scoreList`から取得。
+
+## 3. 現在のJSON構造
+
+**保存単位**：`data/YYYY/MM/DD/{game_id}.json`（試合ごと）＋`_summary.json`＋
+ルート`data/index.json`。
+
+**試合JSON**：game_id, card, home/away, final_score, result（勝敗投手・本塁打・
+バッテリー）, atbat_count, pitch_count, atbats[]
+
+**打席（atbat）**：index, inning, top_bottom, order, valid, batter{name,
+player_id, number, hand}, pitcher{同}, runners{first,second,third,code,
+label}, count{ball,strike,out}, score_at[], hit_direction{dir,dir_name,x,y},
+result_summary, pitches[]{no,type,speed_kmh,result,course{top_px,left_px,
+grid_row,grid_col,label},kind}
+
+→ **一球レベルのデータは仕様書が求める水準をほぼ満たしている**。
+
+## 4. GitHub Actions の処理内容
+
+- cron `47 14 * * *`（JST23:47）＋手動実行（date/game指定可）
+- 処理：checkout → Python → 依存導入 → `main.py`実行 → コミット&push
+- push部：`git add -A`→commit→fetch→rebase→push、競合時3回リトライ
+- タイムアウト330分、`__pycache__`除去の保険あり
+
+## 5. 現在取得できる項目／できない項目
+
+**取得済み**：スコア、イニング別得点、勝敗投手・セーブ、本塁打、バッテリー、
+打者/投手の名前・ID・背番号・投打、球種・球速・コース・カウント(BSO)、
+走者状況、打球方向、打席結果。
+
+**未取得（仕様書が要求）**：
+- 打撃成績の集計値（打数・打点・打率・OPS等）→ 打席結果から**再集計で算出可能**
+- 投手成績の集計値（投球回・防御率・WHIP・CSW%等）→ 一部は投球データから算出可能
+- スタメン табличный（打順・守備位置の一覧）→ 別途スタメン欄の取得が必要
+- 選手のシーズン累計 → 未実装（フェーズ3）
+- 開始時刻・球場 → 取得処理を追加すれば可能
+- 出塁率/長打率等の一部は元データに直接なく、打席結果からの導出が必要
+
+## 6. 同一試合の重複や日付不一致
+
+- **重複防止**：`clean_day_folder`が収集前にその日のフォルダを初期化。
+  ファイル名が`{game_id}.json`固定なので同一試合は上書きされ重複しない。
+- **日付照合**：ページタイトルの日付と収集対象日を突合し、不一致はスキップ。
+- **残課題**：試合前日（データ0件）に実行すると空カードが並ぶ現象は、
+  日付照合が「試合前でタイトル日付が無い」場合に効きづらいのが原因。
+  → フェーズ1で「打席0件の試合は保存しない」を明確化して対処する。
+
+## 7. 変更予定ファイル
+
+**フェーズ1で新規/変更**：
+- `scraper/lib/`（新規）… normalize.py, validate.py など共通処理
+- `scraper/rebuild_stats.py`（新規）… 保存済み試合から成績を再集計
+- `scraper/validate_data.py`（新規）… 整合性チェック
+- `scraper/main.py`（変更）… 保存構造を仕様書7章の用途別JSONへ寄せる
+- `data/masters/`（新規）… teams.json, players.json
+
+**既存維持（壊さない）**：`index.html`の一球表示、既存の`data/YYYY/MM/DD/`。
+→ 互換のため当面は現行構造も残し、新構造を並行生成する。
+
+## 8. 段階的な実装計画
+
+- **フェーズ1（今回着手）**：選手/チームIDの正規化、整合性検証スクリプト、
+  冪等な再集計基盤（`rebuild_stats.py`）、選手マスター生成。既存表示は不変更。
+- **フェーズ2**：試合概要・スタメン・打撃/投手成績タブ、継投・交代、得点経過。
+- **フェーズ3**：選手/チームのシーズン累計、選手ページ・チームページ。
+- **フェーズ4**：配球分析（球種割合・ヒートマップ・カウント別配球）、重要場面抽出。
+
+## 9. 技術的なリスク
+
+- **成績集計の正確性**：打席結果テキストからの導出には限界（振り逃げ・記録の
+  細部）。基本成績を優先し、算出不能な指標は無理に埋めない（仕様書の原則に一致）。
+- **スタメン/守備位置**：現状は打席ごとの打者しか取れておらず、打順表の取得を
+  追加する必要。取得可否は実HTML確認が要る（フェーズ2冒頭で調査）。
+- **データ量とPages**：全投球JSONを概要と分離しないと読み込みが重い →
+  仕様書7章の用途別JSON＋遅延読み込みで対処。
+- **冪等性**：再集計は「保存済み試合の再走査」で毎回ゼロから作る方式にし、
+  前日累計への加算は行わない（二重加算を構造的に防ぐ）。
+
+---
+
+## 次のアクション（フェーズ1）
+
+1. `scraper/lib/normalize.py` … チーム名・選手IDの正規化を一元化
+2. `scraper/validate_data.py` … 仕様書9章の整合性チェックを実装
+3. `scraper/rebuild_stats.py` … 保存済み試合から選手成績を冪等に再集計
+4. `data/masters/` … 選手・チームマスターの生成
+
+既存の一球表示・収集処理は一切壊さず、上記を**追加**する形で進める。
