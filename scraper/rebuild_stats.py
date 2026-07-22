@@ -161,6 +161,8 @@ def rebuild(season, base="data"):
                         "number": b.get("number"),
                         "hand": b.get("hand"),
                     }
+                # batは選手登録と独立して初期化（投手が打席に立つ場合に備える）
+                if bkey not in bat:
                     bat[bkey] = blank_batting()
                 # 出場試合数（同一試合1回だけ）
                 if (bkey, gid) not in seen_game_per_player_bat:
