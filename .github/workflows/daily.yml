@@ -49,13 +49,10 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-<<<<<<< HEAD
 
           # 保険：Pythonキャッシュが混入しても追跡から外す
           git rm -r --cached --ignore-unmatch "scraper/__pycache__" >/dev/null 2>&1 || true
           find . -name "__pycache__" -type d -prune -exec rm -rf {} + 2>/dev/null || true
-=======
->>>>>>> 4b1b5ecc243df2caf3df5be077943ba537e0397c
 
           # 変更（新規・更新・削除）をすべてステージしてコミット
           # ここでコミットまで済ませると作業ツリーが綺麗になり、rebaseが通る
