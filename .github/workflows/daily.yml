@@ -45,6 +45,19 @@ jobs:
           fi
           python scraper/main.py $ARGS
 
+      - name: Rebuild season stats (idempotent)
+        run: |
+          # 収集対象日からシーズンを決定（空なら今年）
+          SEASON="${{ github.event.inputs.date }}"
+          SEASON="${SEASON%%-*}"
+          if [ -z "$SEASON" ]; then SEASON=$(date +%Y); fi
+          python scraper/rebuild_stats.py --season "$SEASON" || echo "再集計をスキップ"
+
+      - name: Validate data
+        run: |
+          # 検証は失敗してもワークフローは止めない（情報として記録）
+          python scraper/validate_data.py || echo "検証で問題を検出（ログ参照）"
+
       - name: Commit and push
         run: |
           git config user.name "github-actions[bot]"

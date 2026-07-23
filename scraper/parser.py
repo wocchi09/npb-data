@@ -221,6 +221,174 @@ def parse_battery(html: str) -> dict:
     return {}
 
 
+def _to_int(s, default=0):
+    """文字列を整数に変換（空文字や'-'は既定値）"""
+    if s is None:
+        return default
+    s = str(s).strip().replace(",", "")
+    if not s or s in ("-", "―", "‐"):
+        return default
+    m = re.match(r"-?\d+", s)
+    return int(m.group(0)) if m else default
+
+
+def _to_float(s, default=None):
+    """打率・防御率など小数の変換（'-'やnullは既定値）"""
+    if s is None:
+        return default
+    s = str(s).strip()
+    if not s or s in ("-", "―", "‐", "----", "-.---"):
+        return default
+    try:
+        return float(s)
+    except ValueError:
+        return default
+
+
+def innings_to_outs(ip: str) -> int:
+    """
+    投球回の表記をアウト数に変換する。
+    「5」→15アウト、「3.1」→10アウト（3回1/3）、「1.2」→5アウト（1回2/3）
+    """
+    if ip is None:
+        return 0
+    s = str(ip).strip()
+    if not s or s in ("-", "―"):
+        return 0
+    if "." in s:
+        whole, frac = s.split(".", 1)
+        return _to_int(whole) * 3 + _to_int(frac)
+    return _to_int(s) * 3
+
+
+def outs_to_innings(outs: int) -> str:
+    """アウト数を投球回表記に戻す（10 → '3.1'）"""
+    return f"{outs // 3}.{outs % 3}" if outs % 3 else str(outs // 3)
+
+
+def parse_stats_page(html: str) -> dict:
+    """
+    出場成績ページ（/npb/game/{id}/stats）から
+    打撃成績・投手成績・スコアボードを取得する。
+
+    公式の集計値なので、打席結果からの推定より正確。
+    テーブル構造（実データで確認済み）:
+      打撃: 位置・選手名・打率・打数・得点・安打・打点・三振・四球・死球・
+            犠打・盗塁・失策・本塁打
+      投手: 勝敗・選手名・防御率・投球回・投球数・打者・被安打・被本塁打・
+            奪三振・与四球・与死球・ボーク・失点・自責点
+    """
+    soup = BeautifulSoup(html, "html.parser")
+
+    result = {
+        "scoreboard": None,
+        "batting": {"home": [], "away": []},
+        "pitching": {"home": [], "away": []},
+    }
+
+    # --- スコアボード（イニング別得点・計・安・失） ---
+    sb = soup.select_one("table.bb-gameScoreTable")
+    if sb:
+        rows = []
+        for tr in sb.find_all("tr"):
+            cells = [td.get_text(strip=True) for td in tr.find_all(["td", "th"])]
+            if len(cells) > 3 and cells[0]:
+                rows.append(cells)
+        if len(rows) >= 2:
+            def parse_sb_row(c):
+                # 末尾3つが 計・安・失
+                return {
+                    "team": c[0],
+                    "innings": [None if x in ("", "-", "X", "x") else _to_int(x)
+                                for x in c[1:-3]],
+                    "runs": _to_int(c[-3]),
+                    "hits": _to_int(c[-2]),
+                    "errors": _to_int(c[-1]),
+                }
+            # 上段=away（先攻）、下段=home（後攻）
+            result["scoreboard"] = {
+                "away": parse_sb_row(rows[0]),
+                "home": parse_sb_row(rows[1]),
+            }
+
+    # --- 打撃成績（bb-statsTable が2つ：先攻・後攻の順） ---
+    bat_tables = soup.select("table.bb-statsTable")
+    bat_sides = ["away", "home"]
+    for i, t in enumerate(bat_tables[:2]):
+        side = bat_sides[i] if i < len(bat_sides) else f"t{i}"
+        players = []
+        for tr in t.find_all("tr"):
+            cells = [td.get_text(strip=True) for td in tr.find_all("td")]
+            if len(cells) < 14:
+                continue
+            name = cells[1]
+            if not name:
+                continue
+            link = tr.find("a", href=re.compile(r"/npb/player/\d+"))
+            pid = None
+            if link:
+                m = re.search(r"/npb/player/(\d+)", link["href"])
+                pid = m.group(1) if m else None
+            players.append({
+                "position": cells[0].strip("()（）"),
+                "name": name,
+                "player_id": pid,
+                "season_avg": _to_float(cells[2]),
+                "ab": _to_int(cells[3]),
+                "runs": _to_int(cells[4]),
+                "hits": _to_int(cells[5]),
+                "rbi": _to_int(cells[6]),
+                "so": _to_int(cells[7]),
+                "bb": _to_int(cells[8]),
+                "hbp": _to_int(cells[9]),
+                "sac": _to_int(cells[10]),
+                "sb": _to_int(cells[11]),
+                "errors": _to_int(cells[12]),
+                "hr": _to_int(cells[13]),
+            })
+        result["batting"][side] = players
+
+    # --- 投手成績（bb-scoreTable が2つ） ---
+    pit_tables = soup.select("table.bb-scoreTable")
+    for i, t in enumerate(pit_tables[:2]):
+        side = bat_sides[i] if i < len(bat_sides) else f"t{i}"
+        pitchers = []
+        for tr in t.find_all("tr"):
+            cells = [td.get_text(strip=True) for td in tr.find_all("td")]
+            if len(cells) < 14:
+                continue
+            name = cells[1]
+            if not name:
+                continue
+            link = tr.find("a", href=re.compile(r"/npb/player/\d+"))
+            pid = None
+            if link:
+                m = re.search(r"/npb/player/(\d+)", link["href"])
+                pid = m.group(1) if m else None
+            ip = cells[3]
+            pitchers.append({
+                "decision": cells[0],          # 勝・敗・S など
+                "name": name,
+                "player_id": pid,
+                "season_era": _to_float(cells[2]),
+                "innings": ip,
+                "outs": innings_to_outs(ip),
+                "pitches": _to_int(cells[4]),
+                "batters_faced": _to_int(cells[5]),
+                "hits_allowed": _to_int(cells[6]),
+                "hr_allowed": _to_int(cells[7]),
+                "so": _to_int(cells[8]),
+                "bb": _to_int(cells[9]),
+                "hbp": _to_int(cells[10]),
+                "balk": _to_int(cells[11]),
+                "runs_allowed": _to_int(cells[12]),
+                "earned_runs": _to_int(cells[13]),
+            })
+        result["pitching"][side] = pitchers
+
+    return result
+
+
 def _parse_bso(html: str) -> dict | None:
     """
     公式のB/S/Oカウントを取得する。

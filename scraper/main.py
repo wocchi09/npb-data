@@ -25,6 +25,7 @@ import requests
 from parser import (
     parse_atbat, extract_atbat_indexes, parse_teams,
     parse_score_list, parse_homeruns, parse_battery,
+    parse_stats_page,
 )
 
 JST = timezone(timedelta(hours=9))
@@ -193,6 +194,17 @@ def collect_game(game_id: str, expected_date: datetime | None = None) -> dict:
     except Exception as e:
         print(f"[WARN] 試合結果の取得に失敗: {e}")
 
+    # 出場成績ページから公式の打撃・投手成績を取得（フェーズ2）
+    boxscore = None
+    try:
+        stats_html = fetch(f"{BASE}/npb/game/{game_id}/stats")
+        boxscore = parse_stats_page(stats_html)
+        nb = len(boxscore["batting"]["away"]) + len(boxscore["batting"]["home"])
+        np_ = len(boxscore["pitching"]["away"]) + len(boxscore["pitching"]["home"])
+        print(f"[INFO] 出場成績: 打者{nb}人 / 投手{np_}人")
+    except Exception as e:
+        print(f"[WARN] 出場成績の取得に失敗: {e}")
+
     total_pitches = sum(a["pitch_count"] for a in atbats)
     print(f"[INFO] 試合{game_id}: {len(atbats)}打席 / {total_pitches}球")
 
@@ -213,6 +225,7 @@ def collect_game(game_id: str, expected_date: datetime | None = None) -> dict:
         "card": card,
         "final_score": final_score,
         "result": result_info,
+        "boxscore": boxscore,
         "atbat_count": len(atbats),
         "pitch_count": total_pitches,
         "atbats": atbats,

@@ -63,8 +63,61 @@ def blank_batting():
 def blank_pitching():
     return {
         "games": 0, "batters_faced": 0, "pitches": 0, "hits_allowed": 0,
-        "hr_allowed": 0, "so": 0, "bb": 0,
+        "hr_allowed": 0, "so": 0, "bb": 0, "hbp": 0, "outs": 0,
+        "runs_allowed": 0, "earned_runs": 0, "wins": 0, "losses": 0, "saves": 0,
     }
+
+
+def calc_pitching_rates(p: dict) -> dict:
+    """防御率・WHIP・K/9・BB/9 を計算（0除算対策込み）"""
+    outs = p.get("outs", 0)
+    ip = outs / 3 if outs else 0
+    era = round(p["earned_runs"] * 9 / ip, 2) if ip else None
+    whip = round((p["hits_allowed"] + p["bb"]) / ip, 2) if ip else None
+    k9 = round(p["so"] * 9 / ip, 2) if ip else None
+    bb9 = round(p["bb"] * 9 / ip, 2) if ip else None
+    kbb = round(p["so"] / p["bb"], 2) if p["bb"] else None
+    return {
+        "innings": f"{outs // 3}.{outs % 3}" if outs % 3 else str(outs // 3),
+        "era": era, "whip": whip, "k9": k9, "bb9": bb9, "k_bb": kbb,
+    }
+
+
+def merge_official_batting(dst: dict, row: dict):
+    """公式ボックススコアの打撃行を累計に加算"""
+    dst["pa"] += row["ab"] + row["bb"] + row["hbp"] + row["sac"]
+    dst["ab"] += row["ab"]
+    dst["hits"] += row["hits"]
+    dst["hr"] += row["hr"]
+    dst["rbi"] += row["rbi"]
+    dst["bb"] += row["bb"] + row["hbp"]
+    dst["so"] += row["so"]
+    dst["runs"] += row["runs"]
+    dst["sb"] = dst.get("sb", 0) + row["sb"]
+    dst["errors"] = dst.get("errors", 0) + row["errors"]
+    # 単打は「安打 - 本塁打」で近似（二塁打/三塁打は公式表に無いため）
+    dst["singles"] += max(0, row["hits"] - row["hr"])
+
+
+def merge_official_pitching(dst: dict, row: dict):
+    """公式ボックススコアの投手行を累計に加算"""
+    dst["outs"] += row.get("outs", 0)
+    dst["pitches"] += row["pitches"]
+    dst["batters_faced"] += row["batters_faced"]
+    dst["hits_allowed"] += row["hits_allowed"]
+    dst["hr_allowed"] += row["hr_allowed"]
+    dst["so"] += row["so"]
+    dst["bb"] += row["bb"]
+    dst["hbp"] += row.get("hbp", 0)
+    dst["runs_allowed"] += row.get("runs_allowed", 0)
+    dst["earned_runs"] += row.get("earned_runs", 0)
+    d = row.get("decision") or ""
+    if "勝" in d:
+        dst["wins"] += 1
+    if "敗" in d:
+        dst["losses"] += 1
+    if "Ｓ" in d or "S" in d:
+        dst["saves"] += 1
 
 
 def classify_batting(result_summary: str) -> dict:
@@ -143,13 +196,72 @@ def rebuild(season, base="data"):
         if away:
             team_stats[away]["games"] += 1
 
+        # ===== 公式ボックススコアがあればそれを最優先で使う（正確） =====
+        box = g.get("boxscore")
+        used_official = False
+        if box and (box.get("batting") or box.get("pitching")):
+            used_official = True
+            side_team = {"away": away, "home": home}
+
+            for side in ("away", "home"):
+                team = side_team.get(side)
+                for row in (box.get("batting", {}).get(side) or []):
+                    k = player_key(row.get("player_id"), row.get("name"))
+                    if not k:
+                        continue
+                    if k not in players:
+                        players[k] = {
+                            "key": k, "player_id": row.get("player_id"),
+                            "name": clean_name(row.get("name")), "team": team,
+                            "number": None, "hand": None,
+                            "position": row.get("position"),
+                        }
+                    if k not in bat:
+                        bat[k] = blank_batting()
+                    if (k, gid) not in seen_game_per_player_bat:
+                        seen_game_per_player_bat[(k, gid)] = True
+                        bat[k]["games"] += 1
+                    merge_official_batting(bat[k], row)
+                    if team and team in team_stats:
+                        team_stats[team]["hits"] += row.get("hits", 0)
+                        team_stats[team]["hr"] += row.get("hr", 0)
+
+                for row in (box.get("pitching", {}).get(side) or []):
+                    k = player_key(row.get("player_id"), row.get("name"))
+                    if not k:
+                        continue
+                    if k not in players:
+                        players[k] = {
+                            "key": k, "player_id": row.get("player_id"),
+                            "name": clean_name(row.get("name")), "team": team,
+                            "number": None, "hand": None,
+                        }
+                    if k not in pit:
+                        pit[k] = blank_pitching()
+                    if (k, gid) not in seen_game_per_player_pit:
+                        seen_game_per_player_pit[(k, gid)] = True
+                        pit[k]["games"] += 1
+                    merge_official_pitching(pit[k], row)
+
+            # チーム得点はスコアボードの公式値を使う
+            sb = box.get("scoreboard") or {}
+            for side in ("away", "home"):
+                s = sb.get(side)
+                t = side_team.get(side)
+                if s and t and t in team_stats:
+                    team_stats[t]["runs"] += s.get("runs", 0)
+                    other = "home" if side == "away" else "away"
+                    if sb.get(other):
+                        team_stats[t]["runs_allowed"] += sb[other].get("runs", 0)
+
+        # ===== 打席データからの補完（背番号・投打・公式が無い場合の推定） =====
         for ab in g.get("atbats", []):
             b = ab.get("batter") or {}
             p = ab.get("pitcher") or {}
             bteam = normalize_team(ab.get("batting_team"))
             fteam = normalize_team(ab.get("fielding_team"))
 
-            # --- 打者マスター＆成績 ---
+            # 打者：マスター情報（背番号・投打）を補完
             bkey = player_key(b.get("player_id"), b.get("name"))
             if bkey:
                 if bkey not in players:
@@ -161,27 +273,33 @@ def rebuild(season, base="data"):
                         "number": b.get("number"),
                         "hand": b.get("hand"),
                     }
-                    bat[bkey] = blank_batting()
-                # 出場試合数（同一試合1回だけ）
-                if (bkey, gid) not in seen_game_per_player_bat:
-                    seen_game_per_player_bat[(bkey, gid)] = True
-                    bat[bkey]["games"] += 1
+                else:
+                    # 背番号・投打は打席データにしか無いので埋める
+                    if not players[bkey].get("number"):
+                        players[bkey]["number"] = b.get("number")
+                    if not players[bkey].get("hand"):
+                        players[bkey]["hand"] = b.get("hand")
 
-                ev = classify_batting(ab.get("result_summary"))
-                bb = bat[bkey]
-                bb["pa"] += ev["pa"]; bb["ab"] += ev["ab"]
-                bb["hits"] += ev["hit"]; bb["singles"] += ev["single"]
-                bb["doubles"] += ev["double"]; bb["triples"] += ev["triple"]
-                bb["hr"] += ev["hr"]; bb["bb"] += ev["bb"]; bb["so"] += ev["so"]
+                # 公式成績が無い試合のみ、打席結果から推定して集計
+                if not used_official:
+                    if bkey not in bat:
+                        bat[bkey] = blank_batting()
+                    if (bkey, gid) not in seen_game_per_player_bat:
+                        seen_game_per_player_bat[(bkey, gid)] = True
+                        bat[bkey]["games"] += 1
+                    ev = classify_batting(ab.get("result_summary"))
+                    bb = bat[bkey]
+                    bb["pa"] += ev["pa"]; bb["ab"] += ev["ab"]
+                    bb["hits"] += ev["hit"]; bb["singles"] += ev["single"]
+                    bb["doubles"] += ev["double"]; bb["triples"] += ev["triple"]
+                    bb["hr"] += ev["hr"]; bb["bb"] += ev["bb"]; bb["so"] += ev["so"]
+                    m = re.search(r"＋(\d+)点", ab.get("result_summary") or "")
+                    if m:
+                        bb["rbi"] += int(m.group(1))
+                        if bteam and bteam in team_stats:
+                            team_stats[bteam]["runs"] += int(m.group(1))
 
-                # 打点（結果テキストの＋N点を打者に計上）
-                m = re.search(r"＋(\d+)点", ab.get("result_summary") or "")
-                if m:
-                    bb["rbi"] += int(m.group(1))
-                if bteam and bteam in team_stats and m:
-                    team_stats[bteam]["runs"] += int(m.group(1))
-
-            # --- 投手マスター＆成績 ---
+            # 投手：マスター情報を補完
             pkey = player_key(p.get("player_id"), p.get("name"))
             if pkey:
                 if pkey not in players:
@@ -193,20 +311,26 @@ def rebuild(season, base="data"):
                         "number": p.get("number"),
                         "hand": p.get("hand"),
                     }
-                if pkey not in pit:
-                    pit[pkey] = blank_pitching()
-                if (pkey, gid) not in seen_game_per_player_pit:
-                    seen_game_per_player_pit[(pkey, gid)] = True
-                    pit[pkey]["games"] += 1
+                else:
+                    if not players[pkey].get("number"):
+                        players[pkey]["number"] = p.get("number")
+                    if not players[pkey].get("hand"):
+                        players[pkey]["hand"] = p.get("hand")
 
-                pp = pit[pkey]
-                pp["batters_faced"] += 1
-                pp["pitches"] += ab.get("pitch_count", 0)
-                ev = classify_batting(ab.get("result_summary"))
-                pp["hits_allowed"] += ev["hit"]
-                pp["hr_allowed"] += ev["hr"]
-                pp["so"] += ev["so"]
-                pp["bb"] += ev["bb"]
+                if not used_official:
+                    if pkey not in pit:
+                        pit[pkey] = blank_pitching()
+                    if (pkey, gid) not in seen_game_per_player_pit:
+                        seen_game_per_player_pit[(pkey, gid)] = True
+                        pit[pkey]["games"] += 1
+                    pp = pit[pkey]
+                    pp["batters_faced"] += 1
+                    pp["pitches"] += ab.get("pitch_count", 0)
+                    ev = classify_batting(ab.get("result_summary"))
+                    pp["hits_allowed"] += ev["hit"]
+                    pp["hr_allowed"] += ev["hr"]
+                    pp["so"] += ev["so"]
+                    pp["bb"] += ev["bb"]
 
     # --- 出力を組み立て ---
     player_out = []
@@ -215,7 +339,7 @@ def rebuild(season, base="data"):
         if k in bat:
             entry["batting"] = {**bat[k], **calc_rate_stats(_fill(bat[k]))}
         if k in pit:
-            entry["pitching"] = pit[k]
+            entry["pitching"] = {**pit[k], **calc_pitching_rates(pit[k])}
         player_out.append(entry)
     player_out.sort(key=lambda x: (x.get("team") or "", x.get("name") or ""))
 
