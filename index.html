@@ -163,6 +163,44 @@
   .pt-r{font-size:12.5px;text-align:right;color:var(--ink2);font-weight:700;}
   .pt-r.hit{color:var(--hit);} .pt-r.out{color:var(--out);}
 
+  /* ---- タブ ---- */
+  .tabs{display:flex;gap:6px;margin-top:16px;overflow-x:auto;
+    padding-bottom:2px;-webkit-overflow-scrolling:touch;}
+  .tab{flex-shrink:0;font-family:inherit;font-size:14px;font-weight:700;
+    padding:10px 18px;border-radius:10px 10px 0 0;cursor:pointer;
+    background:var(--panel2);color:var(--muted);
+    border:2px solid var(--line);border-bottom:none;}
+  .tab:hover{color:var(--accent);}
+  .tab.on{background:var(--accent);color:#fff;border-color:var(--accent);}
+
+  /* ---- 成績カード・テーブル ---- */
+  .card2{background:var(--panel);border:2px solid var(--line);border-radius:12px;
+    padding:14px;margin-top:12px;box-shadow:var(--shadow);}
+  .card2 h3{font-size:15px;color:var(--accent);margin-bottom:10px;}
+  .kv{display:flex;gap:10px;align-items:baseline;padding:4px 0;
+    border-bottom:1px dashed var(--line);font-size:14px;}
+  .kv:last-child{border-bottom:none;}
+  .kv .k{color:var(--muted);font-size:12px;min-width:70px;}
+  .kv .sub{color:var(--muted);font-size:12px;}
+  .card2 .sub{color:var(--ink2);font-size:13px;}
+
+  .tblwrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  table.stbl{border-collapse:collapse;width:100%;min-width:520px;font-size:13px;}
+  table.stbl th{background:var(--panel2);color:var(--muted);font-size:11.5px;
+    padding:7px 6px;white-space:nowrap;position:sticky;top:0;
+    border-bottom:2px solid var(--line);}
+  table.stbl td{padding:7px 6px;border-bottom:1px solid var(--line);
+    white-space:nowrap;text-align:center;}
+  table.stbl td.nm,table.stbl th.nm{text-align:left;font-weight:700;
+    position:sticky;left:0;background:var(--panel);min-width:88px;}
+  table.stbl th.nm{background:var(--panel2);}
+  table.stbl td.num{font-family:'Roboto Mono',monospace;}
+  table.stbl td.hi{color:var(--accent);font-weight:700;}
+  table.stbl tr:hover td{background:var(--panel2);}
+  .dec{display:inline-block;font-size:11px;font-weight:700;min-width:20px;}
+  .dec.win{color:var(--accent);} .dec.lose{color:var(--out);}
+  .dec.save{color:var(--accent2);}
+
   .msg{margin-top:16px;padding:30px 14px;text-align:center;
     border:2px dashed var(--line2);border-radius:12px;
     color:var(--muted);font-size:14px;line-height:2;}
@@ -507,6 +545,7 @@
       var r=await fetch(gamePath(d,gid)+"?t="+Date.now());
       curGame=await r.json();
       inferRunnerNames(curGame.atbats||[]);
+      curTab="summary";
       render();
       detailEl.scrollIntoView({behavior:"smooth",block:"start"});
     }catch(e){
@@ -514,14 +553,137 @@
     }
   }
 
+  /* ===== タブ制御 ===== */
+  var curTab = "summary";
+
+  function setTab(t){
+    curTab = t;
+    render();
+  }
+
   function render(){
+    var g=curGame;if(!g) return;
+    var tabs=[["summary","概要"],["batting","打撃"],["pitching","投手"],["pitches","全打席"]];
+    var h='<div class="tabs">';
+    tabs.forEach(function(t){
+      h+='<button class="tab'+(curTab===t[0]?' on':'')+'" onclick="setTab(\''+t[0]+'\')">'+t[1]+'</button>';
+    });
+    h+='</div><div id="tabbody"></div>';
+    detailEl.innerHTML=h;
+
+    var body=document.getElementById("tabbody");
+    if(curTab==="summary") body.innerHTML=renderSummary(g);
+    else if(curTab==="batting") body.innerHTML=renderBatting(g);
+    else if(curTab==="pitching") body.innerHTML=renderPitching(g);
+    else renderPitches();
+  }
+
+  /* ===== 概要タブ ===== */
+  function renderSummary(g){
+    var h=buildBoard(g);
+    var res=g.result||{};
+    // 責任投手
+    var pit=[];
+    if(res.win_pitcher) pit.push('<div class="kv"><span class="k">勝利投手</span><b>'+esc(res.win_pitcher)+'</b></div>');
+    if(res.lose_pitcher) pit.push('<div class="kv"><span class="k">敗戦投手</span><b>'+esc(res.lose_pitcher)+'</b></div>');
+    if(res.save_pitcher) pit.push('<div class="kv"><span class="k">セーブ</span><b>'+esc(res.save_pitcher)+'</b></div>');
+    if(pit.length) h+='<div class="card2"><h3>責任投手</h3>'+pit.join("")+'</div>';
+
+    // 本塁打
+    if(res.homeruns&&res.homeruns.length){
+      var hr=res.homeruns.map(function(x){
+        return '<div class="kv"><span class="k">'+esc(x.batter)+'</span><b>'+
+          (x.number?x.number+"号":"")+'</b> <span class="sub">'+esc(x.detail||"")+'</span></div>';
+      }).join("");
+      h+='<div class="card2"><h3>本塁打</h3>'+hr+'</div>';
+    }
+
+    // バッテリー
+    if(res.battery&&res.battery.text){
+      h+='<div class="card2"><h3>バッテリー</h3><div class="sub">'+esc(res.battery.text)+'</div></div>';
+    }
+    return h;
+  }
+
+  /* ===== 打撃成績タブ ===== */
+  function renderBatting(g){
+    var box=g.boxscore;
+    if(!box||!box.batting) return notReady("打撃成績");
+    var h="";
+    [["away",g.away],["home",g.home]].forEach(function(x){
+      var side=x[0],team=x[1];
+      var rows=box.batting[side]||[];
+      if(!rows.length) return;
+      h+='<div class="card2"><h3>'+esc(team||side)+'</h3><div class="tblwrap"><table class="stbl">'+
+         '<thead><tr><th>位置</th><th class="nm">選手</th><th>打率</th><th>打数</th>'+
+         '<th>安</th><th>点</th><th>本</th><th>三振</th><th>四球</th><th>盗</th></tr></thead><tbody>';
+      rows.forEach(function(p){
+        h+='<tr><td>'+esc(p.position||"")+'</td>'+
+           '<td class="nm">'+esc(p.name)+'</td>'+
+           '<td class="num">'+fmtAvg(p.season_avg)+'</td>'+
+           '<td class="num">'+p.ab+'</td>'+
+           '<td class="num'+(p.hits>0?' hi':'')+'">'+p.hits+'</td>'+
+           '<td class="num">'+p.rbi+'</td>'+
+           '<td class="num'+(p.hr>0?' hi':'')+'">'+p.hr+'</td>'+
+           '<td class="num">'+p.so+'</td>'+
+           '<td class="num">'+p.bb+'</td>'+
+           '<td class="num">'+p.sb+'</td></tr>';
+      });
+      h+='</tbody></table></div></div>';
+    });
+    return h||notReady("打撃成績");
+  }
+
+  /* ===== 投手成績タブ ===== */
+  function renderPitching(g){
+    var box=g.boxscore;
+    if(!box||!box.pitching) return notReady("投手成績");
+    var h="";
+    [["away",g.away],["home",g.home]].forEach(function(x){
+      var side=x[0],team=x[1];
+      var rows=box.pitching[side]||[];
+      if(!rows.length) return;
+      h+='<div class="card2"><h3>'+esc(team||side)+'</h3><div class="tblwrap"><table class="stbl">'+
+         '<thead><tr><th></th><th class="nm">選手</th><th>防御率</th><th>回</th><th>球数</th>'+
+         '<th>被安</th><th>被本</th><th>奪三</th><th>四球</th><th>失点</th><th>自責</th></tr></thead><tbody>';
+      rows.forEach(function(p){
+        var dec=p.decision||"";
+        var dcls=/勝/.test(dec)?"win":(/敗/.test(dec)?"lose":(dec?"save":""));
+        h+='<tr><td><span class="dec '+dcls+'">'+esc(dec)+'</span></td>'+
+           '<td class="nm">'+esc(p.name)+'</td>'+
+           '<td class="num">'+(p.season_era==null?"-":p.season_era.toFixed(2))+'</td>'+
+           '<td class="num">'+esc(p.innings)+'</td>'+
+           '<td class="num">'+p.pitches+'</td>'+
+           '<td class="num">'+p.hits_allowed+'</td>'+
+           '<td class="num">'+p.hr_allowed+'</td>'+
+           '<td class="num'+(p.so>0?' hi':'')+'">'+p.so+'</td>'+
+           '<td class="num">'+p.bb+'</td>'+
+           '<td class="num">'+p.runs_allowed+'</td>'+
+           '<td class="num">'+p.earned_runs+'</td></tr>';
+      });
+      h+='</tbody></table></div></div>';
+    });
+    return h||notReady("投手成績");
+  }
+
+  function notReady(name){
+    return '<div class="msg">'+name+'はこの試合のデータにまだ含まれていません<br>'+
+      '<span style="font-size:12px">Actionsで再収集すると取得できます</span></div>';
+  }
+  function fmtAvg(v){
+    if(v==null) return "-";
+    return v.toFixed(3).replace(/^0\./,".");
+  }
+
+  /* ===== 全打席タブ（従来の一球表示） ===== */
+  function renderPitches(){
     var g=curGame;if(!g) return;
     var fe=document.getElementById("flt");
     var fv=fe?fe.value:"all";
+    var body=document.getElementById("tabbody");
 
-    var h=buildBoard(g);
-    h+='<div class="toolbar"><span class="lb">表示</span>'+
-       '<select id="flt" onchange="render()">'+
+    var h='<div class="toolbar"><span class="lb">表示</span>'+
+       '<select id="flt" onchange="renderPitches()">'+
          '<option value="all">全打席</option>'+
          '<option value="'+esc(g.away)+'">'+esc(g.away)+' の攻撃</option>'+
          '<option value="'+esc(g.home)+'">'+esc(g.home)+' の攻撃</option>'+
@@ -543,7 +705,7 @@
     });
 
     if(!order.length){
-      detailEl.innerHTML=h+'<div class="msg">該当する打席がありません</div>';
+      body.innerHTML=h+'<div class="msg">該当する打席がありません</div>';
       var s0=document.getElementById("flt");if(s0)s0.value=fv;
       return;
     }
@@ -597,7 +759,7 @@
       h+='</div></div>';
     });
 
-    detailEl.innerHTML=h;
+    body.innerHTML=h;
     var sel=document.getElementById("flt");if(sel) sel.value=fv;
   }
 
