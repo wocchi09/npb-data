@@ -273,22 +273,12 @@ def rebuild(season, base="data"):
                         "number": b.get("number"),
                         "hand": b.get("hand"),
                     }
-<<<<<<< HEAD
                 else:
                     # 背番号・投打は打席データにしか無いので埋める
                     if not players[bkey].get("number"):
                         players[bkey]["number"] = b.get("number")
                     if not players[bkey].get("hand"):
                         players[bkey]["hand"] = b.get("hand")
-=======
-                # batは選手登録と独立して初期化（投手が打席に立つ場合に備える）
-                if bkey not in bat:
-                    bat[bkey] = blank_batting()
-                # 出場試合数（同一試合1回だけ）
-                if (bkey, gid) not in seen_game_per_player_bat:
-                    seen_game_per_player_bat[(bkey, gid)] = True
-                    bat[bkey]["games"] += 1
->>>>>>> 21616bc0a0e7f53e165d2ef58cac57890d2ac517
 
                 # 公式成績が無い試合のみ、打席結果から推定して集計
                 if not used_official:
