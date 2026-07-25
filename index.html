@@ -201,6 +201,42 @@
   .dec.win{color:var(--accent);} .dec.lose{color:var(--out);}
   .dec.save{color:var(--accent2);}
 
+  /* ---- ダッシュボード ---- */
+  .dash-sec{margin-top:16px;background:var(--panel);border:2px solid var(--line);
+    border-radius:14px;padding:16px;box-shadow:var(--shadow);}
+  .dash-h{display:flex;align-items:center;gap:8px;font-size:16px;font-weight:700;
+    margin-bottom:12px;}
+  .dash-h .dot{width:9px;height:9px;border-radius:50%;background:var(--accent);}
+  .dash-date{margin-left:auto;font-size:12px;color:var(--muted);
+    font-family:'Roboto Mono',monospace;}
+  .dash-games{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+    gap:8px;margin-bottom:12px;}
+  .dgame{background:var(--panel2);border:1px solid var(--line);border-radius:10px;
+    padding:10px 12px;cursor:pointer;transition:border-color .15s;}
+  .dgame:hover{border-color:var(--accent);}
+  .dg-score{font-family:'Roboto Mono',monospace;font-size:16px;font-weight:700;
+    display:flex;align-items:baseline;gap:5px;}
+  .dg-score .w{color:var(--accent);}
+  .dg-score .dash{color:var(--muted);font-size:13px;}
+  .dg-pit{font-size:11px;color:var(--muted);margin-top:3px;}
+
+  .rankgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));
+    gap:10px;margin-bottom:12px;}
+  .rankcard{background:var(--panel2);border:1px solid var(--line);border-radius:10px;
+    padding:10px 12px;}
+  .rankcard h4{font-size:13px;color:var(--accent);margin-bottom:6px;
+    border-bottom:2px solid var(--line);padding-bottom:5px;}
+  .rankrow{display:grid;grid-template-columns:20px 1fr auto auto;gap:6px;
+    align-items:center;padding:4px 0;font-size:13px;cursor:pointer;}
+  .rankrow:hover{color:var(--accent);}
+  .rankrow .rk{font-family:'Roboto Mono',monospace;color:var(--muted);
+    font-weight:700;text-align:center;}
+  .rankrow .rn{font-weight:700;white-space:nowrap;overflow:hidden;
+    text-overflow:ellipsis;}
+  .rankrow .rt{font-size:10px;color:var(--muted);white-space:nowrap;}
+  .rankrow .rv{font-family:'Roboto Mono',monospace;font-weight:700;
+    color:var(--accent);}
+
   /* ---- ビュー切替 ---- */
   .viewswitch{display:flex;gap:8px;margin-top:16px;}
   .vbtn{flex:1;font-family:inherit;font-size:15px;font-weight:700;
@@ -280,11 +316,14 @@
 
   <div class="wrap">
     <div class="viewswitch">
-      <button class="vbtn on" id="vb-games" onclick="setView('games')">試合</button>
+      <button class="vbtn on" id="vb-dash" onclick="setView('dash')">ホーム</button>
+      <button class="vbtn" id="vb-games" onclick="setView('games')">試合</button>
       <button class="vbtn" id="vb-season" onclick="setView('season')">シーズン成績</button>
     </div>
 
-    <div id="gameView">
+    <div id="dashView"></div>
+
+    <div id="gameView" style="display:none">
       <div class="datebar">
         <div class="drow">
           <input type="date" id="dp">
@@ -743,6 +782,147 @@
     return v.toFixed(3).replace(/^0\./,".");
   }
 
+  /* ===== ダッシュボード（ホーム） ===== */
+  var dashLoaded = false;
+
+  async function loadDash(){
+    var dv=document.getElementById("dashView");
+    if(dashLoaded){ return; }
+    dv.innerHTML='<div class="msg">読み込み中…</div>';
+
+    // 1) 最新のデータがある日を index.json から検出
+    var latestDate=null;
+    try{
+      var ri=await fetch("data/index.json?t="+Date.now());
+      if(ri.ok){
+        var idx=await ri.json();
+        var days={};
+        (idx.files||[]).forEach(function(f){
+          var m=f.match(/data\/(\d{4})\/(\d{2})\/(\d{2})\//);
+          if(m) days[m[1]+"-"+m[2]+"-"+m[3]]=1;
+        });
+        var dl=Object.keys(days).sort();
+        if(dl.length) latestDate=dl[dl.length-1];
+      }
+    }catch(e){}
+
+    // 2) シーズン成績を読む（ランキング用）
+    var year=(latestDate||todayJST()).split("-")[0];
+    var players=[];
+    try{
+      var rp=await fetch("data/"+year+"/players/stats.json?t="+Date.now());
+      if(rp.ok) players=(await rp.json()).players||[];
+    }catch(e){}
+
+    // 3) 最新日の試合結果を読む
+    var latestGames=[];
+    if(latestDate){
+      try{
+        var rs=await fetch(sumPath(latestDate)+"?t="+Date.now());
+        if(rs.ok) latestGames=(await rs.json()).games||[];
+      }catch(e){}
+    }
+
+    renderDash(latestDate, latestGames, players, year);
+    dashLoaded=true;
+  }
+
+  function rankBlock(title, players, statFn, fmtFn, asc){
+    var list=players.filter(function(p){return statFn(p)!=null;});
+    list.sort(function(a,b){
+      var va=statFn(a), vb=statFn(b);
+      return asc ? va-vb : vb-va;
+    });
+    if(!list.length) return "";
+    var h='<div class="rankcard"><h4>'+title+'</h4>';
+    list.slice(0,5).forEach(function(p,i){
+      h+='<div class="rankrow" onclick="gotoPlayer(\''+esc(p.key)+'\')">'+
+         '<span class="rk">'+(i+1)+'</span>'+
+         '<span class="rn">'+esc(p.name)+'</span>'+
+         '<span class="rt">'+esc(p.team||"")+'</span>'+
+         '<span class="rv">'+fmtFn(statFn(p))+'</span></div>';
+    });
+    h+='</div>';
+    return h;
+  }
+
+  function renderDash(latestDate, games, players, year){
+    var dv=document.getElementById("dashView");
+    var h='';
+
+    // --- 最新の試合結果 ---
+    if(latestDate && games.length){
+      h+='<div class="dash-sec"><div class="dash-h">'+
+         '<span class="dot"></span>最新の試合結果'+
+         '<span class="dash-date">'+latestDate.replace(/-/g,"/")+'</span></div>';
+      h+='<div class="dash-games">';
+      games.forEach(function(g){
+        var res=g.result||{};
+        var sc='';
+        if(res.home_score!=null&&res.away_score!=null){
+          var hw=res.home_score>res.away_score, aw=res.away_score>res.home_score;
+          sc='<span class="'+(hw?"w":"")+'">'+esc(res.home_mini||res.home||"")+' '+res.home_score+'</span>'+
+             '<span class="dash">-</span>'+
+             '<span class="'+(aw?"w":"")+'">'+res.away_score+' '+esc(res.away_mini||res.away||"")+'</span>';
+        }else{
+          sc=esc(g.card||"");
+        }
+        h+='<div class="dgame" onclick="gotoGame(\''+latestDate+'\',\''+g.game_id+'\')">'+
+           '<div class="dg-score">'+sc+'</div>'+
+           (res.win_pitcher?'<div class="dg-pit">勝 '+esc(res.win_pitcher)+
+             (res.lose_pitcher?'／敗 '+esc(res.lose_pitcher):'')+'</div>':'')+
+           '</div>';
+      });
+      h+='</div><button class="btn" onclick="openGamesDay(\''+latestDate+'\')">この日の試合を詳しく見る ▶</button></div>';
+    }else{
+      h+='<div class="dash-sec"><div class="msg">まだ試合データがありません<br>'+
+         '<span style="font-size:12px">Actionsで収集すると表示されます</span></div></div>';
+    }
+
+    // --- ランキングハイライト（全種類） ---
+    if(players.length){
+      var fmtA=function(v){return fmtAvg(v);};
+      var fmtN=function(v){return v;};
+      var fmtE=function(v){return v==null?"-":v.toFixed(2);};
+      var fmtO=function(v){return v==null?"-":v.toFixed(3).replace(/^0\./,".");};
+
+      var bat=function(f){return function(p){return p.batting?f(p.batting):null;};};
+      var pit=function(f){return function(p){return (p.pitching&&(p.pitching.outs||0)>=1)?f(p.pitching):null;};};
+
+      h+='<div class="dash-sec"><div class="dash-h"><span class="dot"></span>'+
+         year+' シーズンリーダー</div><div class="rankgrid">';
+      h+=rankBlock("打率", players, bat(function(b){return b.pa>=1?b.avg:null;}), fmtA);
+      h+=rankBlock("本塁打", players, bat(function(b){return b.hr;}), fmtN);
+      h+=rankBlock("打点", players, bat(function(b){return b.rbi;}), fmtN);
+      h+=rankBlock("安打", players, bat(function(b){return b.hits;}), fmtN);
+      h+=rankBlock("OPS", players, bat(function(b){return b.pa>=1?b.ops:null;}), fmtO);
+      h+=rankBlock("盗塁", players, bat(function(b){return b.sb;}), fmtN);
+      h+=rankBlock("防御率", players, pit(function(q){return q.era;}), fmtE, true);
+      h+=rankBlock("奪三振", players, pit(function(q){return q.so;}), fmtN);
+      h+=rankBlock("勝利", players, pit(function(q){return q.wins;}), fmtN);
+      h+='</div><button class="btn" onclick="setView(\'season\')">シーズン成績をすべて見る ▶</button></div>';
+    }
+
+    dv.innerHTML=h;
+  }
+
+  /* ダッシュボードからの遷移 */
+  async function gotoGame(date, gid){
+    setView("games");
+    dp.value=date;
+    await loadDay();
+    loadGame(date, gid, null);
+  }
+  function openGamesDay(date){
+    setView("games");
+    dp.value=date;
+    loadDay();
+  }
+  function gotoPlayer(key){
+    setView("season");
+    setTimeout(function(){ showPlayer(key); }, 400);
+  }
+
   /* ===== 画面切り替え（試合ビュー / シーズン成績ビュー） ===== */
   var curView = "games";      // games | season
   var seasonData = null;      // 読み込んだ選手成績
@@ -752,18 +932,17 @@
 
   function setView(v){
     curView = v;
+    var dv=document.getElementById("dashView");
     var gv=document.getElementById("gameView");
     var sv=document.getElementById("seasonView");
-    var b1=document.getElementById("vb-games");
-    var b2=document.getElementById("vb-season");
-    if(v==="season"){
-      gv.style.display="none"; sv.style.display="block";
-      b1.classList.remove("on"); b2.classList.add("on");
-      loadSeason();
-    }else{
-      gv.style.display="block"; sv.style.display="none";
-      b1.classList.add("on"); b2.classList.remove("on");
-    }
+    dv.style.display = v==="dash" ? "block" : "none";
+    gv.style.display = v==="games" ? "block" : "none";
+    sv.style.display = v==="season" ? "block" : "none";
+    document.getElementById("vb-dash").classList.toggle("on", v==="dash");
+    document.getElementById("vb-games").classList.toggle("on", v==="games");
+    document.getElementById("vb-season").classList.toggle("on", v==="season");
+    if(v==="dash") loadDash();
+    else if(v==="season") loadSeason();
   }
 
   async function loadSeason(){
@@ -1230,7 +1409,9 @@
   }
   function today(){dp.value=todayJST();loadDay();}
   dp.addEventListener("change",loadDay);
-  today();
+  // 初期表示はダッシュボード
+  dp.value=todayJST();
+  setView("dash");
 </script>
 </body>
 </html>
