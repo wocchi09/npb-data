@@ -201,6 +201,20 @@
   .dec.win{color:var(--accent);} .dec.lose{color:var(--out);}
   .dec.save{color:var(--accent2);}
 
+  /* ---- ビュー切替 ---- */
+  .viewswitch{display:flex;gap:8px;margin-top:16px;}
+  .vbtn{flex:1;font-family:inherit;font-size:15px;font-weight:700;
+    padding:12px;border-radius:12px;cursor:pointer;
+    background:var(--panel);color:var(--muted);
+    border:2px solid var(--line);box-shadow:var(--shadow);}
+  .vbtn:hover{color:var(--accent);border-color:var(--accent);}
+  .vbtn.on{background:var(--accent);color:#fff;border-color:var(--accent);}
+
+  .lnk{cursor:pointer;}
+  .stbl tr[onclick]{cursor:pointer;}
+  .stbl td.lnk{color:var(--accent);}
+  .pcard{border-color:var(--accent);}
+
   /* ---- 配球分析 ---- */
   .bar-row{display:grid;grid-template-columns:80px 1fr auto;gap:10px;
     align-items:center;padding:5px 0;font-size:13px;}
@@ -265,16 +279,26 @@
   </div>
 
   <div class="wrap">
-    <div class="datebar">
-      <div class="drow">
-        <input type="date" id="dp">
-        <button class="btn" onclick="shift(-1)">◀ 前日</button>
-        <button class="btn primary" onclick="today()">今日</button>
-        <button class="btn" onclick="shift(1)">翌日 ▶</button>
-      </div>
+    <div class="viewswitch">
+      <button class="vbtn on" id="vb-games" onclick="setView('games')">試合</button>
+      <button class="vbtn" id="vb-season" onclick="setView('season')">シーズン成績</button>
     </div>
-    <div id="games" class="games"></div>
-    <div id="detail"></div>
+
+    <div id="gameView">
+      <div class="datebar">
+        <div class="drow">
+          <input type="date" id="dp">
+          <button class="btn" onclick="shift(-1)">◀ 前日</button>
+          <button class="btn primary" onclick="today()">今日</button>
+          <button class="btn" onclick="shift(1)">翌日 ▶</button>
+        </div>
+      </div>
+      <div id="games" class="games"></div>
+      <div id="detail"></div>
+    </div>
+
+    <div id="seasonView" style="display:none"></div>
+
     <div class="foot">
       ▸ データは毎晩 JST 23時台に自動収集。過去の日付は Actions の「Run workflow」で収集できます。<br>
       ▸ 得点・カウントは打席データからの推定値です。コースは配球図座標の近似です。
@@ -717,6 +741,235 @@
   function fmtAvg(v){
     if(v==null) return "-";
     return v.toFixed(3).replace(/^0\./,".");
+  }
+
+  /* ===== 画面切り替え（試合ビュー / シーズン成績ビュー） ===== */
+  var curView = "games";      // games | season
+  var seasonData = null;      // 読み込んだ選手成績
+  var seasonTeams = null;
+  var seasonSort = "avg";     // 並び替えキー
+  var seasonTeamFilter = "all";
+
+  function setView(v){
+    curView = v;
+    var gv=document.getElementById("gameView");
+    var sv=document.getElementById("seasonView");
+    var b1=document.getElementById("vb-games");
+    var b2=document.getElementById("vb-season");
+    if(v==="season"){
+      gv.style.display="none"; sv.style.display="block";
+      b1.classList.remove("on"); b2.classList.add("on");
+      loadSeason();
+    }else{
+      gv.style.display="block"; sv.style.display="none";
+      b1.classList.add("on"); b2.classList.remove("on");
+    }
+  }
+
+  async function loadSeason(){
+    var sv=document.getElementById("seasonView");
+    if(seasonData){ renderSeason(); return; }
+    sv.innerHTML='<div class="msg">読み込み中…</div>';
+    var year=(dp.value||todayJST()).split("-")[0];
+    try{
+      var r=await fetch("data/"+year+"/players/stats.json?t="+Date.now());
+      if(!r.ok) throw 0;
+      var d=await r.json();
+      seasonData=d.players||[];
+      try{
+        var rt=await fetch("data/"+year+"/teams/stats.json?t="+Date.now());
+        if(rt.ok){ seasonTeams=(await rt.json()).teams||[]; }
+      }catch(e){}
+      renderSeason();
+    }catch(e){
+      sv.innerHTML='<div class="msg">シーズン成績がまだありません<br>'+
+        '<span style="font-size:12px">Actionsで収集すると自動生成されます</span></div>';
+    }
+  }
+
+  /* 規定打席・規定投球回の目安（試合数ベースの簡易判定） */
+  function isQualifiedBatter(p){
+    var b=p.batting||{};
+    return (b.pa||0) >= 1;    // 打席に立った野手を表示
+  }
+  function isQualifiedPitcher(p){
+    var q=p.pitching||{};
+    return (q.outs||0) >= 1;  // 登板した投手を表示
+  }
+
+  function renderSeason(){
+    var sv=document.getElementById("seasonView");
+    if(!seasonData||!seasonData.length){
+      sv.innerHTML='<div class="msg">選手データがありません</div>';
+      return;
+    }
+
+    // チーム一覧
+    var teams={};
+    seasonData.forEach(function(p){ if(p.team) teams[p.team]=1; });
+    var teamList=Object.keys(teams).sort();
+
+    var sorts=[["avg","打率"],["hr","本塁打"],["rbi","打点"],["hits","安打"],
+               ["ops","OPS"],["era","防御率"],["so_p","奪三振"],["wins","勝利"]];
+
+    var h='<div class="toolbar">'+
+      '<span class="lb">項目</span><select id="ssort" onchange="onSeasonChange()">'+
+      sorts.map(function(s){
+        return '<option value="'+s[0]+'"'+(seasonSort===s[0]?" selected":"")+'>'+s[1]+'</option>';
+      }).join("")+'</select>'+
+      '<span class="lb">チーム</span><select id="steam" onchange="onSeasonChange()">'+
+      '<option value="all">全チーム</option>'+
+      teamList.map(function(t){
+        return '<option value="'+esc(t)+'"'+(seasonTeamFilter===t?" selected":"")+'>'+esc(t)+'</option>';
+      }).join("")+'</select></div>';
+
+    var isPitchStat = (seasonSort==="era"||seasonSort==="so_p"||seasonSort==="wins");
+
+    // 対象選手を絞る
+    var list=seasonData.filter(function(p){
+      if(seasonTeamFilter!=="all" && p.team!==seasonTeamFilter) return false;
+      if(isPitchStat) return p.pitching && isQualifiedPitcher(p);
+      return p.batting && isQualifiedBatter(p);
+    });
+
+    // 並び替え
+    function val(p){
+      var b=p.batting||{}, q=p.pitching||{};
+      switch(seasonSort){
+        case "avg": return b.avg;
+        case "hr": return b.hr;
+        case "rbi": return b.rbi;
+        case "hits": return b.hits;
+        case "ops": return b.ops;
+        case "era": return q.era;
+        case "so_p": return q.so;
+        case "wins": return q.wins;
+      }
+      return null;
+    }
+    list.sort(function(a,b){
+      var va=val(a), vb=val(b);
+      if(va==null) return 1;
+      if(vb==null) return -1;
+      // 防御率は小さいほうが上位
+      return seasonSort==="era" ? va-vb : vb-va;
+    });
+
+    if(!list.length){
+      sv.innerHTML=h+'<div class="msg">該当する選手がいません</div><div id="playerDetail"></div>';
+      return;
+    }
+
+    // ランキング表
+    h+='<div class="card2"><h3>'+
+       (isPitchStat?"投手":"野手")+'ランキング（'+
+       sorts.filter(function(s){return s[0]===seasonSort;})[0][1]+'）</h3><div class="tblwrap">';
+    if(isPitchStat){
+      h+='<table class="stbl"><thead><tr><th>#</th><th class="nm">選手</th><th>チーム</th>'+
+         '<th>登板</th><th>回</th><th>防御率</th><th>WHIP</th><th>奪三</th><th>四球</th>'+
+         '<th>勝</th><th>敗</th><th>S</th></tr></thead><tbody>';
+      list.slice(0,50).forEach(function(p,i){
+        var q=p.pitching||{};
+        h+='<tr onclick="showPlayer(\''+esc(p.key)+'\')"><td class="num">'+(i+1)+'</td>'+
+           '<td class="nm lnk">'+esc(p.name)+'</td><td>'+esc(p.team||"")+'</td>'+
+           '<td class="num">'+(q.games||0)+'</td>'+
+           '<td class="num">'+esc(q.innings||"0")+'</td>'+
+           '<td class="num hi">'+(q.era==null?"-":q.era.toFixed(2))+'</td>'+
+           '<td class="num">'+(q.whip==null?"-":q.whip.toFixed(2))+'</td>'+
+           '<td class="num">'+(q.so||0)+'</td><td class="num">'+(q.bb||0)+'</td>'+
+           '<td class="num">'+(q.wins||0)+'</td><td class="num">'+(q.losses||0)+'</td>'+
+           '<td class="num">'+(q.saves||0)+'</td></tr>';
+      });
+    }else{
+      h+='<table class="stbl"><thead><tr><th>#</th><th class="nm">選手</th><th>チーム</th>'+
+         '<th>試合</th><th>打席</th><th>打数</th><th>安打</th><th>本</th><th>点</th>'+
+         '<th>打率</th><th>OPS</th></tr></thead><tbody>';
+      list.slice(0,50).forEach(function(p,i){
+        var b=p.batting||{};
+        h+='<tr onclick="showPlayer(\''+esc(p.key)+'\')"><td class="num">'+(i+1)+'</td>'+
+           '<td class="nm lnk">'+esc(p.name)+'</td><td>'+esc(p.team||"")+'</td>'+
+           '<td class="num">'+(b.games||0)+'</td><td class="num">'+(b.pa||0)+'</td>'+
+           '<td class="num">'+(b.ab||0)+'</td><td class="num">'+(b.hits||0)+'</td>'+
+           '<td class="num'+((b.hr||0)>0?' hi':'')+'">'+(b.hr||0)+'</td>'+
+           '<td class="num">'+(b.rbi||0)+'</td>'+
+           '<td class="num hi">'+fmtAvg(b.avg)+'</td>'+
+           '<td class="num">'+(b.ops==null?"-":b.ops.toFixed(3).replace(/^0\./,"."))+'</td></tr>';
+      });
+    }
+    h+='</tbody></table></div>'+
+       '<div class="sub" style="margin-top:8px;font-size:11px">'+
+       (isPitchStat?"登板した投手":"打席に立った野手")+'を対象／選手名をタップで詳細</div></div>';
+
+    // チーム成績
+    if(seasonTeams&&seasonTeams.length){
+      h+='<div class="card2"><h3>チーム成績</h3><div class="tblwrap">'+
+         '<table class="stbl"><thead><tr><th class="nm">チーム</th><th>リーグ</th>'+
+         '<th>試合</th><th>得点</th><th>失点</th><th>安打</th><th>本塁打</th></tr></thead><tbody>';
+      seasonTeams.forEach(function(t){
+        h+='<tr><td class="nm">'+esc(t.team)+'</td><td>'+esc(t.league||"")+'</td>'+
+           '<td class="num">'+(t.games||0)+'</td>'+
+           '<td class="num hi">'+(t.runs||0)+'</td>'+
+           '<td class="num">'+(t.runs_allowed||0)+'</td>'+
+           '<td class="num">'+(t.hits||0)+'</td>'+
+           '<td class="num">'+(t.hr||0)+'</td></tr>';
+      });
+      h+='</tbody></table></div></div>';
+    }
+
+    h+='<div id="playerDetail"></div>';
+    sv.innerHTML=h;
+  }
+
+  function onSeasonChange(){
+    var s=document.getElementById("ssort"), t=document.getElementById("steam");
+    if(s) seasonSort=s.value;
+    if(t) seasonTeamFilter=t.value;
+    renderSeason();
+  }
+
+  /* 選手詳細カード */
+  function showPlayer(key){
+    var p=null;
+    for(var i=0;i<seasonData.length;i++){
+      if(seasonData[i].key===key){p=seasonData[i];break;}
+    }
+    if(!p) return;
+    var el=document.getElementById("playerDetail");
+    if(!el) return;
+    var b=p.batting||{}, q=p.pitching||{};
+    var h='<div class="card2 pcard"><h3>'+esc(p.name)+
+      (p.number?' <span class="no">#'+esc(p.number)+'</span>':'')+
+      ' <span class="sub2">'+esc(p.team||"")+' '+esc(p.hand||"")+'</span></h3>';
+
+    if(b.pa){
+      h+='<div class="sub" style="margin:6px 0 4px">打撃成績</div><div class="statrow">'+
+        '<div class="stat"><div class="sv">'+fmtAvg(b.avg)+'</div><div class="sl">打率</div></div>'+
+        '<div class="stat"><div class="sv">'+(b.hits||0)+'</div><div class="sl">安打</div></div>'+
+        '<div class="stat"><div class="sv">'+(b.hr||0)+'</div><div class="sl">本塁打</div></div>'+
+        '<div class="stat"><div class="sv">'+(b.rbi||0)+'</div><div class="sl">打点</div></div>'+
+        '</div><div class="statrow" style="margin-top:8px">'+
+        '<div class="stat"><div class="sv">'+(b.ops==null?"-":b.ops.toFixed(3).replace(/^0\./,"."))+'</div><div class="sl">OPS</div></div>'+
+        '<div class="stat"><div class="sv">'+(b.games||0)+'</div><div class="sl">試合</div></div>'+
+        '<div class="stat"><div class="sv">'+(b.so||0)+'</div><div class="sl">三振</div></div>'+
+        '<div class="stat"><div class="sv">'+(b.bb||0)+'</div><div class="sl">四球</div></div>'+
+        '</div>';
+    }
+    if(q.outs){
+      h+='<div class="sub" style="margin:10px 0 4px">投手成績</div><div class="statrow">'+
+        '<div class="stat"><div class="sv">'+(q.era==null?"-":q.era.toFixed(2))+'</div><div class="sl">防御率</div></div>'+
+        '<div class="stat"><div class="sv">'+esc(q.innings||"0")+'</div><div class="sl">投球回</div></div>'+
+        '<div class="stat"><div class="sv">'+(q.so||0)+'</div><div class="sl">奪三振</div></div>'+
+        '<div class="stat"><div class="sv">'+(q.whip==null?"-":q.whip.toFixed(2))+'</div><div class="sl">WHIP</div></div>'+
+        '</div><div class="statrow" style="margin-top:8px">'+
+        '<div class="stat"><div class="sv">'+(q.wins||0)+'</div><div class="sl">勝利</div></div>'+
+        '<div class="stat"><div class="sv">'+(q.losses||0)+'</div><div class="sl">敗戦</div></div>'+
+        '<div class="stat"><div class="sv">'+(q.saves||0)+'</div><div class="sl">セーブ</div></div>'+
+        '<div class="stat"><div class="sv">'+(q.k9==null?"-":q.k9.toFixed(1))+'</div><div class="sl">K/9</div></div>'+
+        '</div>';
+    }
+    h+='<button class="btn" style="margin-top:12px" onclick="document.getElementById(\'playerDetail\').innerHTML=\'\'">閉じる</button></div>';
+    el.innerHTML=h;
+    el.scrollIntoView({behavior:"smooth",block:"nearest"});
   }
 
   /* ===== 配球分析タブ ===== */
