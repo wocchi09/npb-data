@@ -618,6 +618,17 @@ TEAM_SHORT = {
 }
 
 
+def parse_stadium(html: str) -> str | None:
+    """
+    ページ内の <ul class="stadium"> から球場名を取得する。
+    一球速報ページ・statsページの両方に同じ構造で存在する。
+    """
+    m = re.search(
+        r'<ul class="stadium">\s*<li>球場名：</li>\s*<li>([^<]+)</li>', html
+    )
+    return m.group(1).strip() if m else None
+
+
 def parse_teams(html: str) -> dict:
     """
     <title>から対戦カードを取得する。
