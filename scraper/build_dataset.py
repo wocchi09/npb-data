@@ -86,7 +86,7 @@ def write_table(rows, cols, out_dir, name, fmt):
 # ---------- 列定義 ----------
 
 PITCH_COLS = [
-    "date", "game_id", "home", "away", "stadium_side",
+    "date", "game_id", "home", "away", "stadium", "stadium_side",
     "inning", "top_bottom", "half", "batting_team", "fielding_team",
     "atbat_index", "atbat_no",
     "batter", "batter_id", "batter_key", "bat_hand",
@@ -102,7 +102,7 @@ PITCH_COLS = [
 ]
 
 ATBAT_COLS = [
-    "date", "game_id", "home", "away",
+    "date", "game_id", "home", "away", "stadium",
     "inning", "top_bottom", "half", "batting_team", "fielding_team",
     "atbat_index", "atbat_no",
     "batter", "batter_id", "batter_key", "bat_hand",
@@ -129,7 +129,7 @@ PIT_LINE_COLS = [
 ]
 
 GAME_COLS = [
-    "date", "game_id", "home", "away", "home_score", "away_score",
+    "date", "game_id", "home", "away", "stadium", "home_score", "away_score",
     "winner", "state", "win_pitcher", "lose_pitcher", "save_pitcher",
     "atbat_count", "pitch_count",
 ]
@@ -164,6 +164,7 @@ def build(season, base="data", fmt="both"):
             winner = home if hs > as_ else (away if as_ > hs else "引分")
         games.append({
             "date": date, "game_id": gid, "home": home, "away": away,
+            "stadium": g.get("stadium"),
             "home_score": hs, "away_score": as_, "winner": winner,
             "state": res.get("state"),
             "win_pitcher": res.get("win_pitcher"),
@@ -242,6 +243,7 @@ def build(season, base="data", fmt="both"):
 
             common = {
                 "date": date, "game_id": gid, "home": home, "away": away,
+                "stadium": g.get("stadium"),
                 "inning": ab.get("inning"), "top_bottom": tb,
                 "half": f"{ab.get('inning')}{tb}",
                 "batting_team": bteam, "fielding_team": fteam,
