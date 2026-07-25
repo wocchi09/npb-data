@@ -237,6 +237,19 @@
   .rankrow .rv{font-family:'Roboto Mono',monospace;font-weight:700;
     color:var(--accent);}
 
+  /* ---- 順位表 ---- */
+  .stabs{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;}
+  .stab{font-family:inherit;font-size:13px;font-weight:700;padding:7px 16px;
+    border-radius:20px;cursor:pointer;background:var(--panel2);
+    color:var(--muted);border:2px solid var(--line);}
+  .stab:hover{color:var(--sc);border-color:var(--sc);}
+  .stab.on{background:var(--sc);color:#fff;border-color:var(--sc);}
+  table.standtbl{min-width:620px;}
+  table.standtbl td.rank{font-weight:700;font-size:14px;}
+  table.standtbl td.plus{color:var(--accent);font-weight:700;}
+  table.standtbl td.minus{color:var(--out);}
+  table.standtbl tbody tr:first-child td.rank{color:var(--accent);}
+
   /* ---- チーム略称バッジ・リーグ表示 ---- */
   .tmini{display:inline-block;font-family:'Roboto Mono',monospace;font-size:10.5px;
     font-weight:700;line-height:1;padding:3px 5px;border-radius:4px;
@@ -869,6 +882,81 @@
     return v.toFixed(3).replace(/^0\./,".");
   }
 
+  /* ===== 順位表 ===== */
+  var standings = null;
+  var standTab = "central";   // central | pacific | interleague
+
+  function setStandTab(t){
+    standTab = t;
+    var el = document.getElementById("standBody");
+    if(el) el.innerHTML = renderStandTable();
+    var btns = document.querySelectorAll(".stab");
+    for(var i=0;i<btns.length;i++){
+      btns[i].classList.toggle("on", btns[i].getAttribute("data-t")===t);
+    }
+  }
+
+  function renderStandings(){
+    if(!standings) return "";
+    var has = (standings.central||[]).length || (standings.pacific||[]).length
+              || (standings.interleague||[]).length;
+    if(!has) return "";
+
+    var tabs=[["central","セ・リーグ","セ"],["pacific","パ・リーグ","パ"],
+              ["interleague","交流戦",null]];
+    var h='<div class="dash-sec"><div class="dash-h"><span class="dot"></span>順位表'+
+      (standings.updated_at?'<span class="dash-date">'+
+        esc(String(standings.updated_at).slice(0,10).replace(/-/g,"/"))+' 時点</span>':'')+
+      '</div><div class="stabs">';
+    tabs.forEach(function(t){
+      if(!(standings[t[0]]||[]).length) return;
+      var col = t[2] ? LEAGUE_COLOR[t[2]] : "var(--accent)";
+      h+='<button class="stab'+(standTab===t[0]?" on":"")+'" data-t="'+t[0]+'" '+
+         'style="--sc:'+col+'" onclick="setStandTab(\''+t[0]+'\')">'+t[1]+'</button>';
+    });
+    h+='</div><div id="standBody">'+renderStandTable()+'</div></div>';
+    return h;
+  }
+
+  function renderStandTable(){
+    var rows=(standings&&standings[standTab])||[];
+    if(!rows.length) return '<div class="msg">データがありません</div>';
+    var isInter = standTab==="interleague";
+
+    var h='<div class="tblwrap"><table class="stbl standtbl"><thead><tr>'+
+      '<th>順位</th><th class="nm">チーム</th><th>試合</th><th>勝</th><th>敗</th><th>分</th>'+
+      '<th>勝率</th><th>勝差</th>'+(isInter?'':'<th>残</th>')+
+      '<th>貯金</th><th>得点</th><th>失点</th><th>本</th><th>打率</th><th>防御率</th>'+
+      '</tr></thead><tbody>';
+
+    rows.forEach(function(r){
+      var d=r.diff||0;
+      h+='<tr style="border-left:4px solid '+(tColor(r.team)||"transparent")+'">'+
+        '<td class="num rank">'+(r.rank==null?"-":r.rank)+'</td>'+
+        '<td class="nm">'+teamBadge(r.team)+' '+esc(r.team)+'</td>'+
+        '<td class="num">'+(r.games||0)+'</td>'+
+        '<td class="num hi">'+(r.wins||0)+'</td>'+
+        '<td class="num">'+(r.losses||0)+'</td>'+
+        '<td class="num">'+(r.ties||0)+'</td>'+
+        '<td class="num">'+(r.pct==null?"-":r.pct.toFixed(3).replace(/^0\./,"."))+'</td>'+
+        '<td class="num">'+esc(r.gb==null?"-":r.gb)+'</td>'+
+        (isInter?'':'<td class="num">'+(r.games_left==null?"-":r.games_left)+'</td>')+
+        '<td class="num '+(d>0?"plus":(d<0?"minus":""))+'">'+(d>0?"+":"")+d+'</td>'+
+        '<td class="num">'+(r.runs==null?"-":r.runs)+'</td>'+
+        '<td class="num">'+(r.runs_allowed==null?"-":r.runs_allowed)+'</td>'+
+        '<td class="num">'+(r.hr==null?"-":r.hr)+'</td>'+
+        '<td class="num">'+(r.avg==null?"-":r.avg.toFixed(3).replace(/^0\./,"."))+'</td>'+
+        '<td class="num">'+(r.era==null?"-":r.era.toFixed(2))+'</td>'+
+        '</tr>';
+    });
+    h+='</tbody></table></div>';
+    if(isInter){
+      h+='<div class="sub" style="font-size:11px;margin-top:6px">'+
+         'セ・パ両リーグの球団が対戦する交流戦の成績です</div>';
+    }
+    return h;
+  }
+
   /* ===== ダッシュボード（ホーム） ===== */
   var dashLoaded = false;
 
@@ -899,6 +987,12 @@
     try{
       var rp=await fetch("data/"+year+"/players/stats.json?t="+Date.now());
       if(rp.ok) players=(await rp.json()).players||[];
+    }catch(e){}
+
+    // 2.5) 順位表を読む
+    try{
+      var rst=await fetch("data/"+year+"/standings.json?t="+Date.now());
+      if(rst.ok) standings=await rst.json();
     }catch(e){}
 
     // 3) 最新日の試合結果を読む
@@ -936,6 +1030,9 @@
   function renderDash(latestDate, games, players, year){
     var dv=document.getElementById("dashView");
     var h='';
+
+    // --- 順位表（最上部） ---
+    h+=renderStandings();
 
     // --- 最新の試合結果 ---
     if(latestDate && games.length){
