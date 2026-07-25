@@ -10,6 +10,15 @@ Seleniumは不要。requests + BeautifulSoup だけで動く。
 import re
 from bs4 import BeautifulSoup
 
+# チーム名の正規化（順位表の判定に使う）
+try:
+    from lib.normalize import normalize_team, team_info
+except ImportError:  # 単体実行時のフォールバック
+    import os
+    import sys
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from lib.normalize import normalize_team, team_info
+
 
 # ゾーン変換用の定数（配球図エリアの実測ピクセル）
 # ballCircle の top/left は 0〜約63px の範囲に分布する。
@@ -616,6 +625,105 @@ TEAM_SHORT = {
     "東京ヤクルトスワローズ": "ヤクルト",
     "横浜DeNAベイスターズ": "DeNA",
 }
+
+
+def _parse_rank_table(table) -> list[dict]:
+    """
+    bb-rankTable 1つを行の配列に変換する。
+    列の並びはページによって微妙に違う（交流戦には残試合が無い等）ため、
+    見出しテキストから列位置を割り出して読む。
+    """
+    # 見出し行から列マップを作る
+    head_cells = [th.get_text(strip=True) for th in table.find_all("th")]
+    col = {name: i for i, name in enumerate(head_cells)}
+
+    def pick(cells, name, cast=None, default=None):
+        i = col.get(name)
+        if i is None or i >= len(cells):
+            return default
+        v = cells[i].strip()
+        if not v or v in ("-", "―", "‐"):
+            # 勝差の「-」は首位を意味するので、その意味を残す
+            return "-" if name == "勝差" else default
+        if cast is int:
+            m = re.match(r"-?\d+", v)
+            return int(m.group(0)) if m else default
+        if cast is float:
+            try:
+                return float(v)
+            except ValueError:
+                return default
+        return v
+
+    rows = []
+    for tr in table.find_all("tr"):
+        cells = [td.get_text(strip=True) for td in tr.find_all("td")]
+        if len(cells) < 5:
+            continue
+        team = pick(cells, "チーム名")
+        if not team:
+            continue
+        wins = pick(cells, "勝利", int, 0) or 0
+        losses = pick(cells, "敗戦", int, 0) or 0
+        rows.append({
+            "rank": pick(cells, "順位", int),
+            "team": normalize_team(team),
+            "games": pick(cells, "試合", int, 0),
+            "wins": wins,
+            "losses": losses,
+            "ties": pick(cells, "引分", int, 0),
+            "pct": pick(cells, "勝率", float),
+            "gb": pick(cells, "勝差"),            # 「-」や「5.5」の文字列のまま持つ
+            "games_left": pick(cells, "残試合", int),
+            "runs": pick(cells, "得点", int),
+            "runs_allowed": pick(cells, "失点", int),
+            "hr": pick(cells, "本塁打", int),
+            "sb": pick(cells, "盗塁", int),
+            "avg": pick(cells, "打率", float),
+            "era": pick(cells, "防御率", float),
+            "errors": pick(cells, "失策", int),
+            "diff": wins - losses,               # 貯金（マイナスなら借金）
+        })
+    return rows
+
+
+def parse_standings(html: str) -> dict:
+    """
+    順位表ページ（/npb/standings/）から
+    セ・リーグ／パ・リーグ／交流戦／月間成績の順位表を取得する。
+
+    ページ上には bb-rankTable が複数並ぶ。どれがどれかは
+    「並び順」ではなく中身から判定する:
+      - 6球団かつ全てセ    → セ・リーグ
+      - 6球団かつ全てパ    → パ・リーグ
+      - 12球団で残試合あり → 交流戦
+      - 12球団で残試合なし → 月間成績
+    """
+    soup = BeautifulSoup(html, "html.parser")
+    out = {"central": [], "pacific": [], "interleague": [], "monthly": []}
+
+    for t in soup.select("table.bb-rankTable"):
+        rows = _parse_rank_table(t)
+        if not rows:
+            continue
+
+        leagues = {team_info(r["team"]).get("league") for r in rows}
+        leagues.discard(None)
+
+        if len(rows) <= 7 and leagues == {"セ"}:
+            if not out["central"]:
+                out["central"] = rows
+        elif len(rows) <= 7 and leagues == {"パ"}:
+            if not out["pacific"]:
+                out["pacific"] = rows
+        elif len(rows) >= 10:
+            has_left = any(r.get("games_left") is not None for r in rows)
+            if has_left and not out["interleague"]:
+                out["interleague"] = rows
+            elif not out["monthly"]:
+                out["monthly"] = rows
+
+    return out
 
 
 def parse_stadium(html: str) -> str | None:
