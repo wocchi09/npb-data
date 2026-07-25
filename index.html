@@ -237,6 +237,11 @@
   .rankrow .rv{font-family:'Roboto Mono',monospace;font-weight:700;
     color:var(--accent);}
 
+  /* ---- 規定到達マーク ---- */
+  .qmark{display:inline-block;margin-left:5px;font-size:9.5px;font-weight:700;
+    line-height:1;padding:2px 4px;border-radius:3px;vertical-align:middle;
+    background:var(--accent);color:#fff;}
+
   /* ---- ダッシュボードのリーグ別グループ ---- */
   .lgroup{margin-bottom:14px;}
   .lgroup-h{display:flex;align-items:center;gap:7px;font-size:13.5px;font-weight:700;
@@ -1013,7 +1018,7 @@
     // 2.5) 順位表を読む
     try{
       var rst=await fetch("data/"+year+"/standings.json?t="+Date.now());
-      if(rst.ok) standings=await rst.json();
+      if(rst.ok){ standings=await rst.json(); _tgCache=null; }
     }catch(e){}
 
     // 3) 最新日の試合結果を読む
@@ -1169,6 +1174,7 @@
   var seasonSort = "avg";     // 並び替えキー
   var seasonTeamFilter = "all";
   var seasonLeagueFilter = "all";
+  var seasonQualified = "all";   // all | qualified
 
   function setView(v){
     curView = v;
@@ -1199,6 +1205,13 @@
         var rt=await fetch("data/"+year+"/teams/stats.json?t="+Date.now());
         if(rt.ok){ seasonTeams=(await rt.json()).teams||[]; }
       }catch(e){}
+      // 規定打席・規定投球回の判定にチーム試合数（順位表）が要る
+      if(!standings){
+        try{
+          var rs2=await fetch("data/"+year+"/standings.json?t="+Date.now());
+          if(rs2.ok){ standings=await rs2.json(); _tgCache=null; }
+        }catch(e){}
+      }
       renderSeason();
     }catch(e){
       sv.innerHTML='<div class="msg">シーズン成績がまだありません<br>'+
@@ -1207,13 +1220,73 @@
   }
 
   /* 規定打席・規定投球回の目安（試合数ベースの簡易判定） */
+  /* ===== 規定打席・規定投球回 =====
+     NPBの基準:
+       規定打席   = チーム試合数 × 3.1
+       規定投球回 = チーム試合数 × 1.0
+     チーム試合数は順位表（公式）の値を使う。 */
+  var _tgCache = null;
+
+  function teamGamesMap(){
+    if(_tgCache) return _tgCache;
+    var m={};
+    if(standings){
+      ["central","pacific"].forEach(function(k){
+        (standings[k]||[]).forEach(function(r){
+          if(r.team) m[r.team]=r.games||0;
+        });
+      });
+    }
+    _tgCache = m;
+    return m;
+  }
+
+  /* 規定打席（整数に切り上げ）。チーム試合数が不明ならnull */
+  function reqPA(team){
+    var g=teamGamesMap()[team];
+    return g ? Math.ceil(g*3.1) : null;
+  }
+  /* 規定投球回をアウト数に換算（1回=3アウト） */
+  function reqOuts(team){
+    var g=teamGamesMap()[team];
+    return g ? g*3 : null;
+  }
+
+  /* 成績を持っているか（表示対象の判定） */
+  function hasBatting(p){ return p.batting && (p.batting.pa||0)>=1; }
+  function hasPitching(p){ return p.pitching && (p.pitching.outs||0)>=1; }
+
+  /* 規定に到達しているか */
   function isQualifiedBatter(p){
-    var b=p.batting||{};
-    return (b.pa||0) >= 1;    // 打席に立った野手を表示
+    var need=reqPA(p.team);
+    if(need==null) return false;
+    return ((p.batting&&p.batting.pa)||0) >= need;
   }
   function isQualifiedPitcher(p){
-    var q=p.pitching||{};
-    return (q.outs||0) >= 1;  // 登板した投手を表示
+    var need=reqOuts(p.team);
+    if(need==null) return false;
+    return ((p.pitching&&p.pitching.outs)||0) >= need;
+  }
+
+  /* ランキング下の注記（規定の基準値を明示する） */
+  function qualNote(isPitchStat){
+    var m=teamGamesMap();
+    var gs=[];
+    for(var k in m){ if(m[k]) gs.push(m[k]); }
+    if(!gs.length){
+      return (isPitchStat?"登板した投手":"打席に立った野手")+
+             'を対象（チーム試合数が未取得のため規定は判定できません）';
+    }
+    var mn=Math.min.apply(null,gs), mx=Math.max.apply(null,gs);
+    var base = mn===mx ? (mn+"試合") : (mn+"〜"+mx+"試合");
+    var need = isPitchStat
+      ? '規定投球回 = チーム試合数×1.0（現在 '+ (mn===mx? (mn+"回") : (mn+"〜"+mx+"回")) +'）'
+      : '規定打席 = チーム試合数×3.1（現在 '+
+        (mn===mx ? Math.ceil(mn*3.1)+"打席"
+                 : Math.ceil(mn*3.1)+"〜"+Math.ceil(mx*3.1)+"打席") +'）';
+    return (seasonQualified==="qualified" ? "規定到達者のみ表示" :
+            (isPitchStat?"登板した投手":"打席に立った野手")+"を対象")+
+           '／'+need+'　※チーム試合数は順位表の'+base+'基準';
   }
 
   function renderSeason(){
@@ -1254,7 +1327,11 @@
         return seasonLeagueFilter==="all" || tLeague(t)===seasonLeagueFilter;
       }).map(function(t){
         return '<option value="'+esc(t)+'"'+(seasonTeamFilter===t?" selected":"")+'>'+esc(t)+'</option>';
-      }).join("")+'</select></div>';
+      }).join("")+'</select>'+
+      '<span class="lb">対象</span><select id="squal" onchange="onSeasonChange()">'+
+      '<option value="all"'+(seasonQualified==="all"?" selected":"")+'>全選手</option>'+
+      '<option value="qualified"'+(seasonQualified==="qualified"?" selected":"")+'>規定到達のみ</option>'+
+      '</select></div>';
 
     var isPitchStat = (seasonSort==="era"||seasonSort==="so_p"||seasonSort==="wins");
 
@@ -1262,8 +1339,12 @@
     var list=seasonData.filter(function(p){
       if(seasonLeagueFilter!=="all" && tLeague(p.team)!==seasonLeagueFilter) return false;
       if(seasonTeamFilter!=="all" && p.team!==seasonTeamFilter) return false;
-      if(isPitchStat) return p.pitching && isQualifiedPitcher(p);
-      return p.batting && isQualifiedBatter(p);
+      if(isPitchStat){
+        if(!hasPitching(p)) return false;
+        return seasonQualified!=="qualified" || isQualifiedPitcher(p);
+      }
+      if(!hasBatting(p)) return false;
+      return seasonQualified!=="qualified" || isQualifiedBatter(p);
     });
 
     // 並び替え
@@ -1305,7 +1386,7 @@
       list.slice(0,50).forEach(function(p,i){
         var q=p.pitching||{};
         h+='<tr onclick="showPlayer(\''+esc(p.key)+'\')"><td class="num">'+(i+1)+'</td>'+
-           '<td class="nm lnk">'+esc(p.name)+'</td><td>'+teamBadge(p.team)+'</td>'+
+           '<td class="nm lnk">'+esc(p.name)+(isQualifiedPitcher(p)?'<span class="qmark" title="規定投球回到達">規</span>':'')+'</td><td>'+teamBadge(p.team)+'</td>'+
            '<td class="num">'+(q.games||0)+'</td>'+
            '<td class="num">'+esc(q.innings||"0")+'</td>'+
            '<td class="num hi">'+(q.era==null?"-":q.era.toFixed(2))+'</td>'+
@@ -1321,7 +1402,7 @@
       list.slice(0,50).forEach(function(p,i){
         var b=p.batting||{};
         h+='<tr onclick="showPlayer(\''+esc(p.key)+'\')"><td class="num">'+(i+1)+'</td>'+
-           '<td class="nm lnk">'+esc(p.name)+'</td><td>'+teamBadge(p.team)+'</td>'+
+           '<td class="nm lnk">'+esc(p.name)+(isQualifiedBatter(p)?'<span class="qmark" title="規定打席到達">規</span>':'')+'</td><td>'+teamBadge(p.team)+'</td>'+
            '<td class="num">'+(b.games||0)+'</td><td class="num">'+(b.pa||0)+'</td>'+
            '<td class="num">'+(b.ab||0)+'</td><td class="num">'+(b.hits||0)+'</td>'+
            '<td class="num'+((b.hr||0)>0?' hi':'')+'">'+(b.hr||0)+'</td>'+
@@ -1332,7 +1413,7 @@
     }
     h+='</tbody></table></div>'+
        '<div class="sub" style="margin-top:8px;font-size:11px">'+
-       (isPitchStat?"登板した投手":"打席に立った野手")+'を対象／選手名をタップで詳細</div></div>';
+       qualNote(isPitchStat)+'／選手名をタップで詳細</div></div>';
 
     // チーム成績（セ・パでカードを分ける）
     if(seasonTeams&&seasonTeams.length){
@@ -1375,8 +1456,10 @@
 
   function onSeasonChange(){
     var s=document.getElementById("ssort"), t=document.getElementById("steam");
+    var q=document.getElementById("squal");
     if(s) seasonSort=s.value;
     if(t) seasonTeamFilter=t.value;
+    if(q) seasonQualified=q.value;
     renderSeason();
   }
 
