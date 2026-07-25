@@ -1235,15 +1235,18 @@
     var sorts=[["avg","打率"],["hr","本塁打"],["rbi","打点"],["hits","安打"],
                ["ops","OPS"],["era","防御率"],["so_p","奪三振"],["wins","勝利"]];
 
-    var h='<div class="toolbar">'+
+    var h='<div class="stabs">';
+    [["all","両リーグ",null],["セ","セ・リーグ","セ"],["パ","パ・リーグ","パ"]].forEach(function(x){
+      var col = x[2] ? LEAGUE_COLOR[x[2]] : "var(--accent)";
+      h+='<button class="stab'+(seasonLeagueFilter===x[0]?" on":"")+'" style="--sc:'+col+'" '+
+         'onclick="setSeasonLeague(\''+x[0]+'\')">'+x[1]+'</button>';
+    });
+    h+='</div>';
+
+    h+='<div class="toolbar">'+
       '<span class="lb">項目</span><select id="ssort" onchange="onSeasonChange()">'+
       sorts.map(function(s){
         return '<option value="'+s[0]+'"'+(seasonSort===s[0]?" selected":"")+'>'+s[1]+'</option>';
-      }).join("")+'</select>'+
-      '<span class="lb">リーグ</span><select id="sleague" onchange="onSeasonChange()">'+
-      ['all','セ','パ'].map(function(l){
-        var label = l==="all" ? "両リーグ" : (l+"・リーグ");
-        return '<option value="'+l+'"'+(seasonLeagueFilter===l?" selected":"")+'>'+label+'</option>';
       }).join("")+'</select>'+
       '<span class="lb">チーム</span><select id="steam" onchange="onSeasonChange()">'+
       '<option value="all">全チーム</option>'+
@@ -1362,14 +1365,18 @@
     sv.innerHTML=h;
   }
 
+  /* リーグタブの切替（チーム選択はリセットする） */
+  function setSeasonLeague(l){
+    if(seasonLeagueFilter===l) return;
+    seasonLeagueFilter=l;
+    seasonTeamFilter="all";
+    renderSeason();
+  }
+
   function onSeasonChange(){
     var s=document.getElementById("ssort"), t=document.getElementById("steam");
-    var l=document.getElementById("sleague");
     if(s) seasonSort=s.value;
-    if(l && l.value!==seasonLeagueFilter){
-      seasonLeagueFilter=l.value;
-      seasonTeamFilter="all";   // リーグを変えたらチーム選択はリセット
-    }else if(t) seasonTeamFilter=t.value;
+    if(t) seasonTeamFilter=t.value;
     renderSeason();
   }
 
