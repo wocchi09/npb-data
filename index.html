@@ -237,6 +237,16 @@
   .rankrow .rv{font-family:'Roboto Mono',monospace;font-weight:700;
     color:var(--accent);}
 
+  /* ---- チーム略称バッジ・リーグ表示 ---- */
+  .tmini{display:inline-block;font-family:'Roboto Mono',monospace;font-size:10.5px;
+    font-weight:700;line-height:1;padding:3px 5px;border-radius:4px;
+    vertical-align:middle;letter-spacing:0;min-width:14px;text-align:center;
+    border:1px solid rgba(0,0,0,.18);}
+  .lgbadge{display:inline-block;color:#fff;font-size:11px;font-weight:700;
+    padding:2px 8px;border-radius:20px;vertical-align:middle;}
+  h3.thead{border-left:5px solid var(--accent);padding-left:9px;
+    display:flex;align-items:center;gap:6px;}
+
   /* ---- ビュー切替 ---- */
   .viewswitch{display:flex;gap:8px;margin-top:16px;}
   .vbtn{flex:1;font-family:inherit;font-size:15px;font-weight:700;
@@ -366,6 +376,81 @@
   function sumPath(d){var p=d.split("-");return "data/"+p[0]+"/"+p[1]+"/"+p[2]+"/_summary.json";}
   function gamePath(d,g){var p=d.split("-");return "data/"+p[0]+"/"+p[1]+"/"+p[2]+"/"+g+".json";}
   function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;");}
+
+  /* ===== 12球団のメタ情報（略称・リーグ・チームカラー） ===== */
+  var TEAM_META={
+    "巨人":       {mini:"巨", league:"セ", color:"#FF6600"},
+    "阪神":       {mini:"神", league:"セ", color:"#FFE100"},
+    "ヤクルト":   {mini:"ヤ", league:"セ", color:"#021C3A"},
+    "DeNA":       {mini:"De", league:"セ", color:"#0052CD"},
+    "広島":       {mini:"広", league:"セ", color:"#FF0000"},
+    "中日":       {mini:"中", league:"セ", color:"#003595"},
+    "ソフトバンク":{mini:"ソ", league:"パ", color:"#FFCC00"},
+    "日本ハム":   {mini:"日", league:"パ", color:"#002B5C"},
+    "ロッテ":     {mini:"ロ", league:"パ", color:"#000000"},
+    "楽天":       {mini:"楽", league:"パ", color:"#8B0000"},
+    "オリックス": {mini:"オ", league:"パ", color:"#000020"},
+    "西武":       {mini:"西", league:"パ", color:"#002D62"}
+  };
+  var LEAGUE_COLOR={"セ":"#009E52","パ":"#0095D9"};
+  var LEAGUE_NAME={"セ":"セントラル・リーグ","パ":"パシフィック・リーグ"};
+
+  function tMeta(t){return TEAM_META[t]||null;}
+  function tMini(t){var m=tMeta(t);return m?m.mini:(t||"");}
+  function tLeague(t){var m=tMeta(t);return m?m.league:null;}
+  function tColor(t){var m=tMeta(t);return m?m.color:null;}
+
+  /* 背景色の明るさから文字色を決める（黄色系は黒字、濃色は白字） */
+  function lumOf(hex){
+    if(!hex||hex.charAt(0)!=="#") return 0.5;
+    var h=hex.slice(1);
+    if(h.length===3) h=h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+    var r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16);
+    return (0.299*r+0.587*g+0.114*b)/255;
+  }
+  function tTextColor(t){
+    var c=tColor(t);
+    return (c && lumOf(c)>0.62) ? "#1a1a1a" : "#fff";
+  }
+
+  /* チーム略称バッジ（チームカラー付き） */
+  function teamBadge(team){
+    var m=tMeta(team);
+    if(!m) return "";
+    return '<span class="tmini" style="background:'+m.color+';color:'+tTextColor(team)+'">'
+      +esc(m.mini)+'</span>';
+  }
+  /* 選手名＋（略称） */
+  function withTeam(name, team){
+    if(!name) return "";
+    var b=teamBadge(team);
+    return esc(name)+(b?" "+b:"");
+  }
+  /* 得点差から責任投手の所属チームを判定する */
+  function pitcherTeam(g, kind){
+    var res=g.result||{};
+    var hs=res.home_score, as_=res.away_score;
+    if(hs==null||as_==null) return null;
+    var winTeam = hs>as_ ? g.home : (as_>hs ? g.away : null);
+    var loseTeam = hs>as_ ? g.away : (as_>hs ? g.home : null);
+    if(kind==="lose") return loseTeam;
+    return winTeam;   // 勝利・セーブは勝ったチーム
+  }
+  /* 本塁打の打者がどちらのチームかを出場成績から探す（姓の一致で判定） */
+  function batterTeam(g, name){
+    var box=g.boxscore;
+    if(!box||!box.batting||!name) return null;
+    var target=String(name).replace(/\s|　/g,"");
+    var sides=[["away",g.away],["home",g.home]];
+    for(var i=0;i<sides.length;i++){
+      var rows=box.batting[sides[i][0]]||[];
+      for(var j=0;j<rows.length;j++){
+        var full=String(rows[j].name||"").replace(/\s|　/g,"");
+        if(full===target || full.indexOf(target)===0) return sides[i][1];
+      }
+    }
+    return null;
+  }
   function rcls(r){
     if(!r) return "";
     if(/本塁打|安打|塁打|適時|四球|死球|安$|本$|２$|2$/.test(r)) return "hit";
@@ -689,17 +774,17 @@
   function renderSummary(g){
     var h=buildBoard(g);
     var res=g.result||{};
-    // 責任投手
+    // 責任投手（所属チームは得点差から判定）
     var pit=[];
-    if(res.win_pitcher) pit.push('<div class="kv"><span class="k">勝利投手</span><b>'+esc(res.win_pitcher)+'</b></div>');
-    if(res.lose_pitcher) pit.push('<div class="kv"><span class="k">敗戦投手</span><b>'+esc(res.lose_pitcher)+'</b></div>');
-    if(res.save_pitcher) pit.push('<div class="kv"><span class="k">セーブ</span><b>'+esc(res.save_pitcher)+'</b></div>');
+    if(res.win_pitcher) pit.push('<div class="kv"><span class="k">勝利投手</span><b>'+withTeam(res.win_pitcher,pitcherTeam(g,"win"))+'</b></div>');
+    if(res.lose_pitcher) pit.push('<div class="kv"><span class="k">敗戦投手</span><b>'+withTeam(res.lose_pitcher,pitcherTeam(g,"lose"))+'</b></div>');
+    if(res.save_pitcher) pit.push('<div class="kv"><span class="k">セーブ</span><b>'+withTeam(res.save_pitcher,pitcherTeam(g,"save"))+'</b></div>');
     if(pit.length) h+='<div class="card2"><h3>責任投手</h3>'+pit.join("")+'</div>';
 
-    // 本塁打
+    // 本塁打（打者の所属は出場成績から照合）
     if(res.homeruns&&res.homeruns.length){
       var hr=res.homeruns.map(function(x){
-        return '<div class="kv"><span class="k">'+esc(x.batter)+'</span><b>'+
+        return '<div class="kv"><span class="k">'+withTeam(x.batter,batterTeam(g,x.batter))+'</span><b>'+
           (x.number?x.number+"号":"")+'</b> <span class="sub">'+esc(x.detail||"")+'</span></div>';
       }).join("");
       h+='<div class="card2"><h3>本塁打</h3>'+hr+'</div>';
@@ -721,7 +806,8 @@
       var side=x[0],team=x[1];
       var rows=box.batting[side]||[];
       if(!rows.length) return;
-      h+='<div class="card2"><h3>'+esc(team||side)+'</h3><div class="tblwrap"><table class="stbl">'+
+      h+='<div class="card2"><h3 class="thead" style="border-left-color:'+(tColor(team)||'var(--accent)')+'">'+
+         teamBadge(team)+' '+esc(team||side)+'</h3><div class="tblwrap"><table class="stbl">'+
          '<thead><tr><th>位置</th><th class="nm">選手</th><th>打率</th><th>打数</th>'+
          '<th>安</th><th>点</th><th>本</th><th>三振</th><th>四球</th><th>盗</th></tr></thead><tbody>';
       rows.forEach(function(p){
@@ -750,7 +836,8 @@
       var side=x[0],team=x[1];
       var rows=box.pitching[side]||[];
       if(!rows.length) return;
-      h+='<div class="card2"><h3>'+esc(team||side)+'</h3><div class="tblwrap"><table class="stbl">'+
+      h+='<div class="card2"><h3 class="thead" style="border-left-color:'+(tColor(team)||'var(--accent)')+'">'+
+         teamBadge(team)+' '+esc(team||side)+'</h3><div class="tblwrap"><table class="stbl">'+
          '<thead><tr><th></th><th class="nm">選手</th><th>防御率</th><th>回</th><th>球数</th>'+
          '<th>被安</th><th>被本</th><th>奪三</th><th>四球</th><th>失点</th><th>自責</th></tr></thead><tbody>';
       rows.forEach(function(p){
@@ -839,7 +926,7 @@
       h+='<div class="rankrow" onclick="gotoPlayer(\''+esc(p.key)+'\')">'+
          '<span class="rk">'+(i+1)+'</span>'+
          '<span class="rn">'+esc(p.name)+'</span>'+
-         '<span class="rt">'+esc(p.team||"")+'</span>'+
+         '<span class="rt">'+teamBadge(p.team)+'</span>'+
          '<span class="rv">'+fmtFn(statFn(p))+'</span></div>';
     });
     h+='</div>';
@@ -929,6 +1016,7 @@
   var seasonTeams = null;
   var seasonSort = "avg";     // 並び替えキー
   var seasonTeamFilter = "all";
+  var seasonLeagueFilter = "all";
 
   function setView(v){
     curView = v;
@@ -983,10 +1071,14 @@
       return;
     }
 
-    // チーム一覧
+    // チーム一覧（リーグ順→略称順で並べる）
     var teams={};
     seasonData.forEach(function(p){ if(p.team) teams[p.team]=1; });
-    var teamList=Object.keys(teams).sort();
+    var teamList=Object.keys(teams).sort(function(a,b){
+      var la=tLeague(a)||"ワ", lb=tLeague(b)||"ワ";
+      if(la!==lb) return la==="セ"?-1:1;
+      return String(tMini(a)).localeCompare(String(tMini(b)));
+    });
 
     var sorts=[["avg","打率"],["hr","本塁打"],["rbi","打点"],["hits","安打"],
                ["ops","OPS"],["era","防御率"],["so_p","奪三振"],["wins","勝利"]];
@@ -996,9 +1088,16 @@
       sorts.map(function(s){
         return '<option value="'+s[0]+'"'+(seasonSort===s[0]?" selected":"")+'>'+s[1]+'</option>';
       }).join("")+'</select>'+
+      '<span class="lb">リーグ</span><select id="sleague" onchange="onSeasonChange()">'+
+      ['all','セ','パ'].map(function(l){
+        var label = l==="all" ? "両リーグ" : (l+"・リーグ");
+        return '<option value="'+l+'"'+(seasonLeagueFilter===l?" selected":"")+'>'+label+'</option>';
+      }).join("")+'</select>'+
       '<span class="lb">チーム</span><select id="steam" onchange="onSeasonChange()">'+
       '<option value="all">全チーム</option>'+
-      teamList.map(function(t){
+      teamList.filter(function(t){
+        return seasonLeagueFilter==="all" || tLeague(t)===seasonLeagueFilter;
+      }).map(function(t){
         return '<option value="'+esc(t)+'"'+(seasonTeamFilter===t?" selected":"")+'>'+esc(t)+'</option>';
       }).join("")+'</select></div>';
 
@@ -1006,6 +1105,7 @@
 
     // 対象選手を絞る
     var list=seasonData.filter(function(p){
+      if(seasonLeagueFilter!=="all" && tLeague(p.team)!==seasonLeagueFilter) return false;
       if(seasonTeamFilter!=="all" && p.team!==seasonTeamFilter) return false;
       if(isPitchStat) return p.pitching && isQualifiedPitcher(p);
       return p.batting && isQualifiedBatter(p);
@@ -1050,7 +1150,7 @@
       list.slice(0,50).forEach(function(p,i){
         var q=p.pitching||{};
         h+='<tr onclick="showPlayer(\''+esc(p.key)+'\')"><td class="num">'+(i+1)+'</td>'+
-           '<td class="nm lnk">'+esc(p.name)+'</td><td>'+esc(p.team||"")+'</td>'+
+           '<td class="nm lnk">'+esc(p.name)+'</td><td>'+teamBadge(p.team)+'</td>'+
            '<td class="num">'+(q.games||0)+'</td>'+
            '<td class="num">'+esc(q.innings||"0")+'</td>'+
            '<td class="num hi">'+(q.era==null?"-":q.era.toFixed(2))+'</td>'+
@@ -1066,7 +1166,7 @@
       list.slice(0,50).forEach(function(p,i){
         var b=p.batting||{};
         h+='<tr onclick="showPlayer(\''+esc(p.key)+'\')"><td class="num">'+(i+1)+'</td>'+
-           '<td class="nm lnk">'+esc(p.name)+'</td><td>'+esc(p.team||"")+'</td>'+
+           '<td class="nm lnk">'+esc(p.name)+'</td><td>'+teamBadge(p.team)+'</td>'+
            '<td class="num">'+(b.games||0)+'</td><td class="num">'+(b.pa||0)+'</td>'+
            '<td class="num">'+(b.ab||0)+'</td><td class="num">'+(b.hits||0)+'</td>'+
            '<td class="num'+((b.hr||0)>0?' hi':'')+'">'+(b.hr||0)+'</td>'+
@@ -1079,20 +1179,31 @@
        '<div class="sub" style="margin-top:8px;font-size:11px">'+
        (isPitchStat?"登板した投手":"打席に立った野手")+'を対象／選手名をタップで詳細</div></div>';
 
-    // チーム成績
+    // チーム成績（セ・パでカードを分ける）
     if(seasonTeams&&seasonTeams.length){
-      h+='<div class="card2"><h3>チーム成績</h3><div class="tblwrap">'+
-         '<table class="stbl"><thead><tr><th class="nm">チーム</th><th>リーグ</th>'+
-         '<th>試合</th><th>得点</th><th>失点</th><th>安打</th><th>本塁打</th></tr></thead><tbody>';
-      seasonTeams.forEach(function(t){
-        h+='<tr><td class="nm">'+esc(t.team)+'</td><td>'+esc(t.league||"")+'</td>'+
-           '<td class="num">'+(t.games||0)+'</td>'+
-           '<td class="num hi">'+(t.runs||0)+'</td>'+
-           '<td class="num">'+(t.runs_allowed||0)+'</td>'+
-           '<td class="num">'+(t.hits||0)+'</td>'+
-           '<td class="num">'+(t.hr||0)+'</td></tr>';
+      ["セ","パ"].forEach(function(lg){
+        if(seasonLeagueFilter!=="all" && seasonLeagueFilter!==lg) return;
+        var rows=seasonTeams.filter(function(t){
+          return (tLeague(t.team)||t.league)===lg;
+        });
+        if(!rows.length) return;
+        h+='<div class="card2"><h3 class="thead" style="border-left-color:'+LEAGUE_COLOR[lg]+'">'+
+           '<span class="lgbadge" style="background:'+LEAGUE_COLOR[lg]+'">'+lg+'</span> '+
+           esc(LEAGUE_NAME[lg])+'</h3><div class="tblwrap">'+
+           '<table class="stbl"><thead><tr><th></th><th class="nm">チーム</th>'+
+           '<th>試合</th><th>得点</th><th>失点</th><th>得失差</th><th>安打</th><th>本塁打</th></tr></thead><tbody>';
+        rows.forEach(function(t){
+          var diff=(t.runs||0)-(t.runs_allowed||0);
+          h+='<tr><td>'+teamBadge(t.team)+'</td><td class="nm">'+esc(t.team)+'</td>'+
+             '<td class="num">'+(t.games||0)+'</td>'+
+             '<td class="num hi">'+(t.runs||0)+'</td>'+
+             '<td class="num">'+(t.runs_allowed||0)+'</td>'+
+             '<td class="num'+(diff>0?' hi':'')+'">'+(diff>0?"+":"")+diff+'</td>'+
+             '<td class="num">'+(t.hits||0)+'</td>'+
+             '<td class="num">'+(t.hr||0)+'</td></tr>';
+        });
+        h+='</tbody></table></div></div>';
       });
-      h+='</tbody></table></div></div>';
     }
 
     h+='<div id="playerDetail"></div>';
@@ -1101,8 +1212,12 @@
 
   function onSeasonChange(){
     var s=document.getElementById("ssort"), t=document.getElementById("steam");
+    var l=document.getElementById("sleague");
     if(s) seasonSort=s.value;
-    if(t) seasonTeamFilter=t.value;
+    if(l && l.value!==seasonLeagueFilter){
+      seasonLeagueFilter=l.value;
+      seasonTeamFilter="all";   // リーグを変えたらチーム選択はリセット
+    }else if(t) seasonTeamFilter=t.value;
     renderSeason();
   }
 
@@ -1116,8 +1231,10 @@
     var el=document.getElementById("playerDetail");
     if(!el) return;
     var b=p.batting||{}, q=p.pitching||{};
-    var h='<div class="card2 pcard"><h3>'+esc(p.name)+
+    var h='<div class="card2 pcard" style="border-left:5px solid '+(tColor(p.team)||'var(--accent)')+'"><h3>'+
+      esc(p.name)+
       (p.number?' <span class="no">#'+esc(p.number)+'</span>':'')+
+      ' '+teamBadge(p.team)+
       ' <span class="sub2">'+esc(p.team||"")+' '+esc(p.hand||"")+'</span></h3>';
 
     if(b.pa){
