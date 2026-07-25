@@ -25,7 +25,7 @@ import requests
 from parser import (
     parse_atbat, extract_atbat_indexes, parse_teams,
     parse_score_list, parse_homeruns, parse_battery,
-    parse_stats_page, parse_stadium,
+    parse_stats_page, parse_stadium, parse_standings,
 )
 
 JST = timezone(timedelta(hours=9))
@@ -293,6 +293,43 @@ def update_index(paths: list[str]):
                   f, ensure_ascii=False, indent=2)
 
 
+def save_standings(date: datetime) -> str | None:
+    """
+    順位表（セ・リーグ／パ・リーグ／交流戦／月間）を取得して保存する。
+    1ページで全部取れるので、1回の実行につきアクセスは1回だけ。
+    """
+    season = date.strftime("%Y")
+    try:
+        html = fetch(f"{BASE}/npb/standings/")
+    except Exception as e:
+        print(f"[WARN] 順位表の取得に失敗: {e}")
+        return None
+
+    try:
+        st = parse_standings(html)
+    except Exception as e:
+        print(f"[WARN] 順位表の解析に失敗: {e}")
+        return None
+
+    counts = {k: len(v) for k, v in st.items()}
+    if not any(counts.values()):
+        print("[WARN] 順位表を取得できませんでした（構造が変わった可能性）")
+        return None
+
+    path = os.path.join("data", season, "standings.json")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump({
+            "season": season,
+            "updated_at": datetime.now(JST).isoformat(),
+            **st,
+        }, f, ensure_ascii=False, indent=2)
+
+    print(f"[INFO] 順位表を保存: セ{counts['central']}/パ{counts['pacific']}"
+          f"/交流戦{counts['interleague']}/月間{counts['monthly']}")
+    return path
+
+
 def collect_day(date: datetime, only_game: str | None = None) -> dict:
     """
     1日分の収集を行う（従来のmain()の中身をそのまま関数化）。
@@ -379,11 +416,18 @@ def main():
         print(f"\n[INFO] 期間収集完了（{len(days)}日）")
         for s in summary:
             print(f"  {s['date']}: {s['games']}試合 / {s['pitches']}球（スキップ{s['skipped']}）")
+        # 順位表は日付によらず最新版なので、期間収集でも1回だけ取得する
+        sp = save_standings(days[-1])
+        if sp:
+            update_index([sp])
         return
 
     # ---- 単日モード（従来どおり） ----
     date = resolve_date(args.date)
     collect_day(date, only_game=args.game)
+    sp = save_standings(date)
+    if sp:
+        update_index([sp])
 
 
 if __name__ == "__main__":
