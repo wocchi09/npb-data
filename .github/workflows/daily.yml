@@ -53,6 +53,13 @@ jobs:
           if [ -z "$SEASON" ]; then SEASON=$(date +%Y); fi
           python scraper/rebuild_stats.py --season "$SEASON" || echo "再集計をスキップ"
 
+      - name: Build analysis dataset
+        run: |
+          SEASON="${{ github.event.inputs.date }}"
+          SEASON="${SEASON%%-*}"
+          if [ -z "$SEASON" ]; then SEASON=$(date +%Y); fi
+          python scraper/build_dataset.py --season "$SEASON" --format both || echo "データセット生成をスキップ"
+
       - name: Validate data
         run: |
           # 検証は失敗してもワークフローは止めない（情報として記録）
