@@ -14,6 +14,14 @@ on:
         description: "特定の試合IDだけ収集（任意）"
         required: false
         default: ""
+      from_date:
+        description: "【期間収集】開始日（YYYY-MM-DD）。to_dateとセットで使用。最大7日まで"
+        required: false
+        default: ""
+      to_date:
+        description: "【期間収集】終了日（YYYY-MM-DD）。from_dateとセットで使用"
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -21,7 +29,7 @@ permissions:
 jobs:
   collect:
     runs-on: ubuntu-latest
-    timeout-minutes: 330
+    timeout-minutes: 600
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -37,25 +45,32 @@ jobs:
       - name: Run scraper
         run: |
           ARGS=""
-          if [ -n "${{ github.event.inputs.date }}" ]; then
-            ARGS="$ARGS --date ${{ github.event.inputs.date }}"
-          fi
-          if [ -n "${{ github.event.inputs.game }}" ]; then
-            ARGS="$ARGS --game ${{ github.event.inputs.game }}"
+          if [ -n "${{ github.event.inputs.from_date }}" ]; then
+            # 期間収集モード（安全弁はmain.py側で最大7日にチェック済み）
+            ARGS="--from-date ${{ github.event.inputs.from_date }} --to-date ${{ github.event.inputs.to_date }}"
+          else
+            if [ -n "${{ github.event.inputs.date }}" ]; then
+              ARGS="$ARGS --date ${{ github.event.inputs.date }}"
+            fi
+            if [ -n "${{ github.event.inputs.game }}" ]; then
+              ARGS="$ARGS --game ${{ github.event.inputs.game }}"
+            fi
           fi
           python scraper/main.py $ARGS
 
       - name: Rebuild season stats (idempotent)
         run: |
           # 収集対象日からシーズンを決定（空なら今年）
-          SEASON="${{ github.event.inputs.date }}"
+          SEASON="${{ github.event.inputs.from_date }}"
+          if [ -z "$SEASON" ]; then SEASON="${{ github.event.inputs.date }}"; fi
           SEASON="${SEASON%%-*}"
           if [ -z "$SEASON" ]; then SEASON=$(date +%Y); fi
           python scraper/rebuild_stats.py --season "$SEASON" || echo "再集計をスキップ"
 
       - name: Build analysis dataset
         run: |
-          SEASON="${{ github.event.inputs.date }}"
+          SEASON="${{ github.event.inputs.from_date }}"
+          if [ -z "$SEASON" ]; then SEASON="${{ github.event.inputs.date }}"; fi
           SEASON="${SEASON%%-*}"
           if [ -z "$SEASON" ]; then SEASON=$(date +%Y); fi
           python scraper/build_dataset.py --season "$SEASON" --format both || echo "データセット生成をスキップ"
