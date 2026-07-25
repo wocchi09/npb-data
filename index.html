@@ -237,6 +237,12 @@
   .rankrow .rv{font-family:'Roboto Mono',monospace;font-weight:700;
     color:var(--accent);}
 
+  /* ---- ダッシュボードのリーグ別グループ ---- */
+  .lgroup{margin-bottom:14px;}
+  .lgroup-h{display:flex;align-items:center;gap:7px;font-size:13.5px;font-weight:700;
+    border-left:4px solid var(--accent);padding-left:8px;margin-bottom:7px;}
+  .lgroup-h .sub2{font-weight:400;}
+
   /* ---- 順位表 ---- */
   .stabs{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;}
   .stab{font-family:inherit;font-size:13px;font-weight:700;padding:7px 16px;
@@ -959,6 +965,21 @@
 
   /* ===== ダッシュボード（ホーム） ===== */
   var dashLoaded = false;
+  var dashData = null;        // 読み込んだデータを保持（リーグ切替で再描画するため）
+  var dashLeague = "all";     // ランキングの表示リーグ
+
+  function setDashLeague(l){
+    dashLeague = l;
+    if(dashData) renderDash(dashData.date, dashData.games, dashData.players, dashData.year);
+  }
+
+  /* 試合がどのリーグか判定（両リーグ対戦なら交流戦） */
+  function gameLeague(g){
+    var res=g.result||{};
+    var lh=tLeague(res.home||g.home), la=tLeague(res.away||g.away);
+    if(!lh||!la) return null;
+    return lh===la ? lh : "交";
+  }
 
   async function loadDash(){
     var dv=document.getElementById("dashView");
@@ -1004,9 +1025,9 @@
       }catch(e){}
     }
 
+    dashData = {date: latestDate, games: latestGames, players: players, year: year};
     renderDash(latestDate, latestGames, players, year);
-    dashLoaded=true;
-  }
+    dashLoaded=true;  }
 
   function rankBlock(title, players, statFn, fmtFn, asc){
     var list=players.filter(function(p){return statFn(p)!=null;});
@@ -1034,13 +1055,13 @@
     // --- 順位表（最上部） ---
     h+=renderStandings();
 
-    // --- 最新の試合結果 ---
+    // --- 最新の試合結果（セ・パ・交流戦で分ける） ---
     if(latestDate && games.length){
       h+='<div class="dash-sec"><div class="dash-h">'+
          '<span class="dot"></span>最新の試合結果'+
          '<span class="dash-date">'+latestDate.replace(/-/g,"/")+'</span></div>';
-      h+='<div class="dash-games">';
-      games.forEach(function(g){
+
+      function gameCard(g){
         var res=g.result||{};
         var sc='';
         if(res.home_score!=null&&res.away_score!=null){
@@ -1051,19 +1072,34 @@
         }else{
           sc=esc(g.card||"");
         }
-        h+='<div class="dgame" onclick="gotoGame(\''+latestDate+'\',\''+g.game_id+'\')">'+
+        return '<div class="dgame" onclick="gotoGame(\''+latestDate+'\',\''+g.game_id+'\')">'+
            '<div class="dg-score">'+sc+'</div>'+
            (res.win_pitcher?'<div class="dg-pit">勝 '+esc(res.win_pitcher)+
              (res.lose_pitcher?'／敗 '+esc(res.lose_pitcher):'')+'</div>':'')+
            '</div>';
+      }
+
+      // リーグごとに仕分ける
+      var byLg={"セ":[],"パ":[],"交":[],"?":[]};
+      games.forEach(function(g){ (byLg[gameLeague(g)||"?"]).push(g); });
+
+      [["セ","セ・リーグ"],["パ","パ・リーグ"],["交","交流戦"],["?","その他"]].forEach(function(x){
+        var list=byLg[x[0]];
+        if(!list.length) return;
+        var col = LEAGUE_COLOR[x[0]] || "var(--accent)";
+        h+='<div class="lgroup"><div class="lgroup-h" style="border-left-color:'+col+'">'+
+           '<span class="lgbadge" style="background:'+col+'">'+esc(x[0]==="?"?"他":x[0])+'</span> '+
+           esc(x[1])+' <span class="sub2">'+list.length+'試合</span></div>'+
+           '<div class="dash-games">'+list.map(gameCard).join("")+'</div></div>';
       });
-      h+='</div><button class="btn" onclick="openGamesDay(\''+latestDate+'\')">この日の試合を詳しく見る ▶</button></div>';
+
+      h+='<button class="btn" onclick="openGamesDay(\''+latestDate+'\')">この日の試合を詳しく見る ▶</button></div>';
     }else{
       h+='<div class="dash-sec"><div class="msg">まだ試合データがありません<br>'+
          '<span style="font-size:12px">Actionsで収集すると表示されます</span></div></div>';
     }
 
-    // --- ランキングハイライト（全種類） ---
+    // --- ランキングハイライト（リーグ切替つき） ---
     if(players.length){
       var fmtA=function(v){return fmtAvg(v);};
       var fmtN=function(v){return v;};
@@ -1073,18 +1109,37 @@
       var bat=function(f){return function(p){return p.batting?f(p.batting):null;};};
       var pit=function(f){return function(p){return (p.pitching&&(p.pitching.outs||0)>=1)?f(p.pitching):null;};};
 
+      // 選択中のリーグで絞る
+      var lp = players.filter(function(p){
+        return dashLeague==="all" || tLeague(p.team)===dashLeague;
+      });
+
       h+='<div class="dash-sec"><div class="dash-h"><span class="dot"></span>'+
-         year+' シーズンリーダー</div><div class="rankgrid">';
-      h+=rankBlock("打率", players, bat(function(b){return b.pa>=1?b.avg:null;}), fmtA);
-      h+=rankBlock("本塁打", players, bat(function(b){return b.hr;}), fmtN);
-      h+=rankBlock("打点", players, bat(function(b){return b.rbi;}), fmtN);
-      h+=rankBlock("安打", players, bat(function(b){return b.hits;}), fmtN);
-      h+=rankBlock("OPS", players, bat(function(b){return b.pa>=1?b.ops:null;}), fmtO);
-      h+=rankBlock("盗塁", players, bat(function(b){return b.sb;}), fmtN);
-      h+=rankBlock("防御率", players, pit(function(q){return q.era;}), fmtE, true);
-      h+=rankBlock("奪三振", players, pit(function(q){return q.so;}), fmtN);
-      h+=rankBlock("勝利", players, pit(function(q){return q.wins;}), fmtN);
-      h+='</div><button class="btn" onclick="setView(\'season\')">シーズン成績をすべて見る ▶</button></div>';
+         year+' シーズンリーダー</div>';
+      h+='<div class="stabs">';
+      [["all","両リーグ",null],["セ","セ・リーグ","セ"],["パ","パ・リーグ","パ"]].forEach(function(x){
+        var col = x[2] ? LEAGUE_COLOR[x[2]] : "var(--accent)";
+        h+='<button class="stab'+(dashLeague===x[0]?" on":"")+'" style="--sc:'+col+'" '+
+           'onclick="setDashLeague(\''+x[0]+'\')">'+x[1]+'</button>';
+      });
+      h+='</div>';
+
+      if(!lp.length){
+        h+='<div class="msg">このリーグの選手データがありません</div>';
+      }else{
+        h+='<div class="rankgrid">';
+        h+=rankBlock("打率", lp, bat(function(b){return b.pa>=1?b.avg:null;}), fmtA);
+        h+=rankBlock("本塁打", lp, bat(function(b){return b.hr;}), fmtN);
+        h+=rankBlock("打点", lp, bat(function(b){return b.rbi;}), fmtN);
+        h+=rankBlock("安打", lp, bat(function(b){return b.hits;}), fmtN);
+        h+=rankBlock("OPS", lp, bat(function(b){return b.pa>=1?b.ops:null;}), fmtO);
+        h+=rankBlock("盗塁", lp, bat(function(b){return b.sb;}), fmtN);
+        h+=rankBlock("防御率", lp, pit(function(q){return q.era;}), fmtE, true);
+        h+=rankBlock("奪三振", lp, pit(function(q){return q.so;}), fmtN);
+        h+=rankBlock("勝利", lp, pit(function(q){return q.wins;}), fmtN);
+        h+='</div>';
+      }
+      h+='<button class="btn" onclick="setView(\'season\')">シーズン成績をすべて見る ▶</button></div>';
     }
 
     dv.innerHTML=h;
