@@ -25,7 +25,7 @@ import requests
 from parser import (
     parse_atbat, extract_atbat_indexes, parse_teams,
     parse_score_list, parse_homeruns, parse_battery,
-    parse_stats_page,
+    parse_stats_page, parse_stadium,
 )
 
 JST = timezone(timedelta(hours=9))
@@ -130,6 +130,7 @@ def collect_game(game_id: str, expected_date: datetime | None = None) -> dict:
         return {"game_id": game_id, "error": str(e), "skip": True, "atbats": []}
 
     teams = parse_teams(html)
+    stadium = parse_stadium(html)
     # 日本式の表記（主催＝ホームを先に書く）
     card = f"{teams['home'] or '?'} vs {teams['away'] or '?'}"
 
@@ -223,6 +224,7 @@ def collect_game(game_id: str, expected_date: datetime | None = None) -> dict:
         "away_full": teams["away_full"],
         "home_full": teams["home_full"],
         "card": card,
+        "stadium": stadium,
         "final_score": final_score,
         "result": result_info,
         "boxscore": boxscore,
@@ -253,6 +255,7 @@ def save_summary(date: datetime, results: list[dict]) -> str:
             {"game_id": r["game_id"],
              "away": r.get("away"), "home": r.get("home"),
              "card": r.get("card"),
+             "stadium": r.get("stadium"),
              "result": r.get("result", {}),
              "atbat_count": r.get("atbat_count", 0),
              "pitch_count": r.get("pitch_count", 0)}
