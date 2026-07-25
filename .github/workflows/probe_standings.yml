@@ -1,0 +1,138 @@
+name: Probe Standings
+
+# 順位表ページ（セ・リーグ／パ・リーグ／交流戦）の構造調査用。
+# 取得できる項目を確認してからパーサーを書くための下調べ。
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install requests beautifulsoup4
+
+      - name: Probe standings pages
+        run: |
+          python - <<'PYEOF'
+          import re, time
+          import requests
+          from bs4 import BeautifulSoup
+
+          H = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                             "AppleWebKit/537.36 (KHTML, like Gecko) "
+                             "Chrome/126.0 Safari/537.36"}
+
+          # 順位表まわりで存在しそうなURLを順に確認する
+          CANDIDATES = [
+              ("順位表トップ",   "https://baseball.yahoo.co.jp/npb/standings/"),
+              ("セ・リーグ",     "https://baseball.yahoo.co.jp/npb/standings/1"),
+              ("パ・リーグ",     "https://baseball.yahoo.co.jp/npb/standings/2"),
+              ("交流戦",         "https://baseball.yahoo.co.jp/npb/interleague/standings/"),
+          ]
+
+          L = ["# 順位表ページ調査", ""]
+          saved = []
+
+          for label, url in CANDIDATES:
+              L.append(f"## {label}")
+              L.append("")
+              L.append(f"- URL: {url}")
+              try:
+                  r = requests.get(url, headers=H, timeout=30)
+              except Exception as e:
+                  L.append(f"- 取得失敗: {e}")
+                  L.append("")
+                  continue
+
+              L.append(f"- HTTP: {r.status_code} / size: {len(r.text)}")
+              if r.status_code != 200:
+                  L.append("")
+                  time.sleep(1.5)
+                  continue
+
+              html = r.text
+              fname = "probe_standings_" + re.sub(r"[^a-z0-9]+", "_", label.lower()) + ".html"
+              # 日本語ラベルはファイル名にしづらいので連番で保存
+              fname = f"probe_standings_{len(saved)}.html"
+              with open(fname, "w", encoding="utf-8") as f:
+                  f.write(html)
+              saved.append((label, fname))
+
+              m = re.search(r"<title>(.*?)</title>", html, re.S)
+              L.append(f"- title: {m.group(1).strip() if m else '-'}")
+              L.append(f"- 保存ファイル: {fname}")
+
+              soup = BeautifulSoup(html, "html.parser")
+              for s in soup(["script", "style"]):
+                  s.decompose()
+              body = str(soup)
+
+              L.append("")
+              L.append("### キーワード出現（script除去後）")
+              L.append("")
+              L.append("| 語 | 件数 |")
+              L.append("|---|---|")
+              for kw in ["順位", "勝", "敗", "分", "勝率", "ゲーム差", "差",
+                         "貯金", "残り", "交流戦", "得点", "失点", "本塁打"]:
+                  L.append(f"| {kw} | {body.count(kw)} |")
+
+              L.append("")
+              L.append("### テーブル構造")
+              L.append("")
+              tables = soup.find_all("table")
+              L.append(f"テーブル数: {len(tables)}")
+              L.append("")
+              for i, t in enumerate(tables[:8]):
+                  cls = " ".join(t.get("class", []))
+                  headers = [th.get_text(strip=True) for th in t.find_all("th")[:16]]
+                  trs = t.find_all("tr")
+                  L.append(f"#### table[{i}] class=`{cls}` / {len(trs)}行")
+                  L.append("")
+                  L.append(f"- 見出し: {headers}")
+                  for tr in trs[1:4]:
+                      cells = [td.get_text(strip=True) for td in tr.find_all(["td", "th"])[:16]]
+                      if any(cells):
+                          L.append(f"- 行: {cells}")
+                  L.append("")
+
+              time.sleep(1.5)   # 取得元への配慮
+
+          # 交流戦ページのURLを探す手がかり
+          L.append("## 交流戦らしきリンク（順位表トップから）")
+          L.append("")
+          try:
+              r = requests.get(CANDIDATES[0][1], headers=H, timeout=30)
+              links = re.findall(r'href="([^"]+)"[^>]*>([^<]*交流[^<]*)<', r.text)
+              if links:
+                  for href, text in links[:15]:
+                      L.append(f"- `{href}` … {text.strip()}")
+              else:
+                  L.append("- 見つからず")
+          except Exception as e:
+              L.append(f"- 取得失敗: {e}")
+
+          open("probe_standings.md", "w", encoding="utf-8").write("\n".join(L))
+          print("\n".join(L[:120]))
+          PYEOF
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: probe-standings-html
+          path: probe_standings_*.html
+
+      - name: Commit report
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add probe_standings.md
+          git diff --cached --quiet || git commit -m "probe: standings report"
+          git pull --rebase origin main || true
+          git push
