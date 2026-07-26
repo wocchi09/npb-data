@@ -312,6 +312,10 @@
     vertical-align:middle;white-space:nowrap;}
   .dim{color:var(--muted);font-size:11px;}
 
+  th.sortable{cursor:pointer;user-select:none;white-space:nowrap;}
+  th.sortable:hover{color:var(--accent);}
+  th.sortable.on{color:var(--accent);background:var(--zone);}
+
   .estmark{display:inline-block;margin-left:3px;font-size:8.5px;font-weight:700;
     padding:1px 3px;border-radius:2px;background:var(--muted);color:#fff;
     vertical-align:super;line-height:1;}
@@ -1883,8 +1887,74 @@
   }
 
   /* ===== 選手一覧 ===== */
-  var plName="", plTeam="all", plKind="all", plPos="all", plHand="all",
-      plNum="", plQual="all", plSort="team";
+  var plName="", plTeam="all", plKind="batter", plPos="all", plHand="all",
+      plNum="", plQual="all", plSort="team", plSortDir="desc";
+
+  /* 選手一覧の列定義（打者・投手で別々） */
+  var PL_COLS_BAT = [
+    ["number","背番号"],["name","選手"],["team","球団"],["position","位置"],["hand","投打"],
+    ["games","試合"],["pa","打席"],["ab","打数"],["hits","安打"],["hr","本"],["rbi","点"],
+    ["sb","盗"],["avg","打率"],["obp","出塁"],["slg","長打"],["ops","OPS"]
+  ];
+  var PL_COLS_PIT = [
+    ["number","背番号"],["name","選手"],["team","球団"],["hand","投打"],
+    ["games","登板"],["outs","回"],["era","防御率"],["whip","WHIP"],["k9","K/9"],
+    ["so","奪三"],["bb","四球"],["wins","勝"],["losses","敗"],["win_pct","勝率"],
+    ["saves","S"],["holds","H"],["hp","HP"]
+  ];
+  /* 小さいほど良い項目は、最初のクリックで昇順にする */
+  var PL_ASC_FIRST = {era:1, whip:1, losses:1, name:1, team:1, position:1, hand:1, number:1};
+
+  function setPlSort(k){
+    if(plSort===k){
+      plSortDir = (plSortDir==="desc") ? "asc" : "desc";
+    }else{
+      plSort=k;
+      plSortDir = PL_ASC_FIRST[k] ? "asc" : "desc";
+    }
+    renderPlayers();
+  }
+  function setPlKind(k){
+    if(plKind===k) return;
+    plKind=k;
+    plSort="team"; plSortDir="asc";
+    renderPlayers();
+  }
+  /* 並び替えに使う値を取り出す */
+  function plValue(p, key){
+    var b=p.batting||{}, q=p.pitching||{};
+    switch(key){
+      case "number": var n=parseInt(p.number,10); return isNaN(n)?99999:n;
+      case "name": return p.name||"";
+      case "team": return p.team||"";
+      case "position": return p.position||"";
+      case "hand": return p.hand||"";
+      case "games": return plKind==="pitcher" ? (q.games||0) : (b.games||0);
+      case "pa": return b.pa||0;
+      case "ab": return b.ab||0;
+      case "hits": return b.hits||0;
+      case "hr": return b.hr||0;
+      case "rbi": return b.rbi||0;
+      case "sb": return b.sb||0;
+      case "avg": return b.avg;
+      case "obp": return b.obp;
+      case "slg": return b.slg;
+      case "ops": return b.ops;
+      case "outs": return q.outs||0;
+      case "era": return q.era;
+      case "whip": return q.whip;
+      case "k9": return q.k9;
+      case "so": return q.so||0;
+      case "bb": return q.bb||0;
+      case "wins": return q.wins||0;
+      case "losses": return q.losses||0;
+      case "win_pct": return ((q.wins||0)+(q.losses||0))>=1 ? q.win_pct : null;
+      case "saves": return q.saves||0;
+      case "holds": return holdsOf(q);
+      case "hp": return q.hp||0;
+    }
+    return null;
+  }
 
   async function loadPlayers(){
     var pv=document.getElementById("playersView");
@@ -1902,14 +1972,14 @@
 
   function onPlayersChange(){
     var g=function(id){var e=document.getElementById(id);return e?e.value:"";};
-    plName=g("plName"); plKind=g("plKind");
+    plName=g("plName");
     plPos=g("plPos"); plHand=g("plHand"); plNum=g("plNum");
-    plQual=g("plQual"); plSort=g("plSort");
+    plQual=g("plQual");
     renderPlayers();
   }
   function resetPlayers(){
-    plName=""; plTeam="all"; plKind="all"; plPos="all"; plHand="all";
-    plNum=""; plQual="all"; plSort="team";
+    plName=""; plTeam="all"; plPos="all"; plHand="all";
+    plNum=""; plQual="all"; plSort="team"; plSortDir="asc";
     renderPlayers();
   }
 
@@ -1992,15 +2062,21 @@
     });
     h+='</div>';
 
+    // 野手／投手の切替
+    h+='<div class="stabs gtabs">';
+    [["batter","野手"],["pitcher","投手"]].forEach(function(x){
+      h+='<button class="stab'+(plKind===x[0]?" on":"")+'" style="--sc:var(--accent)" '+
+         'onclick="setPlKind(\''+x[0]+'\')">'+x[1]+'</button>';
+    });
+    h+='</div>';
+
     h+='<div class="expform">'+
       '<label class="ef"><span>選手名</span><input type="text" id="plName" placeholder="部分一致" value="'+esc(plName)+'" oninput="onPlayersChange()"></label>'+
-      sel("plKind","区分",plKind,[["batter","野手"],["pitcher","投手"]],"すべて")+
+
       sel("plPos","守備位置",plPos,posList,"すべて")+
       sel("plHand","投打",plHand,handList,"すべて")+
       '<label class="ef"><span>背番号</span><input type="text" id="plNum" placeholder="例: 7" value="'+esc(plNum)+'" oninput="onPlayersChange()"></label>'+
       sel("plQual","規定",plQual,[["qualified","規定到達のみ"]],"すべて")+
-      sel("plSort","並び順",plSort,[["team","球団・背番号"],["name","名前"],
-          ["avg","打率"],["hr","本塁打"],["era","防御率"]],"球団・背番号")+
       '</div><div class="expbtns" style="margin-top:10px">'+
       '<button class="btn" onclick="resetPlayers()">条件をクリア</button></div>';
 
@@ -2011,6 +2087,7 @@
       if(plTeam!=="all" && p.team!==plTeam) return false;
       if(plKind==="pitcher" && !isPitcherP(p)) return false;
       if(plKind==="batter" && !isBatterP(p)) return false;
+      if(plKind==="batter" && plPos==="all" && p.position==="投" && !isBatterP(p)) return false;
       if(plPos!=="all"){
         var hit=(p.position===plPos);
         (p.positions||[]).forEach(function(x){ if(x.pos===plPos) hit=true; });
@@ -2025,28 +2102,29 @@
       return true;
     });
 
-    // 並び替え
+    // 並び替え（ヘッダークリックで切り替え。値が無いものは常に最後）
+    var dir = (plSortDir==="asc") ? 1 : -1;
     list.sort(function(a,b){
-      if(plSort==="name") return (a.name||"").localeCompare(b.name||"");
-      if(plSort==="avg") return ((b.batting&&b.batting.avg)||-1)-((a.batting&&a.batting.avg)||-1);
-      if(plSort==="hr") return ((b.batting&&b.batting.hr)||0)-((a.batting&&a.batting.hr)||0);
-      if(plSort==="era"){
-        var ea=(a.pitching&&a.pitching.era), eb=(b.pitching&&b.pitching.era);
-        if(ea==null) return 1;
-        if(eb==null) return -1;
-        return ea-eb;
+      if(plSort==="team"){
+        var ta=a.team||"", tb=b.team||"";
+        if(ta!==tb){
+          var la=tLeague(ta)||"ワ", lb=tLeague(tb)||"ワ";
+          if(la!==lb) return (la==="パ"?-1:1)*dir;
+          return ta.localeCompare(tb)*dir;
+        }
+        var na=parseInt(a.number,10), nb=parseInt(b.number,10);
+        if(isNaN(na)) na=99999;
+        if(isNaN(nb)) nb=99999;
+        return (na-nb)*dir;
       }
-      // 球団→背番号
-      var ta=a.team||"", tb=b.team||"";
-      if(ta!==tb){
-        var la=tLeague(ta)||"ワ", lb=tLeague(tb)||"ワ";
-        if(la!==lb) return la==="セ"?-1:1;
-        return ta.localeCompare(tb);
+      var va=plValue(a, plSort), vb=plValue(b, plSort);
+      if(va==null && vb==null) return 0;
+      if(va==null) return 1;      // 欠損は常に最後
+      if(vb==null) return -1;
+      if(typeof va==="string" || typeof vb==="string"){
+        return String(va).localeCompare(String(vb))*dir;
       }
-      var na=parseInt(a.number,10), nb=parseInt(b.number,10);
-      if(isNaN(na)) na=9999;
-      if(isNaN(nb)) nb=9999;
-      return na-nb;
+      return (va-vb)*dir;
     });
 
     h+='<div class="exok" style="margin:10px 0">該当 '+list.length+' 人</div>';
@@ -2057,29 +2135,59 @@
       return;
     }
 
-    h+='<div class="tblwrap"><table class="stbl"><thead><tr>'+
-       '<th>背番号</th><th class="nm">選手</th><th>球団</th><th>位置</th><th>投打</th>'+
-       '<th>試合</th><th>打率</th><th>本</th><th>点</th>'+
-       '<th>防御率</th><th>回</th><th>奪三</th></tr></thead><tbody>';
+    var isPitTab = (plKind==="pitcher");
+    var cols = isPitTab ? PL_COLS_PIT : PL_COLS_BAT;
+
+    // 見出し（クリックで並び替え。矢印で現在の方向を示す）
+    h+='<div class="tblwrap"><table class="stbl"><thead><tr>';
+    cols.forEach(function(c){
+      var on=(plSort===c[0]);
+      var arrow = on ? (plSortDir==="asc" ? ' ▲' : ' ▼') : '';
+      h+='<th class="sortable'+(on?" on":"")+(c[0]==="name"?" nm":"")+'" '+
+         'onclick="setPlSort(\''+c[0]+'\')" title="クリックで並び替え">'+
+         esc(c[1])+arrow+'</th>';
+    });
+    h+='</tr></thead><tbody>';
+
     list.slice(0,300).forEach(function(p){
       var b=p.batting||{}, q=p.pitching||{};
-      var isP=isPitcherP(p);
-      var qmark = isP ? (isQualifiedPitcher(p)?'<span class="qmark">規</span>':'')
-                      : (isQualifiedBatter(p)?'<span class="qmark">規</span>':'');
-      h+='<tr onclick="showPlayerDetail(\''+esc(p.key)+'\')">'+
-        '<td class="num unumcell">'+(p.number?esc(p.number):"-")+'</td>'+
-        '<td class="nm lnk">'+esc(p.name)+qmark+'</td>'+
-        '<td>'+teamBadge(p.team)+'</td>'+
-        '<td class="pos">'+esc(p.position||"-")+'</td>'+
-        '<td class="pos">'+esc(p.hand||"-")+'</td>'+
-        '<td class="num">'+(isP?(q.games||0):(b.games||0))+'</td>'+
-        '<td class="num">'+(isBatterP(p)?fmtAvg(b.avg):"-")+'</td>'+
-        '<td class="num'+((b.hr||0)>0?' hi':'')+'">'+(isBatterP(p)?(b.hr||0):"-")+'</td>'+
-        '<td class="num">'+(isBatterP(p)?(b.rbi||0):"-")+'</td>'+
-        '<td class="num'+(isP?' hi':'')+'">'+(isP&&q.era!=null?q.era.toFixed(2):"-")+'</td>'+
-        '<td class="num">'+(isP?esc(q.innings||"0"):"-")+'</td>'+
-        '<td class="num">'+(isP?(q.so||0):"-")+'</td>'+
-        '</tr>';
+      var qmark = isPitTab ? (isQualifiedPitcher(p)?'<span class="qmark">規</span>':'')
+                           : (isQualifiedBatter(p)?'<span class="qmark">規</span>':'');
+      h+='<tr onclick="showPlayerDetail(\''+esc(p.key)+'\')">';
+      h+='<td class="num unumcell">'+(p.number?esc(p.number):"-")+'</td>'+
+         '<td class="nm lnk">'+esc(p.name)+qmark+'</td>'+
+         '<td>'+teamBadge(p.team)+'</td>';
+      if(isPitTab){
+        h+='<td class="pos">'+esc(p.hand||"-")+'</td>'+
+           '<td class="num">'+(q.games||0)+'</td>'+
+           '<td class="num">'+esc(q.innings||"0")+'</td>'+
+           '<td class="num hi">'+(q.era==null?"-":q.era.toFixed(2))+'</td>'+
+           '<td class="num">'+(q.whip==null?"-":q.whip.toFixed(2))+'</td>'+
+           '<td class="num">'+(q.k9==null?"-":q.k9.toFixed(1))+'</td>'+
+           '<td class="num">'+(q.so||0)+'</td>'+
+           '<td class="num">'+(q.bb||0)+'</td>'+
+           '<td class="num'+((q.wins||0)>0?' hi':'')+'">'+(q.wins||0)+'</td>'+
+           '<td class="num">'+(q.losses||0)+'</td>'+
+           '<td class="num">'+(q.win_pct==null?"-":q.win_pct.toFixed(3).replace(/^0\./,"."))+'</td>'+
+           '<td class="num'+((q.saves||0)>0?' hi':'')+'">'+(q.saves||0)+'</td>'+
+           '<td class="num">'+holdsOf(q)+(holdsIsEst(q)?'<span class="estmark">推</span>':'')+'</td>'+
+           '<td class="num">'+(q.hp||0)+'</td>';
+      }else{
+        h+='<td class="pos">'+esc(p.position||"-")+'</td>'+
+           '<td class="pos">'+esc(p.hand||"-")+'</td>'+
+           '<td class="num">'+(b.games||0)+'</td>'+
+           '<td class="num">'+(b.pa||0)+'</td>'+
+           '<td class="num">'+(b.ab||0)+'</td>'+
+           '<td class="num'+((b.hits||0)>0?' hi':'')+'">'+(b.hits||0)+'</td>'+
+           '<td class="num'+((b.hr||0)>0?' hi':'')+'">'+(b.hr||0)+'</td>'+
+           '<td class="num">'+(b.rbi||0)+'</td>'+
+           '<td class="num">'+(b.sb||0)+'</td>'+
+           '<td class="num hi">'+fmtAvg(b.avg)+'</td>'+
+           '<td class="num">'+fmtAvg(b.obp)+'</td>'+
+           '<td class="num">'+fmtAvg(b.slg)+'</td>'+
+           '<td class="num">'+(b.ops==null?"-":b.ops.toFixed(3).replace(/^0\./,"."))+'</td>';
+      }
+      h+='</tr>';
     });
     h+='</tbody></table></div>';
     if(list.length>300){
