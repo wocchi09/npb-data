@@ -1,0 +1,96 @@
+name: Probe Lineup
+
+# 出場成績ページの打撃テーブルを「全行」ダンプして、
+# スタメンと交代選手（代打・代走・守備交代）の見分け方を確認する。
+
+on:
+  workflow_dispatch:
+    inputs:
+      game_id:
+        description: "調査する試合ID"
+        required: false
+        default: "2021039164"
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install requests beautifulsoup4
+
+      - name: Probe lineup
+        run: |
+          python - <<'PYEOF'
+          import re, requests
+          from bs4 import BeautifulSoup
+
+          GID = "${{ github.event.inputs.game_id }}" or "2021039164"
+          URL = f"https://baseball.yahoo.co.jp/npb/game/{GID}/stats"
+          H = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                             "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"}
+
+          r = requests.get(URL, headers=H, timeout=30)
+          html = r.text
+          soup = BeautifulSoup(html, "html.parser")
+
+          m = re.search(r"<title>(.*?)</title>", html, re.S)
+          L = ["# スタメン構造の調査", "",
+               f"- URL: {URL}",
+               f"- title: {m.group(1).strip() if m else '-'}",
+               f"- HTTP: {r.status_code}", ""]
+
+          # 打撃テーブル（両チーム）の全行を出す
+          for ti, t in enumerate(soup.select("table.bb-statsTable")[:2]):
+              cls = " ".join(t.get("class", []))
+              L.append(f"## 打撃テーブル[{ti}] class=`{cls}`")
+              L.append("")
+              L.append("| # | 行class | 位置 | 位置の生HTML | 選手名 | 打数 | 安打 |")
+              L.append("|---|---|---|---|---|---|---|")
+              n = 0
+              for tr in t.find_all("tr"):
+                  tds = tr.find_all("td")
+                  if len(tds) < 3:
+                      continue
+                  n += 1
+                  trcls = " ".join(tr.get("class", [])) or "-"
+                  pos_raw = tds[0].decode_contents().strip()
+                  pos_txt = tds[0].get_text(strip=True) or "(空)"
+                  name = tds[1].get_text(strip=True)
+                  ab = tds[3].get_text(strip=True) if len(tds) > 3 else ""
+                  hits = tds[5].get_text(strip=True) if len(tds) > 5 else ""
+                  # 生HTMLは長すぎる場合に切る
+                  raw = pos_raw.replace("|", "\\|")
+                  if len(raw) > 70:
+                      raw = raw[:70] + "…"
+                  L.append(f"| {n} | `{trcls}` | `{pos_txt}` | `{raw}` | {name} | {ab} | {hits} |")
+              L.append("")
+
+          # 打順・スタメンを示す語がページにあるか
+          for s in soup(["script", "style"]):
+              s.decompose()
+          body = str(soup)
+          L.append("## 関連キーワードの出現")
+          L.append("")
+          L.append("| 語 | 件数 |")
+          L.append("|---|---|")
+          for kw in ["打順", "スタメン", "先発", "代打", "代走", "途中出場", "守備"]:
+              L.append(f"| {kw} | {body.count(kw)} |")
+
+          open("probe_lineup.md", "w", encoding="utf-8").write("\n".join(L))
+          print("\n".join(L[:80]))
+          PYEOF
+
+      - name: Commit report
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add probe_lineup.md
+          git diff --cached --quiet || git commit -m "probe: lineup report"
+          git pull --rebase origin main || true
+          git push
