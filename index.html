@@ -907,7 +907,7 @@
       curGame=await r.json();
       inferRunnerNames(curGame.atbats||[]);
       curTab="summary";
-      pitchFilter={pitcher:"all", type:"all"};
+      pitchFilter={team:"all", pitcher:"all", type:"all"};
       render();
       detailEl.scrollIntoView({behavior:"smooth",block:"start"});
     }catch(e){
@@ -3671,7 +3671,7 @@
   }
 
   /* ===== 配球分析タブ ===== */
-  var pitchFilter = {pitcher:"all", type:"all"};
+  var pitchFilter = {team:"all", pitcher:"all", type:"all"};
 
   function collectPitches(g){
     // 全投球をフラットな配列にする（投手・打者・状況つき）
@@ -3682,6 +3682,8 @@
         out.push({
           pitcher: p.name||"-", pitcher_id: p.player_id,
           batter: b.name||"-", bhand: b.hand||"",
+          // 投げている側＝守備側のチーム
+          team: ab.fielding_team||"", batTeam: ab.batting_team||"",
           inning: ab.inning, tb: ab.top_bottom,
           type: pt.type||"不明", speed: pt.speed_kmh,
           result: pt.result||"", kind: pt.kind||"",
@@ -3699,24 +3701,51 @@
     var all=collectPitches(g);
     if(!all.length) return notReady("配球データ");
 
-    // 投手の一覧（投球数順）
+    // 投球している側（守備側）のチーム一覧
+    var byTeam={};
+    all.forEach(function(p){ if(p.team) byTeam[p.team]=(byTeam[p.team]||0)+1; });
+    var teamList=Object.keys(byTeam);
+    // 選択中のチームが実際に存在しなければ全体に戻す
+    if(pitchFilter.team!=="all" && !byTeam[pitchFilter.team]) pitchFilter.team="all";
+
+    // チームで絞ったあとの母集合（投手・球種の選択肢もこれに合わせる）
+    var pool=all.filter(function(p){
+      return pitchFilter.team==="all" || p.team===pitchFilter.team;
+    });
+
+    // 投手の一覧（投球数順）。チームを選ぶとその球団の投手だけになる
     var byPitcher={};
-    all.forEach(function(p){byPitcher[p.pitcher]=(byPitcher[p.pitcher]||0)+1;});
+    pool.forEach(function(p){byPitcher[p.pitcher]=(byPitcher[p.pitcher]||0)+1;});
     var pitchers=Object.keys(byPitcher).sort(function(a,b){return byPitcher[b]-byPitcher[a];});
+    if(pitchFilter.pitcher!=="all" && !byPitcher[pitchFilter.pitcher]) pitchFilter.pitcher="all";
+
+    // 球種一覧
+    var types={};
+    pool.forEach(function(p){types[p.type]=(types[p.type]||0)+1;});
+    var typeList=Object.keys(types).sort(function(a,b){return types[b]-types[a];});
+    if(pitchFilter.type!=="all" && !types[pitchFilter.type]) pitchFilter.type="all";
 
     // フィルタ適用
-    var ps=all.filter(function(p){
+    var ps=pool.filter(function(p){
       if(pitchFilter.pitcher!=="all" && p.pitcher!==pitchFilter.pitcher) return false;
       if(pitchFilter.type!=="all" && p.type!==pitchFilter.type) return false;
       return true;
     });
 
-    // 球種一覧
-    var types={};
-    all.forEach(function(p){types[p.type]=(types[p.type]||0)+1;});
-    var typeList=Object.keys(types).sort(function(a,b){return types[b]-types[a];});
+    // チームはタブで切り替える（1試合に2球団なので選びやすい）
+    var h='<div class="stabs">';
+    h+='<button class="stab'+(pitchFilter.team==="all"?" on":"")+'" '+
+       'style="--sc:var(--accent)" onclick="setAnalysisTeam(\'all\')">両チーム</button>';
+    [g.home, g.away].forEach(function(t){
+      if(!t || !byTeam[t]) return;
+      var col=tColor(t)||"var(--accent)";
+      h+='<button class="stab'+(pitchFilter.team===t?" on":"")+'" style="--sc:'+col+'" '+
+         'onclick="setAnalysisTeam(\''+esc(t)+'\')">'+teamBadge(t)+' '+esc(t)+
+         ' <span class="sub2">'+byTeam[t]+'球</span></button>';
+    });
+    h+='</div>';
 
-    var h='<div class="toolbar">'+
+    h+='<div class="toolbar">'+
       '<span class="lb">投手</span><select id="fp" onchange="onAnalysisFilter()">'+
       '<option value="all">全投手</option>'+
       pitchers.map(function(n){
@@ -3780,6 +3809,15 @@
     }
 
     return h;
+  }
+
+  function setAnalysisTeam(t){
+    if(pitchFilter.team===t) return;
+    pitchFilter.team=t;
+    // チームを変えたら投手と球種の選択はリセットする
+    pitchFilter.pitcher="all";
+    pitchFilter.type="all";
+    document.getElementById("tabbody").innerHTML=renderAnalysis(curGame);
   }
 
   function onAnalysisFilter(){
