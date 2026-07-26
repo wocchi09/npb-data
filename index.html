@@ -2050,9 +2050,253 @@
         '<div class="stat"><div class="sv">'+(q.hr_allowed||0)+'</div><div class="sl">被本塁打</div></div>'+
         '</div></div>';
     }
+    h+='<div class="subsec"><div class="subttl">スプリット分析</div>'+
+       '<div class="expbtns"><button class="btn primary" onclick="openSplits(\''+esc(key)+'\')">'+
+       '試合ログ・月別・対戦球団別などを見る ▶</button></div></div>';
+    h+='<div id="plSplits"></div>';
     h+='</div>';
     el.innerHTML=h;
     el.scrollIntoView({behavior:"smooth", block:"nearest"});
+  }
+
+  /* ===== 選手スプリット（試合ログ・月別・対戦別など） ===== */
+  var splitCache={};        // 'batting_lines' -> {header, rows}
+  var curSplitPlayer=null;  // 表示中の選手
+  var splitTab="log";
+
+  async function loadSplitFile(name){
+    if(splitCache[name]) return splitCache[name];
+    var year=(dp.value||todayJST()).split("-")[0];
+    var r=await fetch("data/"+year+"/dataset/"+name+".csv?t="+Date.now());
+    if(!r.ok) throw new Error("notfound");
+    var all=parseCSV(await r.text()).filter(function(x){return x.length>1;});
+    if(!all.length) throw new Error("empty");
+    var header=all[0], idx={};
+    header.forEach(function(h,i){ idx[h]=i; });
+    // 行を扱いやすいオブジェクトにする
+    var rows=all.slice(1).map(function(r2){
+      var o={};
+      header.forEach(function(h,i){ o[h]=r2[i]; });
+      return o;
+    });
+    splitCache[name]={header:header, rows:rows, idx:idx};
+    return splitCache[name];
+  }
+
+  function num(v){ var n=parseFloat(v); return isNaN(n)?0:n; }
+  function outsToIp(o){ return (o%3) ? (Math.floor(o/3)+"."+(o%3)) : String(Math.floor(o/3)); }
+
+  function aggBat(rows){
+    var a={games:rows.length, ab:0, hits:0, hr:0, rbi:0, bb:0, so:0, sb:0, runs:0};
+    rows.forEach(function(r){
+      a.ab+=num(r.ab); a.hits+=num(r.hits); a.hr+=num(r.hr); a.rbi+=num(r.rbi);
+      a.bb+=num(r.bb)+num(r.hbp); a.so+=num(r.so); a.sb+=num(r.sb); a.runs+=num(r.runs);
+    });
+    a.avg = a.ab ? a.hits/a.ab : null;
+    return a;
+  }
+  function aggPit(rows){
+    var a={games:rows.length, outs:0, er:0, ra:0, so:0, bb:0, ha:0, hra:0,
+           pitches:0, w:0, l:0, s:0, qs:0};
+    rows.forEach(function(r){
+      a.outs+=num(r.outs); a.er+=num(r.earned_runs); a.ra+=num(r.runs_allowed);
+      a.so+=num(r.so); a.bb+=num(r.bb); a.ha+=num(r.hits_allowed);
+      a.hra+=num(r.hr_allowed); a.pitches+=num(r.pitches);
+      var d=r.decision||"";
+      if(d.indexOf("勝")>=0) a.w++;
+      if(d.indexOf("敗")>=0) a.l++;
+      if(d.indexOf("Ｓ")>=0||d.indexOf("S")>=0) a.s++;
+      if(String(r.is_qs).toLowerCase()==="true") a.qs++;
+    });
+    var ip=a.outs/3;
+    a.innings=outsToIp(a.outs);
+    a.era = ip ? a.er*9/ip : null;
+    a.whip = ip ? (a.ha+a.bb)/ip : null;
+    return a;
+  }
+
+  function playerRows(data, p){
+    return data.rows.filter(function(r){
+      if(p.key && r.player_key) return r.player_key===p.key;
+      if(p.player_id && r.player_id) return r.player_id===String(p.player_id);
+      return r.player===p.name;
+    });
+  }
+
+  async function openSplits(key){
+    curSplitPlayer=null;
+    for(var i=0;i<seasonData.length;i++){
+      if(seasonData[i].key===key){ curSplitPlayer=seasonData[i]; break; }
+    }
+    if(!curSplitPlayer) return;
+    var el=document.getElementById("plSplits");
+    if(!el) return;
+    el.innerHTML='<div class="msg">読み込み中…</div>';
+    try{
+      await loadSplitFile("batting_lines");
+      await loadSplitFile("pitching_lines");
+      renderSplits();
+    }catch(e){
+      el.innerHTML='<div class="msg">1試合ごとのデータがまだありません<br>'+
+        '<span style="font-size:12px">Actionsで収集すると dataset/batting_lines.csv が生成されます</span></div>';
+    }
+  }
+  function setSplitTab(t){ splitTab=t; renderSplits(); }
+
+  function renderSplits(){
+    var el=document.getElementById("plSplits");
+    var p=curSplitPlayer;
+    if(!el||!p) return;
+
+    var bl=playerRows(splitCache["batting_lines"], p);
+    var pl=playerRows(splitCache["pitching_lines"], p);
+    if(!bl.length && !pl.length){
+      el.innerHTML='<div class="msg">この選手の1試合ごとのデータが見つかりません</div>';
+      return;
+    }
+    var isP=pl.length>0;
+
+    var tabs=[["log","試合ログ"],["month","月別"],["opp","対戦球団別"],
+              ["ha","ホーム/ビジター"],["recent","直近5・10試合"]];
+    var h='<div class="stabs" style="margin-top:12px">';
+    tabs.forEach(function(t){
+      h+='<button class="stab'+(splitTab===t[0]?" on":"")+'" style="--sc:var(--accent)" '+
+         'onclick="setSplitTab(\''+t[0]+'\')">'+t[1]+'</button>';
+    });
+    h+='</div>';
+
+    if(splitTab==="log") h+=splitLog(bl, pl, isP);
+    else if(splitTab==="month") h+=splitBy(bl, pl, isP, function(r){return (r.date||"").slice(0,7);}, "月", true);
+    else if(splitTab==="opp") h+=splitBy(bl, pl, isP, function(r){return r.opponent||"-";}, "対戦相手", false);
+    else if(splitTab==="ha") h+=splitBy(bl, pl, isP, function(r){
+        return String(r.is_home).toLowerCase()==="true" ? "ホーム" : "ビジター";
+      }, "区分", false);
+    else h+=splitRecent(bl, pl, isP);
+
+    el.innerHTML=h;
+  }
+
+  /* 試合ログ */
+  function splitLog(bl, pl, isP){
+    var rows=(isP?pl:bl).slice().sort(function(a,b){
+      return (b.date||"").localeCompare(a.date||"");
+    });
+    var h='<div class="tblwrap"><table class="stbl"><thead><tr>'+
+      '<th>日付</th><th>対戦</th><th>H/V</th>';
+    h += isP
+      ? '<th>結果</th><th>回</th><th>球数</th><th>被安</th><th>奪三</th><th>四球</th><th>失点</th><th>自責</th><th>QS</th>'
+      : '<th>打順</th><th>位置</th><th>打数</th><th>安打</th><th>本</th><th>点</th><th>三振</th><th>四球</th><th>盗</th>';
+    h+='</tr></thead><tbody>';
+    rows.forEach(function(r){
+      var home=String(r.is_home).toLowerCase()==="true";
+      h+='<tr><td class="num">'+esc((r.date||"").slice(5).replace("-","/"))+'</td>'+
+         '<td>'+teamBadge(r.opponent)+'</td>'+
+         '<td class="pos">'+(home?"ホーム":"ビジター")+'</td>';
+      if(isP){
+        var d=r.decision||"";
+        var dcls=/勝/.test(d)?"win":(/敗/.test(d)?"lose":(d?"save":""));
+        h+='<td><span class="dec '+dcls+'">'+esc(d)+'</span></td>'+
+           '<td class="num">'+esc(r.innings||"")+'</td>'+
+           '<td class="num">'+esc(r.pitches||"")+'</td>'+
+           '<td class="num">'+esc(r.hits_allowed||"0")+'</td>'+
+           '<td class="num'+(num(r.so)>0?' hi':'')+'">'+esc(r.so||"0")+'</td>'+
+           '<td class="num">'+esc(r.bb||"0")+'</td>'+
+           '<td class="num">'+esc(r.runs_allowed||"0")+'</td>'+
+           '<td class="num">'+esc(r.earned_runs||"0")+'</td>'+
+           '<td class="num">'+(String(r.is_qs).toLowerCase()==="true"?'<span class="qmark">QS</span>':'')+'</td>';
+      }else{
+        h+='<td class="num">'+(r.order?esc(r.order)+"番":"-")+'</td>'+
+           '<td class="pos">'+esc(r.position||"")+'</td>'+
+           '<td class="num">'+esc(r.ab||"0")+'</td>'+
+           '<td class="num'+(num(r.hits)>0?' hi':'')+'">'+esc(r.hits||"0")+'</td>'+
+           '<td class="num'+(num(r.hr)>0?' hi':'')+'">'+esc(r.hr||"0")+'</td>'+
+           '<td class="num">'+esc(r.rbi||"0")+'</td>'+
+           '<td class="num">'+esc(r.so||"0")+'</td>'+
+           '<td class="num">'+esc(r.bb||"0")+'</td>'+
+           '<td class="num">'+esc(r.sb||"0")+'</td>';
+      }
+      h+='</tr>';
+    });
+    h+='</tbody></table></div>';
+    h+='<div class="sub" style="font-size:11px;margin-top:6px">新しい試合が上に並びます（'+rows.length+'試合）</div>';
+    return h;
+  }
+
+  /* 任意のキーでまとめる */
+  function splitBy(bl, pl, isP, keyFn, label, sortKeyAsc){
+    var rows=isP?pl:bl;
+    var groups={}, order=[];
+    rows.forEach(function(r){
+      var k=keyFn(r);
+      if(!groups[k]){ groups[k]=[]; order.push(k); }
+      groups[k].push(r);
+    });
+    order.sort(function(a,b){
+      return sortKeyAsc ? a.localeCompare(b) : groups[b].length-groups[a].length;
+    });
+    if(!order.length) return '<div class="msg">データがありません</div>';
+
+    var h='<div class="tblwrap"><table class="stbl"><thead><tr><th class="nm">'+esc(label)+'</th>';
+    h += isP
+      ? '<th>登板</th><th>回</th><th>防御率</th><th>WHIP</th><th>奪三</th><th>四球</th><th>被安</th><th>勝</th><th>敗</th><th>S</th>'
+      : '<th>試合</th><th>打数</th><th>安打</th><th>打率</th><th>本</th><th>点</th><th>三振</th><th>四球</th><th>盗</th>';
+    h+='</tr></thead><tbody>';
+
+    order.forEach(function(k){
+      var g=groups[k];
+      var disp = (label==="対戦相手") ? (teamBadge(k)+" "+esc(k)) : esc(k);
+      h+='<tr><td class="nm">'+disp+'</td>';
+      if(isP){
+        var a=aggPit(g);
+        h+='<td class="num">'+a.games+'</td><td class="num">'+esc(a.innings)+'</td>'+
+           '<td class="num hi">'+(a.era==null?"-":a.era.toFixed(2))+'</td>'+
+           '<td class="num">'+(a.whip==null?"-":a.whip.toFixed(2))+'</td>'+
+           '<td class="num">'+a.so+'</td><td class="num">'+a.bb+'</td>'+
+           '<td class="num">'+a.ha+'</td><td class="num">'+a.w+'</td>'+
+           '<td class="num">'+a.l+'</td><td class="num">'+a.s+'</td>';
+      }else{
+        var b=aggBat(g);
+        h+='<td class="num">'+b.games+'</td><td class="num">'+b.ab+'</td>'+
+           '<td class="num">'+b.hits+'</td>'+
+           '<td class="num hi">'+fmtAvg(b.avg)+'</td>'+
+           '<td class="num'+(b.hr>0?' hi':'')+'">'+b.hr+'</td>'+
+           '<td class="num">'+b.rbi+'</td><td class="num">'+b.so+'</td>'+
+           '<td class="num">'+b.bb+'</td><td class="num">'+b.sb+'</td>';
+      }
+      h+='</tr>';
+    });
+    h+='</tbody></table></div>';
+    return h;
+  }
+
+  /* 直近5試合・10試合 */
+  function splitRecent(bl, pl, isP){
+    var rows=(isP?pl:bl).slice().sort(function(a,b){
+      return (b.date||"").localeCompare(a.date||"");
+    });
+    var h='';
+    [["直近5試合",5],["直近10試合",10],["全期間",rows.length]].forEach(function(x){
+      var g=rows.slice(0,x[1]);
+      if(!g.length) return;
+      h+='<div class="subsec"><div class="subttl">'+x[0]+'（'+g.length+'試合）</div><div class="statrow">';
+      if(isP){
+        var a=aggPit(g);
+        h+='<div class="stat"><div class="sv">'+(a.era==null?"-":a.era.toFixed(2))+'</div><div class="sl">防御率</div></div>'+
+           '<div class="stat"><div class="sv">'+esc(a.innings)+'</div><div class="sl">投球回</div></div>'+
+           '<div class="stat"><div class="sv">'+a.so+'</div><div class="sl">奪三振</div></div>'+
+           '<div class="stat"><div class="sv">'+(a.whip==null?"-":a.whip.toFixed(2))+'</div><div class="sl">WHIP</div></div>'+
+           '<div class="stat"><div class="sv">'+a.w+'-'+a.l+'</div><div class="sl">勝敗</div></div>';
+      }else{
+        var b=aggBat(g);
+        h+='<div class="stat"><div class="sv">'+fmtAvg(b.avg)+'</div><div class="sl">打率</div></div>'+
+           '<div class="stat"><div class="sv">'+b.ab+'</div><div class="sl">打数</div></div>'+
+           '<div class="stat"><div class="sv">'+b.hits+'</div><div class="sl">安打</div></div>'+
+           '<div class="stat"><div class="sv">'+b.hr+'</div><div class="sl">本塁打</div></div>'+
+           '<div class="stat"><div class="sv">'+b.rbi+'</div><div class="sl">打点</div></div>';
+      }
+      h+='</div></div>';
+    });
+    return h;
   }
 
   /* ===== データ出力（CSV） ===== */
