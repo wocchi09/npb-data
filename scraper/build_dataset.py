@@ -49,6 +49,48 @@ def find_games(season, base="data"):
     return sorted(out)
 
 
+def rebuild_index(base="data"):
+    """
+    data/index.json を実ファイルから作り直す。
+
+    収集時の追記だけだと、再収集で消えたファイルのパスが残り続け、
+    サイト側の試合数が実際より多く表示されてしまう。
+    ここで毎回「実在するファイルだけ」の一覧に作り直す。
+    """
+    files = []
+    for p in glob.glob(f"{base}/**/*.json", recursive=True):
+        norm = p.replace("\\", "/")
+        # data/YYYY/MM/DD/*.json だけを対象にする
+        if not re.search(r"/\d{4}/\d{2}/\d{2}/[^/]+\.json$", norm):
+            continue
+        # サイト側は "data/..." の相対パスで読むので、その形に揃える
+        m = re.search(r"(data/\d{4}/\d{2}/\d{2}/[^/]+\.json)$", norm)
+        files.append(m.group(1) if m else norm)
+    files = sorted(set(files))
+
+    index_path = os.path.join(base, "index.json")
+    old_n = 0
+    if os.path.exists(index_path):
+        try:
+            with open(index_path, encoding="utf-8") as f:
+                old_n = len(json.load(f).get("files", []))
+        except Exception:
+            old_n = 0
+
+    from datetime import datetime, timedelta, timezone
+    jst = timezone(timedelta(hours=9))
+    with open(index_path, "w", encoding="utf-8") as f:
+        json.dump({"updated_at": datetime.now(jst).isoformat(), "files": files},
+                  f, ensure_ascii=False, indent=2)
+
+    games = len([x for x in files if not os.path.basename(x).startswith("_")])
+    if old_n and old_n != len(files):
+        print(f"[INFO] index.json を再構築: {old_n}件 → {len(files)}件"
+              f"（実在しない {old_n - len(files)}件を除去）")
+    print(f"[INFO] 実在する試合ファイル: {games}件")
+    return files
+
+
 def date_from_path(path):
     m = re.search(r"/(\d{4})/(\d{2})/(\d{2})/", path.replace("\\", "/"))
     return f"{m.group(1)}-{m.group(2)}-{m.group(3)}" if m else None
@@ -110,11 +152,11 @@ ATBAT_COLS = [
     "outs", "r1", "r2", "r3", "risp",
     "pitches", "result", "out_type", "direction",
     "pa", "ab", "hit", "single", "double", "triple", "hr",
-    "bb", "hbp", "so", "sf", "sh", "gidp", "error", "rbi",
+    "bb", "ibb", "hbp", "so", "sf", "sh", "gidp", "error", "rbi",
 ]
 
 BAT_LINE_COLS = [
-    "date", "game_id", "team", "opponent", "is_home",
+    "date", "game_id", "stadium", "team", "opponent", "is_home",
     "player", "player_id", "player_key",
     "order", "position", "is_starter", "sub_type",
     "season_avg", "ab", "runs", "hits", "rbi", "so", "bb", "hbp",
@@ -122,11 +164,34 @@ BAT_LINE_COLS = [
 ]
 
 PIT_LINE_COLS = [
-    "date", "game_id", "team", "opponent", "is_home",
+    "date", "game_id", "stadium", "team", "opponent", "is_home",
     "player", "player_id", "player_key", "decision", "is_starter",
     "season_era", "innings", "outs", "pitches", "batters_faced",
     "hits_allowed", "hr_allowed", "so", "bb", "hbp", "balk",
     "runs_allowed", "earned_runs", "is_qs",
+]
+
+SEASON_BAT_COLS = [
+    "season", "player_key", "player_id", "player", "team", "league", "number",
+    "hand", "position", "qualified",
+    "games", "pa", "ab", "runs", "hits", "singles", "doubles", "triples", "hr",
+    "rbi", "bb", "ibb", "so", "sb", "errors", "tb",
+    "avg", "obp", "slg", "ops", "bb_pct", "k_pct",
+]
+
+SEASON_PIT_COLS = [
+    "season", "player_key", "player_id", "player", "team", "league", "number",
+    "hand", "qualified",
+    "games", "innings", "outs", "batters_faced", "pitches",
+    "hits_allowed", "hr_allowed", "so", "bb", "hbp",
+    "runs_allowed", "earned_runs", "wins", "losses", "saves",
+    "holds_official", "holds_est", "relief_wins", "hp",
+    "era", "whip", "k9", "bb9", "k_bb", "win_pct",
+]
+
+SEASON_TEAM_COLS = [
+    "season", "team", "mini", "league",
+    "games", "wins", "losses", "runs", "runs_allowed", "run_diff", "hits", "hr",
 ]
 
 GAME_COLS = [
@@ -137,6 +202,99 @@ GAME_COLS = [
 
 
 # ---------- 変換 ----------
+
+def season_tables(season, base="data"):
+    """
+    rebuild_stats.py が作った集計JSONを、そのままCSVにできる平坦な行に変換する。
+    再集計をやり直すのではなく、既にある集計結果を読むだけ。
+    """
+    from lib.normalize import team_info as _ti
+
+    bat_rows, pit_rows, team_rows = [], [], []
+
+    ppath = f"{base}/{season}/players/stats.json"
+    if os.path.exists(ppath):
+        with open(ppath, encoding="utf-8") as f:
+            players = json.load(f).get("players", [])
+
+        # 規定の判定に使うチーム試合数（収集済みベース）
+        team_games = {}
+        tpath = f"{base}/{season}/teams/stats.json"
+        if os.path.exists(tpath):
+            with open(tpath, encoding="utf-8") as f:
+                for t in json.load(f).get("teams", []):
+                    if t.get("team"):
+                        team_games[t["team"]] = t.get("games") or 0
+
+        import math
+        for p in players:
+            team = p.get("team")
+            lg = _ti(team).get("league")
+            tg = team_games.get(team) or 0
+
+            b = p.get("batting")
+            if b and (b.get("pa") or 0) > 0:
+                need = math.ceil(tg * 3.1) if tg else None
+                bat_rows.append({
+                    "season": season, "player_key": p.get("key"),
+                    "player_id": p.get("player_id"), "player": p.get("name"),
+                    "team": team, "league": lg, "number": p.get("number"),
+                    "hand": p.get("hand"), "position": p.get("position"),
+                    "qualified": (need is not None and (b.get("pa") or 0) >= need),
+                    "games": b.get("games"), "pa": b.get("pa"), "ab": b.get("ab"),
+                    "runs": b.get("runs"), "hits": b.get("hits"),
+                    "singles": b.get("singles"), "doubles": b.get("doubles"),
+                    "triples": b.get("triples"), "hr": b.get("hr"),
+                    "rbi": b.get("rbi"), "bb": b.get("bb"),
+                    "ibb": b.get("ibb"), "so": b.get("so"),
+                    "sb": b.get("sb"), "errors": b.get("errors"), "tb": b.get("tb"),
+                    "avg": b.get("avg"), "obp": b.get("obp"), "slg": b.get("slg"),
+                    "ops": b.get("ops"), "bb_pct": b.get("bb_pct"),
+                    "k_pct": b.get("k_pct"),
+                })
+
+            q = p.get("pitching")
+            if q and (q.get("outs") or 0) > 0:
+                need_o = tg * 3 if tg else None
+                pit_rows.append({
+                    "season": season, "player_key": p.get("key"),
+                    "player_id": p.get("player_id"), "player": p.get("name"),
+                    "team": team, "league": lg, "number": p.get("number"),
+                    "hand": p.get("hand"),
+                    "qualified": (need_o is not None and (q.get("outs") or 0) >= need_o),
+                    "games": q.get("games"), "innings": q.get("innings"),
+                    "outs": q.get("outs"), "batters_faced": q.get("batters_faced"),
+                    "pitches": q.get("pitches"),
+                    "hits_allowed": q.get("hits_allowed"),
+                    "hr_allowed": q.get("hr_allowed"), "so": q.get("so"),
+                    "bb": q.get("bb"), "hbp": q.get("hbp"),
+                    "runs_allowed": q.get("runs_allowed"),
+                    "earned_runs": q.get("earned_runs"),
+                    "wins": q.get("wins"), "losses": q.get("losses"),
+                    "saves": q.get("saves"),
+                    "holds_official": q.get("holds"),
+                    "holds_est": q.get("holds_est"),
+                    "relief_wins": q.get("relief_wins"), "hp": q.get("hp"),
+                    "era": q.get("era"), "whip": q.get("whip"),
+                    "k9": q.get("k9"), "bb9": q.get("bb9"),
+                    "k_bb": q.get("k_bb"), "win_pct": q.get("win_pct"),
+                })
+
+    tpath = f"{base}/{season}/teams/stats.json"
+    if os.path.exists(tpath):
+        with open(tpath, encoding="utf-8") as f:
+            for t in json.load(f).get("teams", []):
+                team_rows.append({
+                    "season": season, "team": t.get("team"), "mini": t.get("mini"),
+                    "league": t.get("league"), "games": t.get("games"),
+                    "wins": t.get("wins"), "losses": t.get("losses"),
+                    "runs": t.get("runs"), "runs_allowed": t.get("runs_allowed"),
+                    "run_diff": (t.get("runs") or 0) - (t.get("runs_allowed") or 0),
+                    "hits": t.get("hits"), "hr": t.get("hr"),
+                })
+
+    return bat_rows, pit_rows, team_rows
+
 
 def build(season, base="data", fmt="both"):
     files = find_games(season, base)
@@ -184,7 +342,7 @@ def build(season, base="data", fmt="both"):
 
             for row in (box.get("batting", {}) or {}).get(side, []) or []:
                 bat_lines.append({
-                    "date": date, "game_id": gid, "team": team,
+                    "date": date, "game_id": gid, "stadium": g.get("stadium"), "team": team,
                     "opponent": opp, "is_home": side == "home",
                     "player": clean_name(row.get("name")),
                     "player_id": row.get("player_id"),
@@ -209,7 +367,7 @@ def build(season, base="data", fmt="both"):
                 # クオリティスタート＝先発で6回以上・自責3以下
                 is_starter = (i == 0)
                 pit_lines.append({
-                    "date": date, "game_id": gid, "team": team,
+                    "date": date, "game_id": gid, "stadium": g.get("stadium"), "team": team,
                     "opponent": opp, "is_home": side == "home",
                     "player": clean_name(row.get("name")),
                     "player_id": row.get("player_id"),
@@ -273,7 +431,7 @@ def build(season, base="data", fmt="both"):
                 "pa": ev["pa"], "ab": ev["ab"], "hit": ev["hit"],
                 "single": ev["single"], "double": ev["double"],
                 "triple": ev["triple"], "hr": ev["hr"],
-                "bb": ev["bb"], "hbp": ev["hbp"], "so": ev["so"],
+                "bb": ev["bb"], "ibb": ev["ibb"], "hbp": ev["hbp"], "so": ev["so"],
                 "sf": ev["sf"], "sh": ev["sh"], "gidp": ev["gidp"],
                 "error": ev["error"], "rbi": ev["rbi"],
             })
@@ -308,13 +466,25 @@ def build(season, base="data", fmt="both"):
                     "ab_hit": ev["hit"], "ab_rbi": ev["rbi"],
                 })
 
+    # 収集ファイル一覧を実ファイルから作り直す（試合数の食い違いを防ぐ）
+    try:
+        rebuild_index(base)
+    except Exception as e:
+        print(f"[WARN] index.json の再構築に失敗: {e}")
+
     out_dir = os.path.join(base, str(season), "dataset")
+    # 集計済みのシーズン成績（rebuild_stats.py の出力）もCSV化する
+    sb, sp, st = season_tables(season, base)
+
     tables = [
         (pitches, PITCH_COLS, "pitches"),
         (atbats, ATBAT_COLS, "atbats"),
         (bat_lines, BAT_LINE_COLS, "batting_lines"),
         (pit_lines, PIT_LINE_COLS, "pitching_lines"),
         (games, GAME_COLS, "games"),
+        (sb, SEASON_BAT_COLS, "season_batting"),
+        (sp, SEASON_PIT_COLS, "season_pitching"),
+        (st, SEASON_TEAM_COLS, "season_teams"),
     ]
     for rows, cols, name in tables:
         paths = write_table(rows, cols, out_dir, name, fmt)
