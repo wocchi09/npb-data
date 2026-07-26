@@ -242,6 +242,13 @@
   .stabs.gtabs{margin-top:-2px;}
   .stabs.gtabs .stab{flex:1;max-width:200px;}
 
+  /* ---- ゾーン別成績グリッド ---- */
+  .zgrid{max-width:340px;}
+  .zcell{flex-direction:column;gap:1px;}
+  .zcell .zv{font-family:'Roboto Mono',monospace;font-size:12.5px;font-weight:700;}
+  .zcell .zs{font-size:8.5px;color:var(--muted);line-height:1;}
+  .stab.zmode{padding:5px 12px;font-size:12px;}
+
   /* ---- 球団タブ ---- */
   .teamtabs{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:12px;}
   .ttab{font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;
@@ -858,7 +865,8 @@
           }).join('、');
           h+='<div class="ghr">本塁打 '+hr+'</div>';
         }
-        h+='<div class="gmeta">'+g.atbat_count+' 打席 ／ '+g.pitch_count+' 球</div>';
+        h+='<div class="gmeta">'+g.atbat_count+' 打席 ／ '+g.pitch_count+' 球'+
+             (g.stadium?' ／ '+esc(g.stadium):'')+'</div>';
         el.innerHTML=h;
         el.onclick=function(){loadGame(d,g.game_id,el);};
         gamesEl.appendChild(el);
@@ -919,6 +927,19 @@
   function renderSummary(g){
     var h=buildBoard(g);
     var res=g.result||{};
+
+    // 開催情報
+    var info=[];
+    if(g.stadium) info.push(["球場", g.stadium]);
+    if(g.home) info.push(["主催", g.home]);
+    if(res.state) info.push(["状態", res.state]);
+    if(info.length){
+      h+='<div class="card2"><h3>開催情報</h3>';
+      info.forEach(function(x){
+        h+='<div class="kv"><span class="k">'+esc(x[0])+'</span><b>'+esc(x[1])+'</b></div>';
+      });
+      h+='</div>';
+    }
     // 責任投手（所属チームは得点差から判定）
     var pit=[];
     if(res.win_pitcher) pit.push('<div class="kv"><span class="k">勝利投手</span><b>'+withTeam(res.win_pitcher,pitcherTeam(g,"win"))+'</b></div>');
@@ -1306,6 +1327,7 @@
            '<div class="dg-score">'+sc+'</div>'+
            (res.win_pitcher?'<div class="dg-pit">勝 '+esc(res.win_pitcher)+
              (res.lose_pitcher?'／敗 '+esc(res.lose_pitcher):'')+'</div>':'')+
+           (g.stadium?'<div class="dg-pit">'+esc(g.stadium)+'</div>':'')+
            '</div>';
       }
 
@@ -2211,7 +2233,7 @@
     var isP=pl.length>0;
 
     var tabs=[["log","試合ログ"],["month","月別"],["opp","対戦球団別"],
-              ["ha","ホーム/ビジター"],["recent","直近5・10試合"]];
+              ["park","球場別"],["ha","ホーム/ビジター"],["recent","直近5・10試合"]];
     tabs.push(isP ? ["mix","配球分析"] : ["swing","スイング指標"]);
 
     var h='<div class="stabs" style="margin-top:12px">';
@@ -2224,6 +2246,7 @@
     if(splitTab==="log") h+=splitLog(bl, pl, isP);
     else if(splitTab==="month") h+=splitBy(bl, pl, isP, function(r){return (r.date||"").slice(0,7);}, "月", true);
     else if(splitTab==="opp") h+=splitBy(bl, pl, isP, function(r){return r.opponent||"-";}, "対戦相手", false);
+    else if(splitTab==="park") h+=splitBy(bl, pl, isP, function(r){return r.stadium||"不明";}, "球場", false);
     else if(splitTab==="ha") h+=splitBy(bl, pl, isP, function(r){
         return String(r.is_home).toLowerCase()==="true" ? "ホーム" : "ビジター";
       }, "区分", false);
@@ -2513,6 +2536,15 @@
          '被安打率＝その球種を投げたうち安打になった割合</div></div>';
     }
 
+    // ゾーン別の投球分布・被安打
+    h+=zoneSection(rows, "ゾーン別の投球",
+        "安打率＝そのゾーンで打席が終わった球のうち安打になった割合");
+
+    // 被打率のスプリット
+    h+=resultSplit(rows, "対左右打者別の被成績", function(r){return "対"+handSide(r.bat_hand)+"打者";});
+    h+=resultSplit(rows, "対戦チーム別の被成績", function(r){return r.batting_team||"不明";});
+    h+=resultSplit(rows, "球場別の被成績", function(r){return r.stadium||"不明";});
+
     // ゾーン内外
     h+=zoneSummary(rows, "ゾーン内外の投球");
     return h;
@@ -2587,7 +2619,49 @@
         function(r){return "対"+handSide(r.pit_hand)+"投手";},
         function(r){return r.pitch_type;}, null);
 
+    // ゾーン別の成績（得意・苦手）
+    h+=zoneSection(rows, "ゾーン別成績（得意・苦手）",
+        "安打率＝そのゾーンで打席が終わった球のうち安打になった割合");
+
+    // 打撃成績のスプリット（対左右・球場別・対チーム別）
+    h+=resultSplit(rows, "対左右投手別の成績", function(r){return "対"+handSide(r.pit_hand)+"投手";});
+    h+=resultSplit(rows, "球場別の成績", function(r){return r.stadium||"不明";});
+    h+=resultSplit(rows, "対戦チーム別の成績", function(r){return r.fielding_team||"不明";});
+
     h+=zoneSummary(rows, "ゾーン内外");
+    return h;
+  }
+
+  /* 一球データから打撃成績を切り口別に集計する */
+  function resultSplit(rows, title, keyFn){
+    // 打席を終えた球だけを見る
+    var ends=rows.filter(function(r){return bool01(r.is_last_pitch);});
+    if(!ends.length) return "";
+    var g=groupRows(ends, keyFn);
+    g.keys.sort(function(a,b){return g.groups[b].length-g.groups[a].length;});
+
+    var h='<div class="subsec"><div class="subttl">'+esc(title)+'</div><div class="tblwrap">'+
+      '<table class="stbl"><thead><tr><th class="nm">区分</th><th>打席</th><th>打数</th>'+
+      '<th>安打</th><th>安打率</th><th>三振</th><th>四死球</th></tr></thead><tbody>';
+    g.keys.forEach(function(k){
+      var rs=g.groups[k];
+      var pa=rs.length, ab=0, hits=0, so=0, bb=0;
+      rs.forEach(function(r){
+        var ar=r.ab_result||"";
+        if(ar.indexOf("四球")>=0 || ar.indexOf("死球")>=0){ bb++; return; }
+        if(ar.indexOf("犠")>=0) return;
+        ab++;
+        if(num(r.ab_hit)>0) hits++;
+        if(ar.indexOf("三振")>=0) so++;
+      });
+      var disp = /チーム/.test(title) ? (teamBadge(k)+" "+esc(k)) : esc(k);
+      h+='<tr><td class="nm">'+disp+'</td>'+
+         '<td class="num">'+pa+'</td><td class="num">'+ab+'</td>'+
+         '<td class="num'+(hits>0?' hi':'')+'">'+hits+'</td>'+
+         '<td class="num hi">'+(ab?fmtAvg(hits/ab):"-")+'</td>'+
+         '<td class="num">'+so+'</td><td class="num">'+bb+'</td></tr>';
+    });
+    h+='</tbody></table></div></div>';
     return h;
   }
 
@@ -2642,6 +2716,96 @@
          '<td class="num">'+a.hits+'</td></tr>';
     });
     h+='</tbody></table></div></div>';
+    return h;
+  }
+
+  /* 5×5ゾーンの成績グリッド（打者から見た得意・苦手の可視化） */
+  function zoneGrid(rows, mode){
+    // ゾーンごとに集計
+    var cell={};
+    rows.forEach(function(r){
+      var gr=r.zone_row, gc=r.zone_col;
+      if(gr===""||gc===""||gr==null||gc==null) return;
+      var k=gr+"-"+gc;
+      if(!cell[k]) cell[k]={n:0, swing:0, miss:0, hits:0, endAB:0};
+      var c=cell[k];
+      c.n++;
+      if(bool01(r.is_swing)) c.swing++;
+      if(bool01(r.is_miss)) c.miss++;
+      if(bool01(r.is_last_pitch)){
+        var ar=r.ab_result||"";
+        // 四死球・犠打は打数に数えない
+        if(ar && ar.indexOf("四球")<0 && ar.indexOf("死球")<0 && ar.indexOf("犠")<0){
+          c.endAB++;
+          if(num(r.ab_hit)>0) c.hits++;
+        }
+      }
+    });
+
+    function val(c){
+      if(!c) return null;
+      if(mode==="avg")   return c.endAB>=1 ? c.hits/c.endAB : null;
+      if(mode==="miss")  return c.n>=1 ? c.miss/c.n : null;
+      if(mode==="swing") return c.n>=1 ? c.swing/c.n : null;
+      return c.n;
+    }
+    // 色の基準（最大値）
+    var mx=0;
+    for(var k in cell){
+      var v=val(cell[k]);
+      if(v!=null && v>mx) mx=v;
+    }
+    if(!mx) return '<div class="sub">ゾーンデータがありません</div>';
+
+    var h='<div class="heat zgrid">';
+    for(var r0=0;r0<5;r0++){
+      for(var c0=0;c0<5;c0++){
+        var c=cell[r0+"-"+c0];
+        var v=val(c);
+        var inZone=(r0>=1&&r0<=3&&c0>=1&&c0<=3);
+        var ratio=(v==null||!mx)?0:(v/mx);
+        var txt="-", sub="";
+        if(c){
+          if(mode==="avg") txt = (c.endAB>=1) ? fmtAvg(v) : "-";
+          else if(mode==="count") txt = String(c.n);
+          else txt = (v==null) ? "-" : Math.round(v*100)+"%";
+          sub = (mode==="avg") ? (c.endAB+"打数") : (c.n+"球");
+        }
+        h+='<div class="hcell zcell'+(inZone?' zone':'')+'" '+
+           'style="background:rgba(232,89,12,'+(ratio*0.85).toFixed(2)+')" '+
+           'title="'+(c?(c.n+"球 / "+c.endAB+"打数 "+c.hits+"安打"):"データなし")+'">'+
+           '<span class="zv">'+txt+'</span>'+
+           (sub?'<span class="zs">'+sub+'</span>':'')+'</div>';
+      }
+    }
+    h+='</div>';
+    return h;
+  }
+
+  var zoneMode="avg";
+  function setZoneMode(m){
+    zoneMode=m;
+    var el=document.getElementById("zoneBox");
+    if(el && curZoneRows) el.innerHTML=zoneGrid(curZoneRows, zoneMode);
+    var bs=document.querySelectorAll(".zmode");
+    for(var i=0;i<bs.length;i++){
+      bs[i].classList.toggle("on", bs[i].getAttribute("data-m")===m);
+    }
+  }
+  var curZoneRows=null;
+
+  function zoneSection(rows, title, note){
+    curZoneRows=rows;
+    var modes=[["avg","安打率"],["miss","空振り率"],["swing","スイング率"],["count","投球数"]];
+    var h='<div class="subsec"><div class="subttl">'+esc(title)+'</div>'+
+      '<div class="stabs" style="margin-bottom:8px">';
+    modes.forEach(function(m){
+      h+='<button class="stab zmode'+(zoneMode===m[0]?" on":"")+'" data-m="'+m[0]+'" '+
+         'style="--sc:var(--accent)" onclick="setZoneMode(\''+m[0]+'\')">'+m[1]+'</button>';
+    });
+    h+='</div><div id="zoneBox">'+zoneGrid(rows, zoneMode)+'</div>'+
+       '<div class="sub" style="font-size:11px;margin-top:8px">'+esc(note)+
+       '／枠内がストライクゾーン・投手から見た位置・色が濃いほど数値が高い</div></div>';
     return h;
   }
 
