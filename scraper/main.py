@@ -17,6 +17,7 @@ NPBデータ収集 - 本実装版
 import argparse
 import json
 import os
+import re
 import time
 from datetime import datetime, timedelta, timezone
 
@@ -234,6 +235,8 @@ def collect_game(game_id: str, expected_date: datetime | None = None) -> dict:
         "away_full": teams["away_full"],
         "home_full": teams["home_full"],
         "card": card,
+        # 試合ページのタイトルにある開催日。保存フォルダとのズレ検証に使う
+        "game_date": jp_date_to_iso(teams.get("date_text")),
         "stadium": stadium,
         "final_score": final_score,
         "result": result_info,
@@ -278,6 +281,14 @@ def save_summary(date: datetime, results: list[dict]) -> str:
 
 
 def update_index(paths: list[str]):
+    """
+    収集済みファイルの一覧を更新する。
+
+    ★重要★ 再収集時は clean_day_folder が古いファイルを消すため、
+    単に追記するだけだと消えたファイルのパスが残り、
+    試合数が実際より多く見えてしまう。
+    そのため、書き出す前に「実際に存在するファイル」だけに絞り込む。
+    """
     index_path = os.path.join("data", "index.json")
     files = []
     if os.path.exists(index_path):
@@ -287,10 +298,55 @@ def update_index(paths: list[str]):
         rel = p.replace(os.sep, "/")
         if rel not in files:
             files.append(rel)
-    files.sort()
+
+    # 実在しないパスを取り除く
+    before = len(files)
+    files = [f for f in files if os.path.exists(f)]
+    removed = before - len(files)
+    if removed:
+        print(f"[INFO] index.json から実在しないファイル {removed}件を除去しました")
+
+    files = sorted(set(files))
     with open(index_path, "w", encoding="utf-8") as f:
         json.dump({"updated_at": datetime.now(JST).isoformat(), "files": files},
                   f, ensure_ascii=False, indent=2)
+
+
+def jp_date_to_iso(text: str | None) -> str | None:
+    """「2026年7月19日」→「2026-07-19」。取れない場合は None"""
+    if not text:
+        return None
+    m = re.search(r"(\d{4})年(\d{1,2})月(\d{1,2})日", str(text))
+    if not m:
+        return None
+    return f"{m.group(1)}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"
+
+
+def record_no_game_day(date: datetime, base="data") -> str | None:
+    """
+    その日に試合が無かったことを記録する。
+    「試合がなかった日」と「まだ収集していない日」を
+    カレンダー上で区別できるようにするため。
+    """
+    season = date.strftime("%Y")
+    ds = date.strftime("%Y-%m-%d")
+    path = os.path.join(base, season, "no_games.json")
+    dates = []
+    if os.path.exists(path):
+        try:
+            with open(path, encoding="utf-8") as f:
+                dates = json.load(f).get("dates", [])
+        except Exception:
+            dates = []
+    if ds not in dates:
+        dates.append(ds)
+    dates = sorted(set(dates))
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump({"updated_at": datetime.now(JST).isoformat(), "dates": dates},
+                  f, ensure_ascii=False, indent=2)
+    print(f"[INFO] {ds} は試合なしとして記録しました")
+    return path
 
 
 def save_standings(date: datetime) -> str | None:
@@ -340,6 +396,10 @@ def collect_day(date: datetime, only_game: str | None = None) -> dict:
     game_ids = [only_game] if only_game else find_game_ids(date)
     if not game_ids:
         print("[INFO] 対象試合なし。終了します。")
+        if not only_game:
+            p = record_no_game_day(date)
+            if p:
+                update_index([p])
         return {"date": date.strftime("%Y-%m-%d"), "games": 0, "pitches": 0, "skipped": 0}
 
     # 古いファイルが残らないよう、収集前にその日のフォルダを初期化
