@@ -898,7 +898,7 @@
 
   /* ===== 順位表 ===== */
   var standings = null;
-  var standTab = "central";   // central | pacific | interleague
+  var standTab = "pacific";   // central | pacific | interleague
 
   function setStandTab(t){
     standTab = t;
@@ -974,7 +974,7 @@
   /* ===== ダッシュボード（ホーム） ===== */
   var dashLoaded = false;
   var dashData = null;        // 読み込んだデータを保持（リーグ切替で再描画するため）
-  var dashLeague = "all";     // ランキングの表示リーグ
+  var dashLeague = "パ";      // ランキングの表示リーグ（既定はパ・リーグ）
 
   function setDashLeague(l){
     dashLeague = l;
@@ -1125,7 +1125,7 @@
       h+='<div class="dash-sec"><div class="dash-h"><span class="dot"></span>'+
          year+' シーズンリーダー</div>';
       h+='<div class="stabs">';
-      [["all","両リーグ",null],["セ","セ・リーグ","セ"],["パ","パ・リーグ","パ"]].forEach(function(x){
+      [["セ","セ・リーグ","セ"],["パ","パ・リーグ","パ"],["all","両リーグ",null]].forEach(function(x){
         var col = x[2] ? LEAGUE_COLOR[x[2]] : "var(--accent)";
         h+='<button class="stab'+(dashLeague===x[0]?" on":"")+'" style="--sc:'+col+'" '+
            'onclick="setDashLeague(\''+x[0]+'\')">'+x[1]+'</button>';
@@ -1176,7 +1176,7 @@
   var seasonTeams = null;
   var seasonSort = "avg";     // 並び替えキー
   var seasonTeamFilter = "all";
-  var seasonLeagueFilter = "all";
+  var seasonLeagueFilter = "パ";
   var seasonQualified = "auto";   // auto | all | qualified
   var seasonGroup = "batter";     // batter | pitcher
 
@@ -1352,7 +1352,7 @@
     if(!validSort) seasonSort=defaultSort(seasonGroup);
 
     var h='<div class="stabs">';
-    [["all","両リーグ",null],["セ","セ・リーグ","セ"],["パ","パ・リーグ","パ"]].forEach(function(x){
+    [["セ","セ・リーグ","セ"],["パ","パ・リーグ","パ"],["all","両リーグ",null]].forEach(function(x){
       var col = x[2] ? LEAGUE_COLOR[x[2]] : "var(--accent)";
       h+='<button class="stab'+(seasonLeagueFilter===x[0]?" on":"")+'" style="--sc:'+col+'" '+
          'onclick="setSeasonLeague(\''+x[0]+'\')">'+x[1]+'</button>';
