@@ -2586,7 +2586,8 @@
         '<div class="stat"><div class="sv">'+fmtAvg(b.slg)+'</div><div class="sl">長打率</div></div>'+
         '<div class="stat"><div class="sv">'+(b.ops==null?"-":b.ops.toFixed(3).replace(/^0\./,"."))+'</div><div class="sl">OPS</div></div>'+
         '<div class="stat"><div class="sv">'+(b.so||0)+'</div><div class="sl">三振</div></div>'+
-        '<div class="stat"><div class="sv">'+(b.bb||0)+'</div><div class="sl">四球</div></div>'+
+        '<div class="stat"><div class="sv">'+(b.bb||0)+'</div><div class="sl">四球'+
+          ((b.ibb||0)>0?'<br><span style="font-size:9px">うち敬遠'+b.ibb+'</span>':'')+'</div></div>'+
         '<div class="stat"><div class="sv">'+(b.sb||0)+'</div><div class="sl">盗塁</div></div>'+
         '</div></div>';
     }
