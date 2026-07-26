@@ -202,6 +202,7 @@ def rebuild(season, base="data"):
     bat = {}           # player_key -> batting counts
     pit = {}           # player_key -> pitching counts
     team_stats = {}    # team -> counts
+    holds_found = 0                 # 推定ホールドの検出数（ログ用）
     seen_game_per_player_bat = {}   # (pkey, game_id) 出場ゲーム重複防止
     seen_game_per_player_pit = {}
     pos_count = {}                  # player_key -> {守備位置: 出場数}
@@ -266,7 +267,7 @@ def rebuild(season, base="data"):
                         team_stats[team]["hits"] += row.get("hits", 0)
                         team_stats[team]["hr"] += row.get("hr", 0)
 
-                for row in (box.get("pitching", {}).get(side) or []):
+                for pit_order, row in enumerate(box.get("pitching", {}).get(side) or []):
                     k = player_key(row.get("player_id"), row.get("name"))
                     if not k or not is_valid_name(row.get("name")):
                         continue
@@ -283,13 +284,16 @@ def rebuild(season, base="data"):
                         pit[k]["games"] += 1
                     merge_official_pitching(pit[k], row)
 
-                    # 推定ホールド（1試合1個まで）
-                    nm = clean_name(row.get("name"))
-                    if est_holds.get(row.get("name")) or est_holds.get(nm):
+                    # 推定ホールド（1試合1個まで）。選手IDで引き、無ければ名前で
+                    pid = row.get("player_id")
+                    nm_raw = row.get("name") or ""
+                    nm_key = "nm:" + nm_raw.replace(" ", "").replace("　", "")
+                    if (pid and est_holds.get("id:" + str(pid))) \
+                            or est_holds.get(nm_key) or est_holds.get(nm_raw):
                         pit[k]["holds_est"] += 1
+                        holds_found += 1
                     # 救援勝利（先発以外の勝利）＝ホールドポイントの計算に使う
-                    is_starter_row = (row is (box.get("pitching", {}).get(side) or [None])[0])
-                    if not is_starter_row and "勝" in (row.get("decision") or ""):
+                    if pit_order > 0 and "勝" in (row.get("decision") or ""):
                         pit[k]["relief_wins"] += 1
 
             # チーム得点はスコアボードの公式値を使う
@@ -431,6 +435,7 @@ def rebuild(season, base="data"):
 
     if skipped:
         print(f"[WARN] 名前が取得できない選手データ {skipped}件をスキップしました")
+    print(f"[INFO] 推定ホールド: {holds_found}件を検出")
     print(f"[INFO] 選手{len(player_out)}人・チーム{len(team_out)}件を再集計・保存")
     return len(player_out)
 
