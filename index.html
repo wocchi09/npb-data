@@ -249,6 +249,10 @@
   .zcell .zs{font-size:8.5px;color:var(--muted);line-height:1;}
   .stab.zmode{padding:5px 12px;font-size:12px;}
 
+  .calnav #dailyPick{font-family:inherit;font-size:14px;padding:7px 10px;
+    border-radius:8px;border:2px solid var(--line);background:var(--panel);
+    color:var(--ink);}
+
   /* ---- 球団タブ ---- */
   .teamtabs{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:12px;}
   .ttab{font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;
@@ -479,6 +483,7 @@
       <button class="vbtn" id="vb-games" onclick="setView('games')">試合</button>
       <button class="vbtn" id="vb-season" onclick="setView('season')">シーズン成績</button>
       <button class="vbtn" id="vb-players" onclick="setView('players')">選手一覧</button>
+      <button class="vbtn" id="vb-daily" onclick="setView('daily')">日別分析</button>
       <button class="vbtn" id="vb-export" onclick="setView('export')">データ出力</button>
     </div>
 
@@ -500,6 +505,8 @@
     <div id="seasonView" style="display:none"></div>
 
     <div id="playersView" style="display:none"></div>
+
+    <div id="dailyView" style="display:none"></div>
 
     <div id="exportView" style="display:none"></div>
 
@@ -1513,7 +1520,7 @@
   function setView(v){
     curView = v;
     var ids={dash:"dashView", games:"gameView", season:"seasonView",
-             players:"playersView", export:"exportView"};
+             players:"playersView", daily:"dailyView", export:"exportView"};
     for(var k in ids){
       var el=document.getElementById(ids[k]);
       if(el) el.style.display = (k===v ? "block" : "none");
@@ -1523,6 +1530,7 @@
     if(v==="dash") loadDash();
     else if(v==="season") loadSeason();
     else if(v==="players") loadPlayers();
+    else if(v==="daily") loadDaily();
     else if(v==="export") loadExport();
   }
 
@@ -2976,13 +2984,184 @@
     return h;
   }
 
+  /* ===== 日別分析 ===== */
+  var dailyDate=null;
+
+  async function loadDaily(){
+    var dv=document.getElementById("dailyView");
+    if(!dailyDate){
+      // 既定はデータがある最新日
+      var ks=Object.keys(dashDays||{}).sort();
+      dailyDate = ks.length ? ks[ks.length-1] : (dp.value||todayJST());
+    }
+    dv.innerHTML='<div class="msg">読み込み中…</div>';
+    try{
+      await loadSplitFile("batting_lines");
+      await loadSplitFile("pitching_lines");
+      await loadSplitFile("games");
+      renderDaily();
+    }catch(e){
+      dv.innerHTML='<div class="msg">1試合ごとのデータがまだありません<br>'+
+        '<span style="font-size:12px">Actionsで収集すると dataset/ が生成されます</span></div>';
+    }
+  }
+  function shiftDaily(n){
+    var t=new Date(dailyDate+"T00:00:00");
+    t.setDate(t.getDate()+n);
+    dailyDate=fmtDate(t);
+    renderDaily();
+  }
+  function setDailyDate(v){
+    if(v){ dailyDate=v; renderDaily(); }
+  }
+
+  function renderDaily(){
+    var dv=document.getElementById("dailyView");
+    var d=dailyDate;
+    var bl=(splitCache["batting_lines"].rows||[]).filter(function(r){return r.date===d;});
+    var pl=(splitCache["pitching_lines"].rows||[]).filter(function(r){return r.date===d;});
+    var gm=(splitCache["games"].rows||[]).filter(function(r){return r.date===d;});
+
+    var h='<div class="dash-sec"><div class="dash-h"><span class="dot"></span>日別分析'+
+      '<span class="dash-date">'+esc(d.replace(/-/g,"/"))+'</span></div>'+
+      '<div class="calnav">'+
+        '<button class="btn" onclick="shiftDaily(-1)">◀ 前日</button>'+
+        '<input type="date" id="dailyPick" value="'+esc(d)+'" onchange="setDailyDate(this.value)">'+
+        '<button class="btn" onclick="shiftDaily(1)">翌日 ▶</button>'+
+      '</div>';
+
+    if(!gm.length && !bl.length && !pl.length){
+      h+='<div class="msg">この日のデータはありません<br>'+
+         '<span style="font-size:12px">カレンダーで収集済みの日を確認できます</span></div></div>';
+      dv.innerHTML=h;
+      return;
+    }
+
+    // ---- 試合結果（リーグ別）----
+    if(gm.length){
+      var byLg={"セ":[],"パ":[],"交":[],"?":[]};
+      gm.forEach(function(g){
+        var lh=tLeague(g.home), la=tLeague(g.away);
+        var k = (!lh||!la) ? "?" : (lh===la ? lh : "交");
+        byLg[k].push(g);
+      });
+      h+='<div class="subsec"><div class="subttl">試合結果（'+gm.length+'試合）</div>';
+      [["セ","セ・リーグ"],["パ","パ・リーグ"],["交","交流戦"],["?","その他"]].forEach(function(x){
+        var list=byLg[x[0]];
+        if(!list.length) return;
+        var col=LEAGUE_COLOR[x[0]]||"var(--accent)";
+        h+='<div class="lgroup"><div class="lgroup-h" style="border-left-color:'+col+'">'+
+           '<span class="lgbadge" style="background:'+col+'">'+esc(x[0]==="?"?"他":x[0])+'</span> '+
+           esc(x[1])+'</div><div class="dash-games">';
+        list.forEach(function(g){
+          var hs=num(g.home_score), as_=num(g.away_score);
+          var topics=[];
+          if(hs===0||as_===0) topics.push("完封");
+          if(Math.abs(hs-as_)>=5) topics.push("大差");
+          if(hs===as_) topics.push("引分");
+          h+='<div class="dgame">'+
+            '<div class="dg-score">'+
+              '<span class="'+(hs>as_?"w":"")+'">'+esc(tMini(g.home)||g.home)+' '+hs+'</span>'+
+              '<span class="dash">-</span>'+
+              '<span class="'+(as_>hs?"w":"")+'">'+as_+' '+esc(tMini(g.away)||g.away)+'</span>'+
+            '</div>'+
+            (g.win_pitcher?'<div class="dg-pit">勝 '+esc(g.win_pitcher)+
+              (g.lose_pitcher?'／敗 '+esc(g.lose_pitcher):'')+'</div>':'')+
+            (g.stadium?'<div class="dg-pit">'+esc(g.stadium)+'</div>':'')+
+            (topics.length?'<div class="dg-pit">'+topics.map(function(t){
+               return '<span class="subtag">'+t+'</span>';}).join(" ")+'</div>':'')+
+            '</div>';
+        });
+        h+='</div></div>';
+      });
+      h+='</div>';
+
+      // 出場しなかった球団
+      var played={};
+      gm.forEach(function(g){ played[g.home]=1; played[g.away]=1; });
+      var rest=TEAM_ORDER_PA.concat(TEAM_ORDER_SE).filter(function(t){return !played[t];});
+      if(rest.length){
+        h+='<div class="subsec"><div class="subttl">試合なし</div><div class="expbtns">'+
+           rest.map(function(t){return '<span class="explink">'+teamBadge(t)+' '+esc(t)+'</span>';}).join("")+
+           '</div></div>';
+      }
+    }
+
+    // ---- 打撃のトピック ----
+    if(bl.length){
+      var multi=bl.filter(function(r){return num(r.hits)>=2;})
+                  .sort(function(a,b){return num(b.hits)-num(a.hits);});
+      var big=multi.filter(function(r){return num(r.hits)>=3;});
+      var hrs=bl.filter(function(r){return num(r.hr)>=1;})
+                .sort(function(a,b){return num(b.hr)-num(a.hr);});
+      var rbis=bl.filter(function(r){return num(r.rbi)>=1;})
+                 .sort(function(a,b){return num(b.rbi)-num(a.rbi);});
+
+      h+=dailyList("猛打賞（3安打以上）", big, function(r){
+        return num(r.hits)+"安打"+(num(r.hr)?" "+num(r.hr)+"本":"");});
+      h+=dailyList("マルチ安打（2安打以上）", multi, function(r){
+        return num(r.hits)+"安打 "+num(r.ab)+"打数";});
+      h+=dailyList("本塁打", hrs, function(r){
+        return num(r.hr)+"本 "+num(r.rbi)+"打点";});
+      h+=dailyList("打点", rbis, function(r){ return num(r.rbi)+"打点";});
+    }
+
+    // ---- 投手のトピック ----
+    if(pl.length){
+      var so=pl.filter(function(r){return num(r.so)>=1;})
+               .sort(function(a,b){return num(b.so)-num(a.so);});
+      var pitches=pl.slice().sort(function(a,b){return num(b.pitches)-num(a.pitches);});
+      var sv=pl.filter(function(r){return (r.decision||"").indexOf("Ｓ")>=0 || (r.decision||"").indexOf("S")>=0;});
+      var qs=pl.filter(function(r){return String(r.is_qs).toLowerCase()==="true";});
+
+      h+=dailyList("奪三振", so, function(r){
+        return num(r.so)+"個 "+esc(r.innings||"")+"回";});
+      h+=dailyList("球数", pitches.slice(0,10), function(r){
+        return num(r.pitches)+"球 "+esc(r.innings||"")+"回";});
+      h+=dailyList("クオリティスタート", qs, function(r){
+        return esc(r.innings||"")+"回 自責"+num(r.earned_runs);});
+      h+=dailyList("セーブ", sv, function(r){
+        return esc(r.innings||"")+"回 "+num(r.so)+"奪三振";});
+    }
+
+    h+='<div class="sub" style="font-size:11px;margin-top:8px">'+
+       '出典：スポーツナビ（試合出場成績・一球速報）／'+
+       '延長・サヨナラの判定は集計データにイニング情報が無いため出していません</div>';
+    h+='</div>';
+    dv.innerHTML=h;
+  }
+
+  /* 日別の小さなランキング表 */
+  function dailyList(title, rows, fmtFn){
+    if(!rows || !rows.length) return "";
+    var h='<div class="subsec"><div class="subttl">'+esc(title)+'（'+rows.length+'人）</div>'+
+      '<div class="tblwrap"><table class="stbl"><thead><tr>'+
+      '<th class="nm">選手</th><th>球団</th><th>対戦</th><th>内容</th>'+
+      '</tr></thead><tbody>';
+    rows.slice(0,15).forEach(function(r){
+      h+='<tr><td class="nm">'+esc(r.player)+'</td>'+
+         '<td>'+teamBadge(r.team)+'</td>'+
+         '<td>'+teamBadge(r.opponent)+'</td>'+
+         '<td class="num">'+fmtFn(r)+'</td></tr>';
+    });
+    h+='</tbody></table></div>';
+    if(rows.length>15){
+      h+='<div class="sub" style="font-size:11px">上位15人を表示</div>';
+    }
+    h+='</div>';
+    return h;
+  }
+
   /* ===== データ出力（CSV） ===== */
   var EXPORT_SETS = [
     ["pitches",        "一球データ",   "1行＝1球。球種・球速・コース・カウント・結果まで全部入り"],
     ["atbats",         "打席データ",   "1行＝1打席。結果・打球方向・走者状況"],
     ["batting_lines",  "打撃成績",     "1行＝1選手1試合。公式ボックススコア（打順・守備位置つき）"],
     ["pitching_lines", "投手成績",     "1行＝1投手1試合。先発フラグ・QS判定つき"],
-    ["games",          "試合",         "1行＝1試合。スコア・勝敗投手・球場"]
+    ["games",          "試合",         "1行＝1試合。スコア・勝敗投手・球場"],
+    ["season_batting", "シーズン打撃",  "1行＝1選手。シーズン通算＋規定到達フラグ"],
+    ["season_pitching","シーズン投手",  "1行＝1投手。防御率・WHIP・HP・規定到達フラグ"],
+    ["season_teams",   "シーズンチーム","1行＝1球団。得失点・勝敗"]
   ];
   var expSet="pitches", expFrom="", expTo="", expTeam="all", expPlayer="";
   var expCache={};      // set -> {header:[], rows:[[...]]}
