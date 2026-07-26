@@ -242,6 +242,21 @@
   .stabs.gtabs{margin-top:-2px;}
   .stabs.gtabs .stab{flex:1;max-width:200px;}
 
+  /* ---- 球団タブ ---- */
+  .teamtabs{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:12px;}
+  .ttab{font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;
+    padding:7px 12px;border-radius:8px;background:var(--panel2);color:var(--ink);
+    border:2px solid var(--line);display:inline-flex;align-items:center;gap:5px;
+    line-height:1;}
+  .ttab:hover{filter:brightness(1.06);}
+  .ttab.on{box-shadow:0 2px 6px rgba(0,0,0,.18);}
+  .ttab .tm{font-family:'Roboto Mono',monospace;font-size:12px;min-width:16px;
+    text-align:center;}
+  .ttab .tn{font-size:12.5px;}
+  @media(max-width:640px){ .ttab .tn{display:none;} .ttab{padding:8px 10px;} }
+  .tsep{width:1px;align-self:stretch;background:var(--line2);margin:0 4px;
+    min-height:26px;}
+
   /* ---- データ出力 ---- */
   .expsec{margin-top:14px;}
   .expsec:first-child{margin-top:0;}
@@ -519,6 +534,10 @@
   };
   var LEAGUE_COLOR={"セ":"#009E52","パ":"#0095D9"};
   var LEAGUE_NAME={"セ":"セントラル・リーグ","パ":"パシフィック・リーグ"};
+
+  /* 球団タブの並び順（指定順） */
+  var TEAM_ORDER_PA=["ソフトバンク","日本ハム","オリックス","楽天","西武","ロッテ"];
+  var TEAM_ORDER_SE=["阪神","DeNA","巨人","中日","広島","ヤクルト"];
 
   function tMeta(t){return TEAM_META[t]||null;}
   function tMini(t){var m=tMeta(t);return m?m.mini:(t||"");}
@@ -1236,7 +1255,9 @@
     dashLoaded=true;  }
 
   function rankBlock(title, players, statFn, fmtFn, asc){
-    var list=players.filter(function(p){return statFn(p)!=null;});
+    var list=players.filter(function(p){
+      return p.name && String(p.name).trim() && statFn(p)!=null;
+    });
     list.sort(function(a,b){
       var va=statFn(a), vb=statFn(b);
       return asc ? va-vb : vb-va;
@@ -1601,6 +1622,7 @@
 
     // まず所属・成績の有無で絞る
     var base=seasonData.filter(function(p){
+      if(!p.name || !String(p.name).trim()) return false;   // 名前なしは除外
       if(seasonLeagueFilter!=="all" && tLeague(p.team)!==seasonLeagueFilter) return false;
       if(seasonTeamFilter!=="all" && p.team!==seasonTeamFilter) return false;
       return isPitchStat ? hasPitching(p) : hasBatting(p);
@@ -1824,7 +1846,7 @@
 
   function onPlayersChange(){
     var g=function(id){var e=document.getElementById(id);return e?e.value:"";};
-    plName=g("plName"); plTeam=g("plTeam"); plKind=g("plKind");
+    plName=g("plName"); plKind=g("plKind");
     plPos=g("plPos"); plHand=g("plHand"); plNum=g("plNum");
     plQual=g("plQual"); plSort=g("plSort");
     renderPlayers();
@@ -1837,6 +1859,23 @@
 
   function isPitcherP(p){ return !!(p.pitching && (p.pitching.outs||0)>0); }
   function isBatterP(p){ return !!(p.batting && (p.batting.pa||0)>0); }
+
+  /* 球団タブ1個ぶん（チームカラーで塗る） */
+  function teamTabBtn(t){
+    var on=(plTeam===t);
+    var col=tColor(t)||"var(--accent)";
+    var style=on ? 'background:'+col+';color:'+tTextColor(t)+';border-color:'+col
+                 : 'border-color:'+col;
+    return '<button class="ttab'+(on?" on":"")+'" style="'+style+'" '+
+           'onclick="setPlTeam(\''+esc(t)+'\')" title="'+esc(t)+'">'+
+           '<span class="tm">'+esc(tMini(t))+'</span>'+
+           '<span class="tn">'+esc(t)+'</span></button>';
+  }
+  function setPlTeam(t){
+    if(plTeam===t) return;
+    plTeam=t;
+    renderPlayers();
+  }
 
   function renderPlayers(){
     var pv=document.getElementById("playersView");
@@ -1874,9 +1913,23 @@
     var h='<div class="dash-sec"><div class="dash-h"><span class="dot"></span>選手一覧'+
       '<span class="dash-date">'+seasonData.length+'人 登録</span></div>';
 
+    // 球団タブ（パ→区切り→セ の順）
+    h+='<div class="teamtabs">'+
+       '<button class="ttab'+(plTeam==="all"?" on":"")+'" onclick="setPlTeam(\'all\')">全球団</button>'+
+       '<span class="tsep"></span>';
+    TEAM_ORDER_PA.forEach(function(t){
+      if(!teams[t]) return;
+      h+=teamTabBtn(t);
+    });
+    h+='<span class="tsep"></span>';
+    TEAM_ORDER_SE.forEach(function(t){
+      if(!teams[t]) return;
+      h+=teamTabBtn(t);
+    });
+    h+='</div>';
+
     h+='<div class="expform">'+
       '<label class="ef"><span>選手名</span><input type="text" id="plName" placeholder="部分一致" value="'+esc(plName)+'" oninput="onPlayersChange()"></label>'+
-      sel("plTeam","球団",plTeam,teamList,"全球団")+
       sel("plKind","区分",plKind,[["batter","野手"],["pitcher","投手"]],"すべて")+
       sel("plPos","守備位置",plPos,posList,"すべて")+
       sel("plHand","投打",plHand,handList,"すべて")+
@@ -1887,8 +1940,9 @@
       '</div><div class="expbtns" style="margin-top:10px">'+
       '<button class="btn" onclick="resetPlayers()">条件をクリア</button></div>';
 
-    // 絞り込み
+    // 絞り込み（名前が取れていないデータは表示しない）
     var list=seasonData.filter(function(p){
+      if(!p.name || !String(p.name).trim()) return false;
       if(plName && (p.name||"").indexOf(plName)<0) return false;
       if(plTeam!=="all" && p.team!==plTeam) return false;
       if(plKind==="pitcher" && !isPitcherP(p)) return false;
