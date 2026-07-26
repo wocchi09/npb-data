@@ -1,0 +1,68 @@
+name: Update NPB Roster
+
+# NPB公式（npb.jp）から支配下選手の名鑑を取得する。
+# 名鑑は頻繁に変わらないので週1回（月曜の朝）＋手動実行にとどめる。
+# アクセスは12球団×1回だけ、間隔2秒。
+
+on:
+  schedule:
+    # JST 月曜 8:15 = UTC 日曜 23:15
+    - cron: "15 23 * * 0"
+  workflow_dispatch:
+    inputs:
+      team:
+        description: "特定球団だけ更新する場合のコード（h/f/b/e/l/m/t/db/g/d/c/s）"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  roster:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+
+      - name: Fetch roster
+        run: |
+          ARGS=""
+          if [ -n "${{ github.event.inputs.team }}" ]; then
+            ARGS="--team ${{ github.event.inputs.team }}"
+          fi
+          python scraper/roster.py $ARGS
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          find . -name "__pycache__" -type d -prune -exec rm -rf {} + 2>/dev/null || true
+          git add -A
+          if git diff --cached --quiet; then
+            echo "変更なし。pushをスキップします。"
+            exit 0
+          fi
+          git commit -m "roster: NPB公式の支配下選手名鑑を更新 $(date +'%Y-%m-%d')"
+
+          for i in 1 2 3; do
+            git fetch origin main
+            if git rebase origin/main; then
+              if git push origin HEAD:main; then
+                echo "push成功"
+                exit 0
+              fi
+            else
+              echo "rebase失敗。中断して再試行します。"
+              git rebase --abort || true
+            fi
+            echo "リトライ $i 回目"
+            sleep 5
+          done
+          echo "pushに3回失敗しました。"
+          exit 1
