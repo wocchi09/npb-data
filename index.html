@@ -29,7 +29,9 @@
   *{box-sizing:border-box;margin:0;padding:0;}
   body{font-family:'BIZ UDPGothic','Noto Sans JP',sans-serif;background:var(--bg);color:var(--ink);
     min-height:100vh;font-size:15.5px;line-height:1.75;transition:background .2s,color .2s;}
-  .wrap{max-width:900px;margin:0 auto;padding:0 14px 60px;}
+  .wrap{max-width:1600px;margin:0 auto;padding:0 20px 60px;}
+  /* 試合ビュー・シーズン成績は読みやすさ優先で幅を抑える */
+  #gameView,#seasonView{max-width:1100px;margin:0 auto;}
 
   .hero{background:linear-gradient(135deg,var(--accent) 0%,var(--accent2) 100%);
     padding:18px 0 16px;margin-bottom:16px;}
@@ -220,7 +222,7 @@
   .dg-score .dash{color:var(--muted);font-size:13px;}
   .dg-pit{font-size:11px;color:var(--muted);margin-top:3px;}
 
-  .rankgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));
+  .rankgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));
     gap:10px;margin-bottom:12px;}
   .rankcard{background:var(--panel2);border:1px solid var(--line);border-radius:10px;
     padding:10px 12px;}
@@ -250,6 +252,22 @@
   .lgroup-h{display:flex;align-items:center;gap:7px;font-size:13.5px;font-weight:700;
     border-left:4px solid var(--accent);padding-left:8px;margin-bottom:7px;}
   .lgroup-h .sub2{font-weight:400;}
+
+  /* ---- ダッシュボードのレイアウト ---- */
+  .dashgrid{display:grid;grid-template-columns:1fr;gap:14px;align-items:start;}
+  .dash-main,.dash-side{display:flex;flex-direction:column;gap:14px;min-width:0;}
+  .dash-main>.dash-sec,.dash-side>.dash-sec{margin-top:0;}
+  @media(min-width:1100px){
+    .dashgrid{grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);}
+  }
+
+  /* 概況タイル */
+  .tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;}
+  .tile{background:var(--panel2);border:1px solid var(--line);border-radius:10px;
+    padding:12px 10px;text-align:center;}
+  .tile .tv{font-family:'Roboto Mono',monospace;font-size:24px;font-weight:700;
+    color:var(--accent);line-height:1.1;}
+  .tile .tl{font-size:11px;color:var(--muted);margin-top:3px;}
 
   /* ---- データカレンダー ---- */
   .calnav{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:10px;}
@@ -997,6 +1015,32 @@
     return h;
   }
 
+  /* データの概況を数字で示すタイル */
+  function renderSummaryTiles(latestDate, players, year){
+    var days=0, gamesTotal=0;
+    for(var k in dashDays){ days++; gamesTotal+=dashDays[k]; }
+    var batters=0, pitchers=0;
+    (players||[]).forEach(function(p){
+      if(p.batting&&(p.batting.pa||0)>0) batters++;
+      if(p.pitching&&(p.pitching.outs||0)>0) pitchers++;
+    });
+    var tiles=[
+      [gamesTotal, "収集した試合"],
+      [days, "データのある日"],
+      [batters, "登録野手"],
+      [pitchers, "登録投手"]
+    ];
+    var h='<div class="dash-sec"><div class="dash-h"><span class="dot"></span>'+
+      year+' データ概況'+
+      (latestDate?'<span class="dash-date">最新 '+latestDate.replace(/-/g,"/")+'</span>':'')+
+      '</div><div class="tiles">';
+    tiles.forEach(function(t){
+      h+='<div class="tile"><div class="tv">'+t[0]+'</div><div class="tl">'+t[1]+'</div></div>';
+    });
+    h+='</div></div>';
+    return h;
+  }
+
   /* ===== データカレンダー ===== */
   var dashDays = {};      // "2026-07-24" -> その日の試合ファイル数
   var calMonth = null;    // 表示中の月 "2026-07"
@@ -1157,9 +1201,12 @@
 
   function renderDash(latestDate, games, players, year){
     var dv=document.getElementById("dashView");
-    var h='';
+    var h='<div class="dashgrid">';
 
-    // --- 順位表（最上部） ---
+    // ===== 左カラム =====
+    h+='<div class="dash-main">';
+
+    // --- 順位表 ---
     h+=renderStandings();
 
     // --- 最新の試合結果（セ・パ・交流戦で分ける） ---
@@ -1206,8 +1253,15 @@
          '<span style="font-size:12px">Actionsで収集すると表示されます</span></div></div>';
     }
 
-    // --- データカレンダー ---
+    h+='</div>';   // /dash-main
+
+    // ===== 右カラム =====
+    h+='<div class="dash-side">';
+    h+=renderSummaryTiles(latestDate, players, year);
     h+=renderCalendar();
+    h+='</div>';   // /dash-side
+
+    h+='</div>';   // /dashgrid
 
     // --- ランキングハイライト（リーグ切替つき） ---
     if(players.length){
