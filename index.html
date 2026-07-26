@@ -1909,9 +1909,61 @@
     el.scrollIntoView({behavior:"smooth",block:"nearest"});
   }
 
+  /* ===== 公式名鑑（NPB公式・支配下選手のみ） ===== */
+  var npbRoster=null;      // {updated_at, players:[...]}
+
+  /* 氏名の正規化：スペースを除き、よくある異体字を寄せる。
+     公式サイトとスポナビで表記が違うため、突合の前に必ず通す。 */
+  var NAME_VARIANTS = {
+    "髙":"高", "﨑":"崎", "濵":"浜", "濱":"浜", "邉":"辺", "邊":"辺",
+    "齋":"斎", "齊":"斉", "澤":"沢", "栁":"柳", "曻":"昇", "祐":"祐",
+    "德":"徳", "眞":"真", "淸":"清", "﨤":"返"
+  };
+  function normName(s){
+    if(!s) return "";
+    var t=String(s).replace(/[\s\u3000]/g,"");
+    var out="";
+    for(var i=0;i<t.length;i++){
+      var c=t.charAt(i);
+      out += (NAME_VARIANTS[c] || c);
+    }
+    return out;
+  }
+
+  async function loadRoster(){
+    if(npbRoster!==null) return npbRoster;
+    try{
+      var r=await fetch("data/masters/npb_roster.json?t="+Date.now());
+      npbRoster = r.ok ? await r.json() : false;
+    }catch(e){ npbRoster=false; }
+    return npbRoster;
+  }
+
+  /* 成績（seasonData）を氏名＋球団で引けるようにする */
+  function statsIndex(){
+    var m={};
+    (seasonData||[]).forEach(function(p){
+      if(!p.name) return;
+      var k=normName(p.name);
+      if(!m[k]) m[k]=[];
+      m[k].push(p);
+    });
+    return m;
+  }
+  function findStats(idx, name, team){
+    var cand=idx[normName(name)];
+    if(!cand || !cand.length) return null;
+    if(cand.length===1) return cand[0];
+    // 同姓同名は球団で絞る
+    for(var i=0;i<cand.length;i++){
+      if(cand[i].team===team) return cand[i];
+    }
+    return cand[0];
+  }
+
   /* ===== 選手一覧 ===== */
   var plName="", plTeam="all", plKind="batter", plPos="all", plHand="all",
-      plNum="", plQual="all", plSort="team", plSortDir="desc";
+      plNum="", plQual="all", plPlayed="all", plSort="team", plSortDir="desc";
 
   /* 選手一覧の列定義（打者・投手で別々） */
   var PL_COLS_BAT = [
@@ -1981,13 +2033,14 @@
 
   async function loadPlayers(){
     var pv=document.getElementById("playersView");
-    if(seasonData){ renderPlayers(); return; }
+    if(seasonData && npbRoster!==null){ renderPlayers(); return; }
     pv.innerHTML='<div class="msg">読み込み中…</div>';
-    // シーズン成績と同じデータを使う（未読込ならここで読む）
-    await loadSeason();
-    if(!seasonData){
+    // 公式名鑑（一覧の基準）と、成績（表示用）の両方を読む
+    await loadRoster();
+    if(!seasonData) await loadSeason();
+    if(!npbRoster && !seasonData){
       pv.innerHTML='<div class="msg">選手データがまだありません<br>'+
-        '<span style="font-size:12px">Actionsで収集すると自動生成されます</span></div>';
+        '<span style="font-size:12px">Actions の「Update NPB Roster」を実行すると名鑑が作られます</span></div>';
       return;
     }
     renderPlayers();
@@ -1997,12 +2050,12 @@
     var g=function(id){var e=document.getElementById(id);return e?e.value:"";};
     plName=g("plName");
     plPos=g("plPos"); plHand=g("plHand"); plNum=g("plNum");
-    plQual=g("plQual");
+    plQual=g("plQual"); plPlayed=g("plPlayed");
     renderPlayers();
   }
   function resetPlayers(){
     plName=""; plTeam="all"; plPos="all"; plHand="all";
-    plNum=""; plQual="all"; plSort="team"; plSortDir="asc";
+    plNum=""; plQual="all"; plPlayed="all"; plSort="team"; plSortDir="asc";
     renderPlayers();
   }
 
@@ -2034,16 +2087,57 @@
     renderPlayers();
   }
 
+  /* 一覧に並べる選手を作る。
+     公式名鑑があればそれを基準にし（支配下のみ・背番号や投打も公式値）、
+     無ければ従来どおり成績データから組み立てる。 */
+  function buildPlayerList(){
+    var idx=statsIndex();
+    if(npbRoster && npbRoster.players && npbRoster.players.length){
+      return npbRoster.players.map(function(r){
+        var st=findStats(idx, r.name, r.team) || {};
+        var b=st.batting, q=st.pitching;
+        return {
+          key: st.key || ("npb:"+(r.npb_id||r.name)),
+          npb_id: r.npb_id,
+          player_id: st.player_id || null,
+          name: r.name,
+          team: r.team,
+          number: r.number,                       // 公式の背番号
+          position: r.position_group,              // 公式の守備区分（投/捕/内/外）
+          hand: (r.throws?r.throws+"投":"") + (r.bats?r.bats+"打":""),
+          throws: r.throws, bats: r.bats,
+          birthdate: r.birthdate, height: r.height, weight: r.weight,
+          is_pitcher: !!r.is_pitcher,
+          played: !!(b || q),                     // 一軍出場（収集済み試合に登場したか）
+          batting: b, pitching: q,
+          positions: st.positions || null,
+          fromRoster: true
+        };
+      });
+    }
+    // 名鑑が無い場合のフォールバック
+    return (seasonData||[]).filter(function(p){
+      return p.name && String(p.name).trim();
+    }).map(function(p){
+      var o={};
+      for(var k in p) o[k]=p[k];
+      o.played = true;
+      o.fromRoster = false;
+      return o;
+    });
+  }
+
   function renderPlayers(){
     var pv=document.getElementById("playersView");
-    if(!seasonData||!seasonData.length){
+    var all=buildPlayerList();
+    if(!all.length){
       pv.innerHTML='<div class="msg">選手データがありません</div>';
       return;
     }
 
     // 選択肢はデータから作る
     var teams={}, poss={}, hands={};
-    seasonData.forEach(function(p){
+    all.forEach(function(p){
       if(p.team) teams[p.team]=1;
       if(p.position) poss[p.position]=1;
       (p.positions||[]).forEach(function(x){ if(x.pos) poss[x.pos]=1; });
@@ -2068,7 +2162,8 @@
     }
 
     var h='<div class="dash-sec"><div class="dash-h"><span class="dot"></span>選手一覧'+
-      '<span class="dash-date">'+seasonData.length+'人 登録</span></div>';
+      '<span class="dash-date">'+all.length+'人'+
+      (npbRoster&&npbRoster.players?'（支配下）':'')+'</span></div>';
 
     // 球団タブ（パ→区切り→セ の順）
     h+='<div class="teamtabs">'+
@@ -2100,17 +2195,24 @@
       sel("plHand","投打",plHand,handList,"すべて")+
       '<label class="ef"><span>背番号</span><input type="text" id="plNum" placeholder="例: 7" value="'+esc(plNum)+'" oninput="onPlayersChange()"></label>'+
       sel("plQual","規定",plQual,[["qualified","規定到達のみ"]],"すべて")+
+      sel("plPlayed","一軍出場",plPlayed,[["played","出場ありのみ"]],"すべて")+
       '</div><div class="expbtns" style="margin-top:10px">'+
       '<button class="btn" onclick="resetPlayers()">条件をクリア</button></div>';
 
     // 絞り込み（名前が取れていないデータは表示しない）
-    var list=seasonData.filter(function(p){
+    var list=all.filter(function(p){
       if(!p.name || !String(p.name).trim()) return false;
       if(plName && (p.name||"").indexOf(plName)<0) return false;
       if(plTeam!=="all" && p.team!==plTeam) return false;
-      if(plKind==="pitcher" && !isPitcherP(p)) return false;
-      if(plKind==="batter" && !isBatterP(p)) return false;
-      if(plKind==="batter" && plPos==="all" && p.position==="投" && !isBatterP(p)) return false;
+      // 公式名鑑がある場合は守備区分で分ける（試合に出ていない選手も並ぶ）
+      if(p.fromRoster){
+        if(plKind==="pitcher" && !p.is_pitcher) return false;
+        if(plKind==="batter" && p.is_pitcher) return false;
+      }else{
+        if(plKind==="pitcher" && !isPitcherP(p)) return false;
+        if(plKind==="batter" && !isBatterP(p)) return false;
+      }
+      if(plPlayed==="played" && !p.played) return false;
       if(plPos!=="all"){
         var hit=(p.position===plPos);
         (p.positions||[]).forEach(function(x){ if(x.pos===plPos) hit=true; });
@@ -2119,6 +2221,7 @@
       if(plHand!=="all" && p.hand!==plHand) return false;
       if(plNum && String(p.number||"")!==String(plNum).trim()) return false;
       if(plQual==="qualified"){
+        if(!p.batting && !p.pitching) return false;
         var q = isPitcherP(p) ? isQualifiedPitcher(p) : isQualifiedBatter(p);
         if(!q) return false;
       }
@@ -2217,7 +2320,11 @@
       h+='<div class="sub" style="font-size:11px;margin-top:6px">上位300人を表示しています（条件で絞り込んでください）</div>';
     }
     h+='<div class="sub" style="font-size:11px;margin-top:6px">'+
-       '選手名をタップすると詳細が開きます／「規」は規定到達</div>';
+       '選手名をタップすると詳細が開きます／「規」は規定到達'+
+       (npbRoster&&npbRoster.updated_at
+         ? '<br>選手情報の出典：NPB公式（支配下選手のみ・'+
+           esc(String(npbRoster.updated_at).slice(0,10))+' 更新）。成績はスポーツナビの試合データから集計'
+         : '')+'</div>';
     h+='</div><div id="plDetail"></div>';
     pv.innerHTML=h;
   }
