@@ -71,7 +71,7 @@ def is_valid_name(name) -> bool:
 
 def blank_batting():
     return {
-        "games": 0, "pa": 0, "ab": 0, "hits": 0, "singles": 0,
+        "games": 0, "pa": 0, "ab": 0, "hits": 0, "singles": 0, "ibb": 0,
         "doubles": 0, "triples": 0, "hr": 0, "rbi": 0, "bb": 0,
         "so": 0, "runs": 0,
     }
@@ -152,11 +152,13 @@ def classify_batting(result_summary: str) -> dict:
     """打席結果テキストから打撃イベントを分類（取れる範囲のみ・推測で埋めない）"""
     rs = result_summary or ""
     ev = {"pa": 1, "ab": 0, "hit": 0, "single": 0, "double": 0,
-          "triple": 0, "hr": 0, "bb": 0, "so": 0}
+          "triple": 0, "hr": 0, "bb": 0, "ibb": 0, "so": 0}
 
-    # 四死球（打数に数えない）
-    if "四球" in rs or "死球" in rs:
+    # 四死球（打数に数えない）。敬遠＝故意四球も四球に含める
+    if "敬遠" in rs or "四球" in rs or "死球" in rs:
         ev["bb"] = 1
+        if "敬遠" in rs or "故意四球" in rs:
+            ev["ibb"] = 1
         return ev
     # 犠打・犠飛（打数に数えない）
     if "犠打" in rs or "犠飛" in rs:
@@ -203,6 +205,7 @@ def rebuild(season, base="data"):
     pit = {}           # player_key -> pitching counts
     team_stats = {}    # team -> counts
     holds_found = 0                 # 推定ホールドの検出数（ログ用）
+    ibb_found = 0                   # 敬遠（故意四球）の検出数（ログ用）
     seen_game_per_player_bat = {}   # (pkey, game_id) 出場ゲーム重複防止
     seen_game_per_player_pit = {}
     pos_count = {}                  # player_key -> {守備位置: 出場数}
@@ -372,6 +375,15 @@ def rebuild(season, base="data"):
                     if not players[bkey].get("hand"):
                         players[bkey]["hand"] = b.get("hand")
 
+                # 敬遠（故意四球）は公式ボックススコアに列が無いので、
+                # 公式成績を使う試合でも打席データから数える
+                ev_ibb = classify_batting(ab.get("result_summary"))
+                if ev_ibb.get("ibb"):
+                    if bkey not in bat:
+                        bat[bkey] = blank_batting()
+                    bat[bkey]["ibb"] = bat[bkey].get("ibb", 0) + 1
+                    ibb_found += 1
+
                 # 公式成績が無い試合のみ、打席結果から推定して集計
                 if not used_official:
                     if bkey not in bat:
@@ -520,6 +532,10 @@ def rebuild(season, base="data"):
     if skipped:
         print(f"[WARN] 名前が取得できない選手データ {skipped}件をスキップしました")
     print(f"[INFO] 推定ホールド: {holds_found}件を検出")
+    if ibb_found:
+        print(f"[INFO] 敬遠（故意四球）: {ibb_found}件を検出")
+    else:
+        print("[INFO] 敬遠（故意四球）: 0件（取得元が「敬遠」と表記していない可能性があります）")
     print(f"[INFO] 選手{len(player_out)}人・チーム{len(team_out)}件を再集計・保存")
     return len(player_out)
 
