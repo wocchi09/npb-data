@@ -242,21 +242,27 @@
   .stabs.gtabs{margin-top:-2px;}
   .stabs.gtabs .stab{flex:1;max-width:200px;}
 
-  /* ---- スタメン ---- */
+  /* ---- スタメン・途中交代 ---- */
   .lineupwrap{display:grid;grid-template-columns:1fr;gap:0;}
   @media(min-width:1000px){
     .lineupwrap{grid-template-columns:1fr 1fr;gap:12px;}
     .lineupwrap>.card2{margin-top:12px;}
   }
-  table.lineuptbl{min-width:560px;}
-  table.lineuptbl td.ord{font-weight:700;font-size:14px;color:var(--accent);}
-  table.lineuptbl td.pos{font-size:12px;white-space:nowrap;}
-  table.lineuptbl tr.subrow td{background:var(--panel2);opacity:.92;}
-  table.lineuptbl tr.subrow td.nm{font-weight:400;font-size:12.5px;}
-  .subarrow{color:var(--muted);margin-right:2px;}
-  .subtag{display:inline-block;font-size:9.5px;font-weight:700;padding:2px 4px;
-    border-radius:3px;background:var(--muted);color:#fff;line-height:1;
-    vertical-align:middle;}
+  table.lineuptbl{min-width:480px;}
+  table.lineuptbl td.ord{font-weight:700;font-size:15px;color:var(--accent);}
+  table.stbl td.pos{font-size:12px;white-space:nowrap;}
+  table.stbl td.unumcell{font-family:'Roboto Mono',monospace;color:var(--muted);
+    font-size:12px;}
+  .unum{font-family:'Roboto Mono',monospace;font-size:11px;color:var(--muted);
+    font-weight:400;}
+  .subsec{margin-top:10px;}
+  .subsec:first-child{margin-top:0;}
+  .subttl{font-size:12.5px;font-weight:700;color:var(--ink2);margin-bottom:5px;
+    padding-left:3px;border-left:3px solid var(--line2);}
+  .subtag{display:inline-block;font-size:10px;font-weight:700;padding:2px 5px;
+    border-radius:3px;background:var(--accent2);color:#fff;line-height:1;
+    vertical-align:middle;white-space:nowrap;}
+  .dim{color:var(--muted);font-size:11px;}
 
   /* ---- 規定到達マーク ---- */
   .qmark{display:inline-block;margin-left:5px;font-size:9.5px;font-weight:700;
@@ -1766,10 +1772,44 @@
   }
 
   /* ===== スタメンタブ ===== */
+
+  /* 打席データから背番号・初出場の回を拾う（選手IDで照合、無ければ名前で） */
+  function playerMetaFromAtbats(g){
+    var byId={}, byName={};
+    function put(map, key, info){
+      if(!key) return;
+      if(!map[key]) map[key]={};
+      var m=map[key];
+      if(!m.number && info.number) m.number=info.number;
+      if(!m.hand && info.hand) m.hand=info.hand;
+      if(info.batHalf && !m.firstBat){ m.firstBat=info.batHalf; m.firstBatN=info.n; }
+      if(info.pitHalf && !m.firstPitch){ m.firstPitch=info.pitHalf; m.firstPitchN=info.n; }
+    }
+    (g.atbats||[]).forEach(function(ab){
+      var half=(ab.inning||"")+"回"+(ab.top_bottom||"");
+      var n=(ab.inning||0)*2+(ab.top_bottom==="裏"?1:0);
+      var b=ab.batter||{}, p=ab.pitcher||{};
+      var bi={number:b.number, hand:b.hand, batHalf:half, n:n};
+      put(byId, b.player_id, bi);
+      put(byName, (b.name||"").replace(/\s|　/g,""), bi);
+      var pi={number:p.number, hand:p.hand, pitHalf:half, n:n};
+      put(byId, p.player_id, pi);
+      put(byName, (p.name||"").replace(/\s|　/g,""), pi);
+    });
+    return {byId:byId, byName:byName};
+  }
+  function metaOf(meta, row){
+    return (row.player_id && meta.byId[row.player_id])
+        || meta.byName[(row.name||"").replace(/\s|　/g,"")]
+        || {};
+  }
+  function numBadge(n){
+    return n ? '<span class="unum">#'+esc(n)+'</span>' : '';
+  }
+
   function renderLineup(g){
     var box=g.boxscore;
     if(!box||!box.batting) return notReady("スタメン");
-    // 打順が入っていない古いデータへの案内
     var anyOrder=false;
     ["away","home"].forEach(function(s){
       (box.batting[s]||[]).forEach(function(p){ if(p.order) anyOrder=true; });
@@ -1779,57 +1819,126 @@
         '<span style="font-size:12px">Actionsで再収集すると表示されます</span></div>';
     }
 
-    var h='<div class="lineupwrap">';
-    [["away",g.away],["home",g.home]].forEach(function(x){
-      var side=x[0], team=x[1];
-      var rows=box.batting[side]||[];
-      if(!rows.length) return;
+    var meta=playerMetaFromAtbats(g);
+    var sides=[["away",g.away],["home",g.home]];
 
-      // 先発投手（投手表の1行目）
+    // ---- スタメン（先発9人のみ）----
+    var h='<div class="lineupwrap">';
+    sides.forEach(function(x){
+      var side=x[0], team=x[1];
+      var rows=(box.batting[side]||[]).filter(function(p){return p.is_starter;});
+      if(!rows.length) return;
       var pitchers=(box.pitching&&box.pitching[side])||[];
       var starter=pitchers.length?pitchers[0]:null;
+      var sm=starter?metaOf(meta,starter):{};
 
       h+='<div class="card2"><h3 class="thead" style="border-left-color:'+
-         (tColor(team)||'var(--accent)')+'">'+teamBadge(team)+' '+esc(team||side)+'</h3>';
-
+         (tColor(team)||'var(--accent)')+'">'+teamBadge(team)+' '+esc(team||side)+' スタメン</h3>';
       h+='<div class="tblwrap"><table class="stbl lineuptbl"><thead><tr>'+
-         '<th>打順</th><th>位置</th><th class="nm">選手</th>'+
-         '<th>打数</th><th>安打</th><th>点</th><th>本</th><th>三振</th><th>四球</th>'+
-         '<th>シーズン打率</th></tr></thead><tbody>';
-
+         '<th>打順</th><th>位置</th><th>背番号</th><th class="nm">選手</th>'+
+         '<th>打数</th><th>安打</th><th>点</th><th>本</th><th>打率</th>'+
+         '</tr></thead><tbody>';
       rows.forEach(function(p){
-        var isSub=!p.is_starter;
-        h+='<tr class="'+(isSub?"subrow":"")+'">'+
-          '<td class="num ord">'+(isSub?'':(p.order||""))+'</td>'+
-          '<td class="pos">'+(isSub
-             ? '<span class="subtag">'+esc(p.sub_type||"交代")+'</span> '+esc(p.position||"")
-             : esc(p.position||""))+'</td>'+
-          '<td class="nm">'+(isSub?'<span class="subarrow">└</span> ':'')+esc(p.name)+'</td>'+
+        var m=metaOf(meta,p);
+        h+='<tr>'+
+          '<td class="num ord">'+(p.order||"")+'</td>'+
+          '<td class="pos">'+esc(p.position||"")+'</td>'+
+          '<td class="num unumcell">'+(m.number?esc(m.number):"-")+'</td>'+
+          '<td class="nm">'+esc(p.name)+'</td>'+
           '<td class="num">'+(p.ab||0)+'</td>'+
           '<td class="num'+((p.hits||0)>0?' hi':'')+'">'+(p.hits||0)+'</td>'+
           '<td class="num">'+(p.rbi||0)+'</td>'+
           '<td class="num'+((p.hr||0)>0?' hi':'')+'">'+(p.hr||0)+'</td>'+
-          '<td class="num">'+(p.so||0)+'</td>'+
-          '<td class="num">'+(p.bb||0)+'</td>'+
-          '<td class="num">'+fmtAvg(p.season_avg)+'</td>'+
-          '</tr>';
+          '<td class="num">'+fmtAvg(p.season_avg)+'</td></tr>';
       });
       h+='</tbody></table></div>';
-
       if(starter){
         h+='<div class="kv" style="margin-top:10px"><span class="k">先発投手</span>'+
-           '<b>'+esc(starter.name)+'</b> <span class="sub2">'+
-           esc(starter.innings||"")+'回 '+(starter.pitches||0)+'球 '+
-           '自責'+(starter.earned_runs||0)+
-           (starter.season_era!=null?' ／ 防御率'+starter.season_era.toFixed(2):'')+
-           '</span></div>';
+           '<b>'+numBadge(sm.number)+' '+esc(starter.name)+'</b> <span class="sub2">'+
+           esc(starter.innings||"")+'回 '+(starter.pitches||0)+'球 自責'+(starter.earned_runs||0)+
+           (starter.season_era!=null?' ／ 防御率'+starter.season_era.toFixed(2):'')+'</span></div>';
       }
       h+='</div>';
     });
     h+='</div>';
-    h+='<div class="sub" style="font-size:11px;margin-top:6px">'+
-       '括弧付きの守備位置がスタメン、インデントされた行が途中出場の選手です'+
-       '（直前のスタメンの打順を引き継ぎます）</div>';
+
+    // ---- 途中出場・交代 ----
+    h+=renderSubs(g, box, meta, sides);
+    return h;
+  }
+
+  function renderSubs(g, box, meta, sides){
+    var h='', any=false;
+    sides.forEach(function(x){
+      var side=x[0], team=x[1];
+      var subBat=(box.batting[side]||[]).filter(function(p){return !p.is_starter;});
+      var pitchers=(box.pitching&&box.pitching[side])||[];
+      var relievers=pitchers.slice(1);   // 1人目は先発
+      if(!subBat.length && !relievers.length) return;
+      any=true;
+
+      h+='<div class="card2"><h3 class="thead" style="border-left-color:'+
+         (tColor(team)||'var(--accent)')+'">'+teamBadge(team)+' '+esc(team||side)+' 途中出場・交代</h3>';
+
+      // 野手
+      if(subBat.length){
+        subBat.sort(function(a,b){
+          var ma=metaOf(meta,a), mb=metaOf(meta,b);
+          return (ma.firstBatN||99) - (mb.firstBatN||99);
+        });
+        h+='<div class="subsec"><div class="subttl">野手</div><div class="tblwrap">'+
+           '<table class="stbl"><thead><tr><th>種類</th><th>位置</th><th>背番号</th>'+
+           '<th class="nm">選手</th><th>打順</th><th>初打席</th>'+
+           '<th>打数</th><th>安打</th><th>点</th></tr></thead><tbody>';
+        subBat.forEach(function(p){
+          var m=metaOf(meta,p);
+          h+='<tr><td><span class="subtag">'+esc(p.sub_type||"交代")+'</span></td>'+
+            '<td class="pos">'+esc(p.position||"")+'</td>'+
+            '<td class="num unumcell">'+(m.number?esc(m.number):"-")+'</td>'+
+            '<td class="nm">'+esc(p.name)+'</td>'+
+            '<td class="num">'+(p.order?p.order+"番":"-")+'</td>'+
+            '<td class="num">'+(m.firstBat?esc(m.firstBat):'<span class="dim">打席なし</span>')+'</td>'+
+            '<td class="num">'+(p.ab||0)+'</td>'+
+            '<td class="num'+((p.hits||0)>0?' hi':'')+'">'+(p.hits||0)+'</td>'+
+            '<td class="num">'+(p.rbi||0)+'</td></tr>';
+        });
+        h+='</tbody></table></div></div>';
+      }
+
+      // 投手（継投）
+      if(relievers.length){
+        h+='<div class="subsec"><div class="subttl">投手（継投）</div><div class="tblwrap">'+
+           '<table class="stbl"><thead><tr><th>順</th><th>背番号</th><th class="nm">選手</th>'+
+           '<th>登板</th><th>回</th><th>球数</th><th>被安</th><th>奪三</th><th>四球</th>'+
+           '<th>失点</th><th>自責</th><th></th></tr></thead><tbody>';
+        relievers.forEach(function(p,i){
+          var m=metaOf(meta,p);
+          var dec=p.decision||"";
+          var dcls=/勝/.test(dec)?"win":(/敗/.test(dec)?"lose":(dec?"save":""));
+          h+='<tr><td class="num">'+(i+2)+'</td>'+
+            '<td class="num unumcell">'+(m.number?esc(m.number):"-")+'</td>'+
+            '<td class="nm">'+esc(p.name)+'</td>'+
+            '<td class="num">'+(m.firstPitch?esc(m.firstPitch):'<span class="dim">-</span>')+'</td>'+
+            '<td class="num">'+esc(p.innings||"")+'</td>'+
+            '<td class="num">'+(p.pitches||0)+'</td>'+
+            '<td class="num">'+(p.hits_allowed||0)+'</td>'+
+            '<td class="num'+((p.so||0)>0?' hi':'')+'">'+(p.so||0)+'</td>'+
+            '<td class="num">'+(p.bb||0)+'</td>'+
+            '<td class="num">'+(p.runs_allowed||0)+'</td>'+
+            '<td class="num">'+(p.earned_runs||0)+'</td>'+
+            '<td><span class="dec '+dcls+'">'+esc(dec)+'</span></td></tr>';
+        });
+        h+='</tbody></table></div></div>';
+      }
+      h+='</div>';
+    });
+
+    if(any){
+      h+='<div class="sub" style="font-size:11px;margin-top:6px">'+
+         '※ 投手の「登板」は最初に投げた回で、実際の登板回そのものです。'+
+         '野手の「初打席」は最初に打席が回った回なので、交代した回より後になることがあります'+
+         '（守備交代や代走で打席が回らなかった場合は「打席なし」）。</div>';
+    }
     return h;
   }
 
