@@ -1156,6 +1156,190 @@
     return h;
   }
 
+  /* ===== データ収集の起動（GitHub Actions） =====
+     公開ページなので、アクセストークンはHTMLに一切書かない。
+     トークンは利用者のブラウザ（localStorage）にだけ保存し、
+     設定していない場合はGitHubの実行画面を開くだけにする。 */
+  var GH_TOKEN_KEY = "npbGhToken";
+
+  function ghRepo(){
+    // 公開URLから owner/repo を推定する（例: wocchi09.github.io/npb-data/）
+    // GitHub Pages 以外（ローカル確認など）では既定値を使う
+    var owner=null, repo=null;
+    var m=String(location.hostname||"").match(/^([^.]+)\.github\.io$/);
+    if(m){
+      owner=m[1];
+      var seg=String(location.pathname||"").split("/").filter(Boolean);
+      // 末尾がファイル名の場合があるので、拡張子付きの要素は除く
+      seg=seg.filter(function(x){ return x.indexOf(".")<0; });
+      if(seg.length) repo=seg[0];
+    }
+    return {owner: owner||"wocchi09", repo: repo||"npb-data"};
+  }
+  function ghToken(){
+    try{ return localStorage.getItem(GH_TOKEN_KEY)||""; }catch(e){ return ""; }
+  }
+  function setGhToken(v){
+    try{
+      if(v) localStorage.setItem(GH_TOKEN_KEY, v);
+      else localStorage.removeItem(GH_TOKEN_KEY);
+    }catch(e){}
+  }
+  function actionsUrl(file){
+    var r=ghRepo();
+    return "https://github.com/"+r.owner+"/"+r.repo+"/actions/workflows/"+file;
+  }
+
+  function renderCollect(){
+    var r=ghRepo();
+    var has=!!ghToken();
+    var today=todayJST();
+
+    var h='<div class="dash-sec"><div class="dash-h"><span class="dot"></span>データ収集'+
+      '<span class="dash-date">'+esc(r.owner)+'/'+esc(r.repo)+'</span></div>';
+
+    // どちらの方法でも使えるリンク
+    h+='<div class="expbtns" style="margin-bottom:10px">'+
+       '<a class="btn" href="'+actionsUrl("daily.yml")+'" target="_blank" rel="noopener">GitHubで収集を実行 ▶</a>'+
+       '<a class="btn" href="'+actionsUrl("backfill.yml")+'" target="_blank" rel="noopener">差分補完</a>'+
+       '<a class="btn" href="'+actionsUrl("roster.yml")+'" target="_blank" rel="noopener">名鑑更新</a>'+
+       '</div>';
+
+    if(!has){
+      h+='<div class="sub" style="font-size:11.5px">'+
+         'トークンを設定すると、このページから直接実行できるようになります。'+
+         '</div>'+
+         '<div class="expbtns" style="margin-top:8px">'+
+         '<button class="btn" onclick="showTokenForm()">トークンを設定する</button>'+
+         '</div><div id="tokenBox"></div>';
+    }else{
+      h+='<div class="expform">'+
+        '<label class="ef"><span>収集する日付</span>'+
+        '<input type="date" id="collectDate" value="'+esc(today)+'"></label>'+
+        '</div>'+
+        '<div class="expbtns" style="margin-top:10px">'+
+        '<button class="btn primary" onclick="runCollect()">この日を収集する</button>'+
+        '<button class="btn" onclick="checkRuns()">実行状況を確認</button>'+
+        '<button class="btn" onclick="clearToken()">トークン削除</button>'+
+        '</div>'+
+        '<div id="collectResult" class="exresult"></div>';
+    }
+
+    h+='<div class="sub" style="font-size:11px;margin-top:8px">'+
+       '収集には1日あたり30分ほどかかります（1試合ごとに全打席をたどるため）。'+
+       '同じ日を何度実行してもデータは重複しません。</div>';
+    h+='</div>';
+    return h;
+  }
+
+  function showTokenForm(){
+    var el=document.getElementById("tokenBox");
+    if(!el) return;
+    el.innerHTML=
+      '<div class="card2" style="margin-top:10px">'+
+      '<h3>トークンの設定</h3>'+
+      '<div class="sub" style="font-size:11.5px;line-height:1.7">'+
+      '① GitHubの <b>Settings → Developer settings → Personal access tokens → Fine-grained tokens</b> で作成<br>'+
+      '② <b>Repository access</b> は <b>このリポジトリだけ</b>を選ぶ<br>'+
+      '③ <b>Permissions</b> は <b>Actions: Read and write</b> だけを許可（他は触らない）<br>'+
+      '④ 有効期限は短め（30日など）にしておく'+
+      '</div>'+
+      '<div class="expform" style="margin-top:10px">'+
+      '<label class="ef" style="grid-column:1/-1"><span>トークン</span>'+
+      '<input type="password" id="ghTokenInput" placeholder="github_pat_... または ghp_..." autocomplete="off"></label>'+
+      '</div>'+
+      '<div class="expbtns" style="margin-top:8px">'+
+      '<button class="btn primary" onclick="saveToken()">保存</button>'+
+      '<button class="btn" onclick="document.getElementById(\'tokenBox\').innerHTML=\'\'">やめる</button>'+
+      '</div>'+
+      '<div class="sub" style="font-size:11px;margin-top:8px;color:var(--out)">'+
+      '⚠ トークンはこのブラウザにのみ保存されます（リポジトリには保存されません）。'+
+      '共有パソコンでは設定しないでください。'+
+      '権限を絞っておけば、万一漏れても影響はデータ収集の実行だけに限定されます。</div>'+
+      '</div>';
+  }
+  function saveToken(){
+    var i=document.getElementById("ghTokenInput");
+    var v=i?String(i.value||"").trim():"";
+    if(!v){ alert("トークンを入力してください"); return; }
+    setGhToken(v);
+    dashLoaded=false;
+    loadDash();
+  }
+  function clearToken(){
+    setGhToken("");
+    dashLoaded=false;
+    loadDash();
+  }
+
+  async function ghApi(path, opts){
+    var r=ghRepo();
+    var res=await fetch("https://api.github.com/repos/"+r.owner+"/"+r.repo+path, Object.assign({
+      headers: {
+        "Authorization": "Bearer "+ghToken(),
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28"
+      }
+    }, opts||{}));
+    return res;
+  }
+
+  async function runCollect(){
+    var box=document.getElementById("collectResult");
+    var d=document.getElementById("collectDate");
+    var date=d?d.value:"";
+    if(!date){ box.innerHTML='<div class="msg">日付を選んでください</div>'; return; }
+    box.innerHTML='<div class="msg">送信中…</div>';
+    try{
+      var res=await ghApi("/actions/workflows/daily.yml/dispatches", {
+        method:"POST",
+        body: JSON.stringify({ref:"main", inputs:{date:date}})
+      });
+      if(res.status===204){
+        box.innerHTML='<div class="exok">✓ '+esc(date)+' の収集を開始しました<br>'+
+          '<span style="font-size:11px">30分ほどかかります。「実行状況を確認」で進捗が見られます</span></div>';
+      }else{
+        var t=await res.text();
+        box.innerHTML='<div class="msg">実行できませんでした（HTTP '+res.status+'）<br>'+
+          '<span style="font-size:11px">'+esc(t.slice(0,200))+'</span></div>';
+      }
+    }catch(e){
+      box.innerHTML='<div class="msg">通信に失敗しました<br>'+
+        '<span style="font-size:11px">トークンの権限（Actions: Read and write）を確認してください</span></div>';
+    }
+  }
+
+  async function checkRuns(){
+    var box=document.getElementById("collectResult");
+    box.innerHTML='<div class="msg">確認中…</div>';
+    try{
+      var res=await ghApi("/actions/runs?per_page=5");
+      if(!res.ok){
+        box.innerHTML='<div class="msg">取得できませんでした（HTTP '+res.status+'）</div>';
+        return;
+      }
+      var d=await res.json();
+      var runs=d.workflow_runs||[];
+      if(!runs.length){ box.innerHTML='<div class="msg">実行履歴がありません</div>'; return; }
+      var h='<div class="tblwrap"><table class="stbl"><thead><tr>'+
+        '<th class="nm">ワークフロー</th><th>状態</th><th>結果</th><th>開始</th></tr></thead><tbody>';
+      runs.forEach(function(x){
+        var st=x.status||"";
+        var cc=x.conclusion||"";
+        var mark = cc==="success" ? '<span class="qmark">成功</span>'
+                 : cc==="failure" ? '<span class="subtag" style="background:var(--out)">失敗</span>'
+                 : (st==="in_progress"||st==="queued") ? '<span class="subtag">実行中</span>' : esc(cc||st);
+        h+='<tr><td class="nm">'+esc(x.name||"")+'</td>'+
+           '<td>'+esc(st)+'</td><td>'+mark+'</td>'+
+           '<td class="num">'+esc(String(x.created_at||"").replace("T"," ").slice(5,16))+'</td></tr>';
+      });
+      h+='</tbody></table></div>';
+      box.innerHTML=h;
+    }catch(e){
+      box.innerHTML='<div class="msg">通信に失敗しました</div>';
+    }
+  }
+
   /* ===== データカレンダー ===== */
   var dashDays = {};      // "2026-07-24" -> その日の試合数
   var noGameDays = {};    // "2026-07-06" -> true（試合が無かった日）
@@ -1410,6 +1594,7 @@
     h+='<div class="dash-side">';
     h+=renderSummaryTiles(latestDate, players, year);
     h+=renderCalendar();
+    h+=renderCollect();
     h+='</div>';   // /dash-side
 
     h+='</div>';   // /dashgrid
