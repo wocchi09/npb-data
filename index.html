@@ -2212,6 +2212,8 @@
 
     var tabs=[["log","試合ログ"],["month","月別"],["opp","対戦球団別"],
               ["ha","ホーム/ビジター"],["recent","直近5・10試合"]];
+    tabs.push(isP ? ["mix","配球分析"] : ["swing","スイング指標"]);
+
     var h='<div class="stabs" style="margin-top:12px">';
     tabs.forEach(function(t){
       h+='<button class="stab'+(splitTab===t[0]?" on":"")+'" style="--sc:var(--accent)" '+
@@ -2225,9 +2227,39 @@
     else if(splitTab==="ha") h+=splitBy(bl, pl, isP, function(r){
         return String(r.is_home).toLowerCase()==="true" ? "ホーム" : "ビジター";
       }, "区分", false);
+    else if(splitTab==="mix" || splitTab==="swing"){
+      h+='<div id="plPitches"><div class="msg">読み込み中…</div></div>';
+      el.innerHTML=h;
+      loadPitchSplit(isP);
+      return;
+    }
     else h+=splitRecent(bl, pl, isP);
 
     el.innerHTML=h;
+  }
+
+  /* 一球データを読み込んで配球／スイングを描画 */
+  async function loadPitchSplit(isP){
+    var box=document.getElementById("plPitches");
+    if(!box) return;
+    try{
+      var d=await loadSplitFile("pitches");
+      var p=curSplitPlayer;
+      var rows=d.rows.filter(function(r){
+        if(isP){
+          if(p.key && r.pitcher_key) return r.pitcher_key===p.key;
+          if(p.player_id && r.pitcher_id) return r.pitcher_id===String(p.player_id);
+          return r.pitcher===p.name;
+        }
+        if(p.key && r.batter_key) return r.batter_key===p.key;
+        if(p.player_id && r.batter_id) return r.batter_id===String(p.player_id);
+        return r.batter===p.name;
+      });
+      box.innerHTML = isP ? splitPitchMix(rows) : splitSwing(rows);
+    }catch(e){
+      box.innerHTML='<div class="msg">一球データがまだありません<br>'+
+        '<span style="font-size:12px">Actionsで収集すると dataset/pitches.csv が生成されます</span></div>';
+    }
   }
 
   /* 試合ログ */
@@ -2350,6 +2382,266 @@
       }
       h+='</div></div>';
     });
+    return h;
+  }
+
+  /* ===== 配球分析・スイング指標（一球データから） ===== */
+  function bool01(v){ return String(v).toLowerCase()==="true"; }
+  function pct(n, d, digits){
+    if(!d) return "-";
+    return (n/d*100).toFixed(digits==null?1:digits)+"%";
+  }
+  function handSide(h){
+    h=String(h||"");
+    if(h.indexOf("左")>=0) return "左";
+    if(h.indexOf("右")>=0) return "右";
+    if(h.indexOf("両")>=0) return "両";
+    return "不明";
+  }
+
+  /* 行の集合から投球の基本指標をまとめる */
+  function pitchAgg(rows){
+    var a={n:rows.length, swing:0, miss:0, called:0, foul:0, ball:0, inplay:0,
+           spdSum:0, spdN:0, spdMax:null, hits:0, endAB:0, so:0};
+    rows.forEach(function(r){
+      if(bool01(r.is_swing)) a.swing++;
+      if(bool01(r.is_miss)) a.miss++;
+      if(bool01(r.is_called)) a.called++;
+      if(bool01(r.is_foul)) a.foul++;
+      if(bool01(r.is_ball)) a.ball++;
+      if(bool01(r.is_inplay)) a.inplay++;
+      var s=parseFloat(r.speed_kmh);
+      if(!isNaN(s)&&s>0){ a.spdSum+=s; a.spdN++; if(a.spdMax==null||s>a.spdMax) a.spdMax=s; }
+      if(bool01(r.is_last_pitch)){
+        a.endAB++;
+        if(num(r.ab_hit)>0) a.hits++;
+        if((r.ab_result||"").indexOf("三振")>=0) a.so++;
+      }
+    });
+    a.avgSpd = a.spdN ? Math.round(a.spdSum/a.spdN) : null;
+    a.strike = a.n - a.ball;
+    return a;
+  }
+
+  function groupRows(rows, keyFn){
+    var g={}, order=[];
+    rows.forEach(function(r){
+      var k=keyFn(r);
+      if(k==null||k==="") k="不明";
+      if(!g[k]){ g[k]=[]; order.push(k); }
+      g[k].push(r);
+    });
+    return {groups:g, keys:order};
+  }
+
+  /* --- 投手：配球分析 --- */
+  function splitPitchMix(rows){
+    if(!rows.length) return '<div class="msg">一球データがありません</div>';
+    var h='';
+
+    // 球種別サマリー
+    var g=groupRows(rows, function(r){return r.pitch_type;});
+    g.keys.sort(function(a,b){ return g.groups[b].length-g.groups[a].length; });
+    h+='<div class="subsec"><div class="subttl">球種別（'+rows.length+'球）</div><div class="tblwrap">'+
+       '<table class="stbl"><thead><tr><th class="nm">球種</th><th>球数</th><th>割合</th>'+
+       '<th>平均</th><th>最速</th><th>ストライク率</th><th>空振り率</th><th>Whiff%</th>'+
+       '<th>被安打</th></tr></thead><tbody>';
+    g.keys.forEach(function(k){
+      var a=pitchAgg(g.groups[k]);
+      h+='<tr><td class="nm">'+esc(k)+'</td>'+
+         '<td class="num">'+a.n+'</td>'+
+         '<td class="num hi">'+pct(a.n, rows.length)+'</td>'+
+         '<td class="num">'+(a.avgSpd||"-")+'</td>'+
+         '<td class="num">'+(a.spdMax||"-")+'</td>'+
+         '<td class="num">'+pct(a.strike, a.n)+'</td>'+
+         '<td class="num">'+pct(a.miss, a.n)+'</td>'+
+         '<td class="num">'+pct(a.miss, a.swing)+'</td>'+
+         '<td class="num">'+a.hits+'</td></tr>';
+    });
+    h+='</tbody></table></div><div class="sub" style="font-size:11px;margin-top:5px">'+
+       '空振り率＝全投球に対する空振りの割合／Whiff%＝スイングされた球のうち空振りの割合</div></div>';
+
+    // カウント別の球種割合
+    h+=crossTab(rows, "カウント別の球種割合",
+        function(r){return r.count_before||"-";},
+        function(r){return r.pitch_type;},
+        function(a,b){
+          var pa=a.split("-"), pb=b.split("-");
+          return (num(pa[0])-num(pb[0])) || (num(pa[1])-num(pb[1]));
+        });
+
+    // 左右打者別
+    h+=crossTab(rows, "左右打者別の球種割合",
+        function(r){return "対"+handSide(r.bat_hand)+"打者";},
+        function(r){return r.pitch_type;}, null);
+
+    // 決め球（2ストライク後）
+    var two=rows.filter(function(r){return num(r.strikes_before)>=2;});
+    if(two.length){
+      var g2=groupRows(two, function(r){return r.pitch_type;});
+      g2.keys.sort(function(a,b){return g2.groups[b].length-g2.groups[a].length;});
+      h+='<div class="subsec"><div class="subttl">決め球（2ストライク後の'+two.length+'球）</div>'+
+         '<div class="tblwrap"><table class="stbl"><thead><tr><th class="nm">球種</th>'+
+         '<th>球数</th><th>割合</th><th>空振り率</th><th>奪三振</th></tr></thead><tbody>';
+      g2.keys.forEach(function(k){
+        var a=pitchAgg(g2.groups[k]);
+        h+='<tr><td class="nm">'+esc(k)+'</td><td class="num">'+a.n+'</td>'+
+           '<td class="num hi">'+pct(a.n, two.length)+'</td>'+
+           '<td class="num">'+pct(a.miss, a.n)+'</td>'+
+           '<td class="num'+(a.so>0?' hi':'')+'">'+a.so+'</td></tr>';
+      });
+      h+='</tbody></table></div></div>';
+    }
+
+    // 被安打・被本塁打となった球
+    var ends=rows.filter(function(r){return bool01(r.is_last_pitch);});
+    var hitP=ends.filter(function(r){return num(r.ab_hit)>0;});
+    if(hitP.length){
+      var g3=groupRows(hitP, function(r){return r.pitch_type;});
+      g3.keys.sort(function(a,b){return g3.groups[b].length-g3.groups[a].length;});
+      h+='<div class="subsec"><div class="subttl">被安打となった球（'+hitP.length+'本）</div>'+
+         '<div class="tblwrap"><table class="stbl"><thead><tr><th class="nm">球種</th>'+
+         '<th>被安打</th><th>その球種の投球数</th><th>被安打率</th></tr></thead><tbody>';
+      g3.keys.forEach(function(k){
+        var all=rows.filter(function(r){return r.pitch_type===k;}).length;
+        h+='<tr><td class="nm">'+esc(k)+'</td>'+
+           '<td class="num hi">'+g3.groups[k].length+'</td>'+
+           '<td class="num">'+all+'</td>'+
+           '<td class="num">'+pct(g3.groups[k].length, all, 2)+'</td></tr>';
+      });
+      h+='</tbody></table></div><div class="sub" style="font-size:11px;margin-top:5px">'+
+         '被安打率＝その球種を投げたうち安打になった割合</div></div>';
+    }
+
+    // ゾーン内外
+    h+=zoneSummary(rows, "ゾーン内外の投球");
+    return h;
+  }
+
+  /* --- 打者：スイング指標 --- */
+  function splitSwing(rows){
+    if(!rows.length) return '<div class="msg">一球データがありません</div>';
+    var a=pitchAgg(rows);
+    var inZ=rows.filter(function(r){return bool01(r.in_zone);});
+    var outZ=rows.filter(function(r){return String(r.in_zone).toLowerCase()==="false";});
+    var inZa=pitchAgg(inZ), outZa=pitchAgg(outZ);
+    var first=rows.filter(function(r){return num(r.pitch_no)===1;});
+    var firsta=pitchAgg(first);
+
+    var h='<div class="subsec"><div class="subttl">スイング指標（'+rows.length+'球）</div>'+
+      '<div class="statrow">'+
+      '<div class="stat"><div class="sv">'+pct(a.swing,a.n)+'</div><div class="sl">スイング率</div></div>'+
+      '<div class="stat"><div class="sv">'+pct(a.miss,a.n)+'</div><div class="sl">空振り率</div></div>'+
+      '<div class="stat"><div class="sv">'+pct(a.swing-a.miss,a.swing)+'</div><div class="sl">コンタクト率</div></div>'+
+      '<div class="stat"><div class="sv">'+pct(a.miss,a.swing)+'</div><div class="sl">Whiff%</div></div>'+
+      '<div class="stat"><div class="sv">'+pct(a.called,a.n)+'</div><div class="sl">見逃し率</div></div>'+
+      '<div class="stat"><div class="sv">'+pct(a.foul,a.n)+'</div><div class="sl">ファウル率</div></div>'+
+      '</div><div class="statrow" style="margin-top:8px">'+
+      '<div class="stat"><div class="sv">'+pct(inZa.swing,inZa.n)+'</div><div class="sl">ゾーン内スイング率</div></div>'+
+      '<div class="stat"><div class="sv">'+pct(outZa.swing,outZa.n)+'</div><div class="sl">ゾーン外スイング率</div></div>'+
+      '<div class="stat"><div class="sv">'+pct(inZa.swing-inZa.miss,inZa.swing)+'</div><div class="sl">ゾーン内コンタクト率</div></div>'+
+      '<div class="stat"><div class="sv">'+pct(firsta.swing,firsta.n)+'</div><div class="sl">初球スイング率</div></div>'+
+      '</div><div class="sub" style="font-size:11px;margin-top:6px">'+
+      'ゾーン外スイング率が低いほど選球眼がよく、コンタクト率が高いほどバットに当てる能力が高いとされます'+
+      '（ゾーンは配球図の中央3×3を内側として判定）</div></div>';
+
+    // 球種別
+    var g=groupRows(rows, function(r){return r.pitch_type;});
+    g.keys.sort(function(a2,b2){return g.groups[b2].length-g.groups[a2].length;});
+    h+='<div class="subsec"><div class="subttl">球種別</div><div class="tblwrap">'+
+       '<table class="stbl"><thead><tr><th class="nm">球種</th><th>球数</th><th>割合</th>'+
+       '<th>平均球速</th><th>スイング率</th><th>空振り率</th><th>コンタクト率</th>'+
+       '<th>安打</th></tr></thead><tbody>';
+    g.keys.forEach(function(k){
+      var x=pitchAgg(g.groups[k]);
+      h+='<tr><td class="nm">'+esc(k)+'</td><td class="num">'+x.n+'</td>'+
+         '<td class="num">'+pct(x.n, rows.length)+'</td>'+
+         '<td class="num">'+(x.avgSpd||"-")+'</td>'+
+         '<td class="num">'+pct(x.swing,x.n)+'</td>'+
+         '<td class="num">'+pct(x.miss,x.n)+'</td>'+
+         '<td class="num">'+pct(x.swing-x.miss,x.swing)+'</td>'+
+         '<td class="num'+(x.hits>0?' hi':'')+'">'+x.hits+'</td></tr>';
+    });
+    h+='</tbody></table></div></div>';
+
+    // カウント別
+    var gc=groupRows(rows, function(r){return r.count_before||"-";});
+    gc.keys.sort(function(a2,b2){
+      var pa=a2.split("-"), pb=b2.split("-");
+      return (num(pa[0])-num(pb[0])) || (num(pa[1])-num(pb[1]));
+    });
+    h+='<div class="subsec"><div class="subttl">カウント別</div><div class="tblwrap">'+
+       '<table class="stbl"><thead><tr><th class="nm">カウント</th><th>球数</th>'+
+       '<th>スイング率</th><th>空振り率</th><th>見逃し率</th></tr></thead><tbody>';
+    gc.keys.forEach(function(k){
+      var x=pitchAgg(gc.groups[k]);
+      h+='<tr><td class="nm">'+esc(k)+'</td><td class="num">'+x.n+'</td>'+
+         '<td class="num">'+pct(x.swing,x.n)+'</td>'+
+         '<td class="num">'+pct(x.miss,x.n)+'</td>'+
+         '<td class="num">'+pct(x.called,x.n)+'</td></tr>';
+    });
+    h+='</tbody></table></div></div>';
+
+    // 左右投手別
+    h+=crossTab(rows, "左右投手別に見た球種",
+        function(r){return "対"+handSide(r.pit_hand)+"投手";},
+        function(r){return r.pitch_type;}, null);
+
+    h+=zoneSummary(rows, "ゾーン内外");
+    return h;
+  }
+
+  /* 行キー×列キーの割合クロス表 */
+  function crossTab(rows, title, rowKeyFn, colKeyFn, rowSort){
+    var rg=groupRows(rows, rowKeyFn);
+    var cols={}, colOrder=[];
+    rows.forEach(function(r){
+      var c=colKeyFn(r)||"不明";
+      if(!cols[c]){ cols[c]=0; colOrder.push(c); }
+      cols[c]++;
+    });
+    colOrder.sort(function(a,b){ return cols[b]-cols[a]; });
+    if(!rg.keys.length || !colOrder.length) return "";
+    if(rowSort) rg.keys.sort(rowSort);
+
+    var h='<div class="subsec"><div class="subttl">'+esc(title)+'</div><div class="tblwrap">'+
+      '<table class="stbl"><thead><tr><th class="nm">'+'</th><th>球数</th>'+
+      colOrder.map(function(c){return '<th>'+esc(c)+'</th>';}).join("")+
+      '</tr></thead><tbody>';
+    rg.keys.forEach(function(k){
+      var g=rg.groups[k];
+      h+='<tr><td class="nm">'+esc(k)+'</td><td class="num">'+g.length+'</td>';
+      colOrder.forEach(function(c){
+        var n=g.filter(function(r){return (colKeyFn(r)||"不明")===c;}).length;
+        var p=g.length?n/g.length*100:0;
+        var bg = p>0 ? 'style="background:rgba(232,89,12,'+(Math.min(p,60)/60*0.5).toFixed(2)+')"' : '';
+        h+='<td class="num" '+bg+'>'+(n?p.toFixed(0)+"%":"-")+'</td>';
+      });
+      h+='</tr>';
+    });
+    h+='</tbody></table></div><div class="sub" style="font-size:11px;margin-top:5px">'+
+       '色が濃いほど割合が高い／各行の合計が100%</div></div>';
+    return h;
+  }
+
+  /* ゾーン内外のまとめ */
+  function zoneSummary(rows, title){
+    var inZ=rows.filter(function(r){return bool01(r.in_zone);});
+    var outZ=rows.filter(function(r){return String(r.in_zone).toLowerCase()==="false";});
+    if(!inZ.length && !outZ.length) return "";
+    var h='<div class="subsec"><div class="subttl">'+esc(title)+'</div><div class="tblwrap">'+
+      '<table class="stbl"><thead><tr><th class="nm">区分</th><th>球数</th><th>割合</th>'+
+      '<th>スイング率</th><th>空振り率</th><th>安打</th></tr></thead><tbody>';
+    [["ゾーン内",inZ],["ゾーン外",outZ]].forEach(function(x){
+      if(!x[1].length) return;
+      var a=pitchAgg(x[1]);
+      h+='<tr><td class="nm">'+x[0]+'</td><td class="num">'+a.n+'</td>'+
+         '<td class="num">'+pct(a.n, inZ.length+outZ.length)+'</td>'+
+         '<td class="num">'+pct(a.swing,a.n)+'</td>'+
+         '<td class="num">'+pct(a.miss,a.n)+'</td>'+
+         '<td class="num">'+a.hits+'</td></tr>';
+    });
+    h+='</tbody></table></div></div>';
     return h;
   }
 
