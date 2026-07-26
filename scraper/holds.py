@@ -64,23 +64,33 @@ def estimate_holds(game: dict) -> dict:
     home = game.get("home")
     away = game.get("away")
 
+    # 出場成績と打席データは別ページ由来なので、選手名の表記が揺れることがある。
+    # 選手IDで突き合わせ、IDが無い場合だけ名前（空白を除去）で照合する。
+    def keys_of(pitcher):
+        ks = []
+        pid = (pitcher or {}).get("player_id")
+        if pid:
+            ks.append("id:" + str(pid))
+        nm = (pitcher or {}).get("name")
+        if nm:
+            ks.append("nm:" + str(nm).replace(" ", "").replace("　", ""))
+        return ks
+
     # 最終アウトを取った投手（＝最後の打席の投手）
-    last_pitcher = None
+    last_keys = []
     for ab in reversed(atbats):
-        p = (ab.get("pitcher") or {}).get("name")
-        if p:
-            last_pitcher = p
+        ks = keys_of(ab.get("pitcher"))
+        if ks:
+            last_keys = ks
             break
 
     # 投手ごとに「最初に投げた打席」「最後に投げた打席」の位置を求める
     first_idx, last_idx = {}, {}
     for i, ab in enumerate(atbats):
-        name = (ab.get("pitcher") or {}).get("name")
-        if not name:
-            continue
-        if name not in first_idx:
-            first_idx[name] = i
-        last_idx[name] = i
+        for k in keys_of(ab.get("pitcher")):
+            if k not in first_idx:
+                first_idx[k] = i
+            last_idx[k] = i
 
     result = {}
 
@@ -101,17 +111,22 @@ def estimate_holds(game: dict) -> dict:
             dec = row.get("decision") or ""
             if any(x in dec for x in ("勝", "敗", "Ｓ", "S")):
                 continue
+            row_keys = keys_of(row)
             # --- 前提3: 最終アウトを取っていない ---
-            if name == last_pitcher:
+            if any(k in last_keys for k in row_keys):
                 continue
             # --- 前提4: 1アウト以上 ---
             outs = row.get("outs") or 0
             if outs < 1:
                 continue
 
-            fi = first_idx.get(name)
-            li = last_idx.get(name)
+            fi = li = None
+            for k in row_keys:
+                if k in first_idx:
+                    fi, li = first_idx[k], last_idx[k]
+                    break
             if fi is None or li is None:
+                # 打席データ側で見つからない（表記揺れ等）ときは判定しない
                 continue
 
             entry_ab = atbats[fi]
@@ -155,7 +170,9 @@ def estimate_holds(game: dict) -> dict:
                 hold = True
 
             if hold:
-                result[name] = True
+                for k in row_keys:
+                    result[k] = True
+                result[name] = True   # 名前でも引けるようにしておく
 
     return result
 
