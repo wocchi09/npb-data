@@ -1,0 +1,191 @@
+name: Probe NPB Roster
+
+# NPB公式（npb.jp）の選手名鑑の構造を調査する。
+# 支配下選手と育成選手の見分け方、背番号・投打・守備位置の取得可否を確認する。
+#
+# 新しい取得元なので、
+#   - まず robots.txt を確認する
+#   - 詳しい構造調査は1球団だけ（既定は日本ハム）
+#   - 残りの球団はURLが生きているかの確認のみ
+# に留める。
+
+on:
+  workflow_dispatch:
+    inputs:
+      team:
+        description: "詳しく調べる球団コード（h/f/b/e/l/m/t/db/g/d/c/s）"
+        required: false
+        default: "f"
+      check_all:
+        description: "全12球団のURL疎通も確認する（yes/no）"
+        required: false
+        default: "yes"
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install requests beautifulsoup4
+
+      - name: Probe NPB roster
+        run: |
+          python - <<'PYEOF'
+          import re, time
+          import requests
+          from bs4 import BeautifulSoup
+
+          H = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                             "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"}
+          SLEEP = 2.0     # 新しい取得元なので間隔は長めに
+
+          TEAMS = [
+              ("h",  "ソフトバンク"), ("f",  "日本ハム"), ("b",  "オリックス"),
+              ("e",  "楽天"),         ("l",  "西武"),     ("m",  "ロッテ"),
+              ("t",  "阪神"),         ("db", "DeNA"),     ("g",  "巨人"),
+              ("d",  "中日"),         ("c",  "広島"),     ("s",  "ヤクルト"),
+          ]
+          URL = "https://npb.jp/bis/teams/rst_{code}.html"
+
+          target = ("${{ github.event.inputs.team }}" or "f").strip()
+          check_all = ("${{ github.event.inputs.check_all }}" or "yes").strip().lower() == "yes"
+
+          L = ["# NPB公式 選手名鑑の調査", ""]
+
+          def get(url):
+              r = requests.get(url, headers=H, timeout=30)
+              time.sleep(SLEEP)
+              return r
+
+          # ---- 1) robots.txt ----
+          L.append("## robots.txt（アクセスして良いかの確認）")
+          L.append("")
+          try:
+              r = get("https://npb.jp/robots.txt")
+              L.append(f"- HTTP: {r.status_code}")
+              L.append("")
+              L.append("```")
+              L.append(r.text.strip()[:1200] or "(空)")
+              L.append("```")
+          except Exception as e:
+              L.append(f"- 取得失敗: {e}")
+          L.append("")
+
+          # ---- 2) 対象球団のページ構造 ----
+          tname = dict(TEAMS).get(target, target)
+          url = URL.format(code=target)
+          L.append(f"## 構造調査：{tname}（{url}）")
+          L.append("")
+          try:
+              r = get(url)
+              L.append(f"- HTTP: {r.status_code} / size: {len(r.text)}")
+              if r.status_code == 200:
+                  html = r.text
+                  m = re.search(r"<title>(.*?)</title>", html, re.S)
+                  L.append(f"- title: {m.group(1).strip() if m else '-'}")
+
+                  soup = BeautifulSoup(html, "html.parser")
+                  for t in soup(["script", "style"]):
+                      t.decompose()
+                  body = str(soup)
+
+                  L.append("")
+                  L.append("### キーワード出現（script除去後）")
+                  L.append("")
+                  L.append("| 語 | 件数 |")
+                  L.append("|---|---|")
+                  for kw in ["支配下", "育成", "背番号", "投手", "捕手", "内野手", "外野手",
+                             "監督", "コーチ", "登録", "生年月日", "身長", "体重", "投打",
+                             "右投", "左投", "右打", "左打", "両打"]:
+                      L.append(f"| {kw} | {body.count(kw)} |")
+
+                  L.append("")
+                  L.append("### 見出し（h1〜h4）")
+                  L.append("")
+                  for hh in soup.find_all(["h1", "h2", "h3", "h4"])[:25]:
+                      txt = hh.get_text(strip=True)
+                      if txt:
+                          L.append(f"- `{hh.name}` {txt[:60]}")
+
+                  L.append("")
+                  L.append("### テーブル一覧（全行の位置づけを見る）")
+                  L.append("")
+                  tables = soup.find_all("table")
+                  L.append(f"テーブル数: {len(tables)}")
+                  L.append("")
+                  for i, tb in enumerate(tables[:12]):
+                      cls = " ".join(tb.get("class", []))
+                      heads = [th.get_text(strip=True) for th in tb.find_all("th")[:12]]
+                      trs = tb.find_all("tr")
+                      L.append(f"#### table[{i}] class=`{cls}` / {len(trs)}行")
+                      L.append("")
+                      L.append(f"- 見出し: {heads}")
+                      # 先頭と末尾の数行を出して、育成が混ざるかを見る
+                      shown = 0
+                      for tr in trs[1:6]:
+                          cells = [td.get_text(strip=True) for td in tr.find_all(["td", "th"])[:12]]
+                          if any(cells):
+                              L.append(f"- 行: {cells}")
+                              shown += 1
+                      if len(trs) > 8:
+                          L.append("- …")
+                          for tr in trs[-3:]:
+                              cells = [td.get_text(strip=True) for td in tr.find_all(["td", "th"])[:12]]
+                              if any(cells):
+                                  L.append(f"- 末尾行: {cells}")
+                      a = tb.find("a", href=True)
+                      if a:
+                          L.append(f"- 選手ページのリンク例: `{a['href']}`")
+                      L.append("")
+
+                  # 「育成」の周辺に何があるか（区切り方の手がかり）
+                  L.append("### 「育成」という語の前後")
+                  L.append("")
+                  cnt = 0
+                  for mm in re.finditer("育成", body):
+                      seg = re.sub(r"\s+", " ", body[max(0, mm.start()-160):mm.start()+160])
+                      L.append(f"- `…{seg}…`")
+                      cnt += 1
+                      if cnt >= 5:
+                          break
+                  if not cnt:
+                      L.append("- 出現なし（＝このページは支配下のみの可能性）")
+                  L.append("")
+          except Exception as e:
+              L.append(f"- 取得失敗: {e}")
+
+          # ---- 3) 全球団のURL疎通確認 ----
+          if check_all:
+              L.append("## 全12球団のURL確認")
+              L.append("")
+              L.append("| コード | 球団 | HTTP | サイズ |")
+              L.append("|---|---|---|---|")
+              for code, name in TEAMS:
+                  if code == target:
+                      L.append(f"| {code} | {name} | （上で調査済み） | |")
+                      continue
+                  u = URL.format(code=code)
+                  try:
+                      rr = get(u)
+                      L.append(f"| {code} | {name} | {rr.status_code} | {len(rr.text):,} |")
+                  except Exception as e:
+                      L.append(f"| {code} | {name} | 失敗 | {e} |")
+
+          open("probe_npb_roster.md", "w", encoding="utf-8").write("\n".join(L))
+          print("\n".join(L[:160]))
+          PYEOF
+
+      - name: Commit report
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add probe_npb_roster.md
+          git diff --cached --quiet || git commit -m "probe: NPB公式 選手名鑑の構造調査"
+          git pull --rebase origin main || true
+          git push
