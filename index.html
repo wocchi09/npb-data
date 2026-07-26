@@ -312,6 +312,10 @@
     vertical-align:middle;white-space:nowrap;}
   .dim{color:var(--muted);font-size:11px;}
 
+  .estmark{display:inline-block;margin-left:3px;font-size:8.5px;font-weight:700;
+    padding:1px 3px;border-radius:2px;background:var(--muted);color:#fff;
+    vertical-align:super;line-height:1;}
+
   /* ---- 規定到達マーク ---- */
   .qmark{display:inline-block;margin-left:5px;font-size:9.5px;font-weight:700;
     line-height:1;padding:2px 4px;border-radius:3px;vertical-align:middle;
@@ -1413,7 +1417,8 @@
         h+=rankBlock("奪三振", lp, pit(function(q){return q.so;}), fmtN);
         h+=rankBlock("勝利", lp, pit(function(q){return q.wins;}), fmtN);
         h+=rankBlock("セーブ", lp, pit(function(q){return q.saves;}), fmtN);
-        h+=rankBlock("ホールド", lp, pit(function(q){return q.holds;}), fmtN);
+        h+=rankBlock("ホールド", lp, pit(function(q){return holdsOf(q);}), fmtN);
+        h+=rankBlock("HP", lp, pit(function(q){return q.hp;}), fmtN);
         h+=rankBlock("勝率", lp, pit(function(q){
               return ((q.wins||0)+(q.losses||0))>=1 ? q.win_pct : null;
             }), fmtO);
@@ -1421,7 +1426,7 @@
         h+='<div class="sub" style="font-size:11px;margin-bottom:8px">'+
            (usedQual ? '打率・防御率は規定到達者のみ（規定＝収集済み試合数×3.1打席／×1.0回）'
                      : '規定到達者がまだいないため、打率・防御率も全選手で表示しています')+
-           '／勝率は勝敗がついた投手のみ</div>';
+           '／勝率は勝敗がついた投手のみ／ホールドとHPはルールから算出した推定値です</div>';
       }
       h+='<button class="btn" onclick="setView(\'season\')">シーズン成績をすべて見る ▶</button></div>';
     }
@@ -1461,7 +1466,7 @@
                    ["obp","出塁率"],["slg","長打率"],["ops","OPS"],["sb","盗塁"],
                    ["pa","打席"],["so_b","三振"],["bb_b","四球"]];
   var SORTS_PIT = [["era","防御率"],["so_p","奪三振"],["wins","勝利"],["saves","セーブ"],
-                   ["holds","ホールド"],["win_pct","勝率"],["whip","WHIP"],
+                   ["holds","ホールド"],["hp","HP"],["win_pct","勝率"],["whip","WHIP"],
                    ["outs","投球回"],["k9","K/9"],["bb_p","与四球"]];
 
   function defaultSort(group){
@@ -1711,7 +1716,8 @@
         case "so_p": return q.so;
         case "wins": return q.wins;
         case "saves": return q.saves;
-        case "holds": return q.holds;
+        case "holds": return holdsOf(q);
+        case "hp": return q.hp;
         case "win_pct": return ((q.wins||0)+(q.losses||0))>=1 ? q.win_pct : null;
         case "whip": return q.whip;
         case "outs": return q.outs;
@@ -1741,7 +1747,7 @@
     if(isPitchStat){
       h+='<table class="stbl"><thead><tr><th>#</th><th class="nm">選手</th><th>チーム</th>'+
          '<th>登板</th><th>回</th><th>防御率</th><th>WHIP</th><th>K/9</th><th>奪三</th><th>四球</th>'+
-         '<th>勝</th><th>敗</th><th>勝率</th><th>S</th><th>H</th></tr></thead><tbody>';
+         '<th>勝</th><th>敗</th><th>勝率</th><th>S</th><th>H</th><th>HP</th></tr></thead><tbody>';
       list.slice(0,50).forEach(function(p,i){
         var q=p.pitching||{};
         h+='<tr onclick="showPlayer(\''+esc(p.key)+'\')"><td class="num">'+(i+1)+'</td>'+
@@ -1755,7 +1761,8 @@
            '<td class="num">'+(q.wins||0)+'</td><td class="num">'+(q.losses||0)+'</td>'+
            '<td class="num">'+(q.win_pct==null?"-":q.win_pct.toFixed(3).replace(/^0\./,"."))+'</td>'+
            '<td class="num">'+(q.saves||0)+'</td>'+
-           '<td class="num">'+(q.holds||0)+'</td></tr>';
+           '<td class="num">'+holdsOf(q)+(holdsIsEst(q)?'<span class="estmark">推</span>':'')+'</td>'+
+           '<td class="num">'+(q.hp||0)+'</td></tr>';
       });
     }else{
       h+='<table class="stbl"><thead><tr><th>#</th><th class="nm">選手</th><th>チーム</th>'+
@@ -1905,6 +1912,14 @@
     plNum=""; plQual="all"; plSort="team";
     renderPlayers();
   }
+
+  /* ホールド：公式記録があればそれを、無ければルールベースの推定値を使う */
+  function holdsOf(q){
+    if(!q) return 0;
+    if((q.holds||0)>0) return q.holds;
+    return q.holds_est||0;
+  }
+  function holdsIsEst(q){ return q && (q.holds||0)===0 && (q.holds_est||0)>0; }
 
   function isPitcherP(p){ return !!(p.pitching && (p.pitching.outs||0)>0); }
   function isBatterP(p){ return !!(p.batting && (p.batting.pa||0)>0); }
@@ -2148,7 +2163,8 @@
         '<div class="stat"><div class="sv">'+(q.wins||0)+'</div><div class="sl">勝利</div></div>'+
         '<div class="stat"><div class="sv">'+(q.losses||0)+'</div><div class="sl">敗戦</div></div>'+
         '<div class="stat"><div class="sv">'+(q.saves||0)+'</div><div class="sl">セーブ</div></div>'+
-        '<div class="stat"><div class="sv">'+(q.holds||0)+'</div><div class="sl">ホールド</div></div>'+
+        '<div class="stat"><div class="sv">'+holdsOf(q)+'</div><div class="sl">ホールド'+(holdsIsEst(q)?'（推定）':'')+'</div></div>'+
+        '<div class="stat"><div class="sv">'+(q.hp||0)+'</div><div class="sl">HP</div></div>'+
         '<div class="stat"><div class="sv">'+(q.win_pct==null?"-":q.win_pct.toFixed(3).replace(/^0\./,"."))+'</div><div class="sl">勝率</div></div>'+
         '<div class="stat"><div class="sv">'+(q.hits_allowed||0)+'</div><div class="sl">被安打</div></div>'+
         '<div class="stat"><div class="sv">'+(q.hr_allowed||0)+'</div><div class="sl">被本塁打</div></div>'+
