@@ -23,6 +23,7 @@ import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from lib.holds import estimate_holds
 from lib.normalize import (
     normalize_team, team_info, player_key, clean_name, TEAMS,
 )
@@ -81,7 +82,7 @@ def blank_pitching():
         "games": 0, "batters_faced": 0, "pitches": 0, "hits_allowed": 0,
         "hr_allowed": 0, "so": 0, "bb": 0, "hbp": 0, "outs": 0,
         "runs_allowed": 0, "earned_runs": 0, "wins": 0, "losses": 0, "saves": 0,
-        "holds": 0,
+        "holds": 0, "holds_est": 0, "relief_wins": 0,
     }
 
 
@@ -101,6 +102,8 @@ def calc_pitching_rates(p: dict) -> dict:
         "innings": f"{outs // 3}.{outs % 3}" if outs % 3 else str(outs // 3),
         "era": era, "whip": whip, "k9": k9, "bb9": bb9, "k_bb": kbb,
         "win_pct": win_pct,
+        # ホールドポイント＝ホールド＋救援勝利（ホールドは推定値）
+        "hp": (p.get("holds_est", 0) or 0) + (p.get("relief_wins", 0) or 0),
     }
 
 
@@ -228,6 +231,12 @@ def rebuild(season, base="data"):
         if box and (box.get("batting") or box.get("pitching")):
             used_official = True
             side_team = {"away": away, "home": home}
+            # この試合のホールドをルールから推定する（公式記録ではない）
+            try:
+                est_holds = estimate_holds(g)
+            except Exception as e:
+                print(f"[WARN] ホールド推定に失敗 {gid}: {e}")
+                est_holds = {}
 
             for side in ("away", "home"):
                 team = side_team.get(side)
@@ -273,6 +282,15 @@ def rebuild(season, base="data"):
                         seen_game_per_player_pit[(k, gid)] = True
                         pit[k]["games"] += 1
                     merge_official_pitching(pit[k], row)
+
+                    # 推定ホールド（1試合1個まで）
+                    nm = clean_name(row.get("name"))
+                    if est_holds.get(row.get("name")) or est_holds.get(nm):
+                        pit[k]["holds_est"] += 1
+                    # 救援勝利（先発以外の勝利）＝ホールドポイントの計算に使う
+                    is_starter_row = (row is (box.get("pitching", {}).get(side) or [None])[0])
+                    if not is_starter_row and "勝" in (row.get("decision") or ""):
+                        pit[k]["relief_wins"] += 1
 
             # チーム得点はスコアボードの公式値を使う
             sb = box.get("scoreboard") or {}
