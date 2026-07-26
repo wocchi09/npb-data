@@ -52,6 +52,22 @@ def find_games(season, base="data"):
     return sorted(files)
 
 
+def is_valid_name(name) -> bool:
+    """
+    選手名として妥当かを判定する。
+    - 空・None は不可
+    - 数字だけの文字列は不可（チーム合計行を選手として拾った場合の保険）
+    """
+    if not name:
+        return False
+    s = str(name).strip()
+    if not s:
+        return False
+    if s.replace(".", "").replace(",", "").isdigit():
+        return False
+    return True
+
+
 def blank_batting():
     return {
         "games": 0, "pa": 0, "ab": 0, "hits": 0, "singles": 0,
@@ -208,7 +224,7 @@ def rebuild(season, base="data"):
                 team = side_team.get(side)
                 for row in (box.get("batting", {}).get(side) or []):
                     k = player_key(row.get("player_id"), row.get("name"))
-                    if not k:
+                    if not k or not is_valid_name(row.get("name")):
                         continue
                     if k not in players:
                         players[k] = {
@@ -234,7 +250,7 @@ def rebuild(season, base="data"):
 
                 for row in (box.get("pitching", {}).get(side) or []):
                     k = player_key(row.get("player_id"), row.get("name"))
-                    if not k:
+                    if not k or not is_valid_name(row.get("name")):
                         continue
                     if k not in players:
                         players[k] = {
@@ -269,6 +285,8 @@ def rebuild(season, base="data"):
 
             # 打者：マスター情報（背番号・投打）を補完
             bkey = player_key(b.get("player_id"), b.get("name"))
+            if bkey and not is_valid_name(b.get("name")):
+                bkey = None
             if bkey:
                 if bkey not in players:
                     players[bkey] = {
@@ -307,6 +325,8 @@ def rebuild(season, base="data"):
 
             # 投手：マスター情報を補完
             pkey = player_key(p.get("player_id"), p.get("name"))
+            if pkey and not is_valid_name(p.get("name")):
+                pkey = None
             if pkey:
                 if pkey not in players:
                     players[pkey] = {
@@ -340,7 +360,12 @@ def rebuild(season, base="data"):
 
     # --- 出力を組み立て ---
     player_out = []
+    skipped = 0
     for k, info in players.items():
+        # 名前が取れていない／合計行を拾ってしまった等の異常データは出力しない
+        if not is_valid_name(info.get("name")):
+            skipped += 1
+            continue
         entry = dict(info)
         # 出場した守備位置（多い順）。最頻値を主守備位置とする
         pc = pos_count.get(k) or {}
@@ -377,6 +402,8 @@ def rebuild(season, base="data"):
     save_json(f"{base}/{season}/teams/stats.json",
               {"season": season, "teams": team_out})
 
+    if skipped:
+        print(f"[WARN] 名前が取得できない選手データ {skipped}件をスキップしました")
     print(f"[INFO] 選手{len(player_out)}人・チーム{len(team_out)}件を再集計・保存")
     return len(player_out)
 
