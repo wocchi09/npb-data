@@ -115,7 +115,8 @@ ATBAT_COLS = [
 
 BAT_LINE_COLS = [
     "date", "game_id", "team", "opponent", "is_home",
-    "player", "player_id", "player_key", "position",
+    "player", "player_id", "player_key",
+    "order", "position", "is_starter", "sub_type",
     "season_avg", "ab", "runs", "hits", "rbi", "so", "bb", "hbp",
     "sac", "sb", "errors", "hr",
 ]
@@ -188,7 +189,10 @@ def build(season, base="data", fmt="both"):
                     "player": clean_name(row.get("name")),
                     "player_id": row.get("player_id"),
                     "player_key": player_key(row.get("player_id"), row.get("name")),
+                    "order": row.get("order"),
                     "position": row.get("position"),
+                    "is_starter": row.get("is_starter"),
+                    "sub_type": row.get("sub_type"),
                     "season_avg": row.get("season_avg"),
                     "ab": row.get("ab"), "runs": row.get("runs"),
                     "hits": row.get("hits"), "rbi": row.get("rbi"),
