@@ -176,6 +176,7 @@ def rebuild(season, base="data"):
     team_stats = {}    # team -> counts
     seen_game_per_player_bat = {}   # (pkey, game_id) 出場ゲーム重複防止
     seen_game_per_player_pit = {}
+    pos_count = {}                  # player_key -> {守備位置: 出場数}
 
     for path in games:
         try:
@@ -221,6 +222,11 @@ def rebuild(season, base="data"):
                     if (k, gid) not in seen_game_per_player_bat:
                         seen_game_per_player_bat[(k, gid)] = True
                         bat[k]["games"] += 1
+                    # 守備位置の出場回数を数える（「走指」などの交代表記は先頭以外も含む）
+                    ps = (row.get("position") or "").strip()
+                    if ps:
+                        pos_count.setdefault(k, {})
+                        pos_count[k][ps] = pos_count[k].get(ps, 0) + 1
                     merge_official_batting(bat[k], row)
                     if team and team in team_stats:
                         team_stats[team]["hits"] += row.get("hits", 0)
@@ -336,6 +342,15 @@ def rebuild(season, base="data"):
     player_out = []
     for k, info in players.items():
         entry = dict(info)
+        # 出場した守備位置（多い順）。最頻値を主守備位置とする
+        pc = pos_count.get(k) or {}
+        if pc:
+            ordered = sorted(pc.items(), key=lambda x: (-x[1], x[0]))
+            entry["positions"] = [{"pos": p_, "games": n_} for p_, n_ in ordered]
+            entry["position"] = ordered[0][0]
+        elif k in pit:
+            entry["position"] = "投"
+        entry["is_pitcher"] = k in pit
         if k in bat:
             entry["batting"] = {**bat[k], **calc_rate_stats(_fill(bat[k]))}
         if k in pit:
