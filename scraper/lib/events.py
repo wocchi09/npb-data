@@ -51,7 +51,7 @@ def classify_result(rs: str | None) -> dict:
     s = _clean(rs)
     ev = {
         "pa": 0, "ab": 0, "hit": 0, "single": 0, "double": 0, "triple": 0,
-        "hr": 0, "bb": 0, "hbp": 0, "so": 0, "sf": 0, "sh": 0,
+        "hr": 0, "bb": 0, "ibb": 0, "hbp": 0, "so": 0, "sf": 0, "sh": 0,
         "gidp": 0, "error": 0, "rbi": 0,
         "out_type": None, "direction": None, "valid": False,
     }
@@ -68,7 +68,10 @@ def classify_result(rs: str | None) -> dict:
 
     # --- 打数に数えないもの ---
     if "敬遠" in s or "四球" in s:
+        # 敬遠（故意四球）も四球に含めつつ、内訳として別に持つ
         ev["bb"] = 1
+        if "敬遠" in s or "故意四球" in s:
+            ev["ibb"] = 1
         return ev
     if "死球" in s:
         ev["hbp"] = 1
