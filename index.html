@@ -237,6 +237,9 @@
   .rankrow .rv{font-family:'Roboto Mono',monospace;font-weight:700;
     color:var(--accent);}
 
+  .stabs.gtabs{margin-top:-2px;}
+  .stabs.gtabs .stab{flex:1;max-width:200px;}
+
   /* ---- 規定到達マーク ---- */
   .qmark{display:inline-block;margin-left:5px;font-size:9.5px;font-weight:700;
     line-height:1;padding:2px 4px;border-radius:3px;vertical-align:middle;
@@ -1175,6 +1178,26 @@
   var seasonTeamFilter = "all";
   var seasonLeagueFilter = "all";
   var seasonQualified = "auto";   // auto | all | qualified
+  var seasonGroup = "batter";     // batter | pitcher
+
+  /* 並び替えできる項目（野手・投手で別々） */
+  var SORTS_BAT = [["avg","打率"],["hr","本塁打"],["rbi","打点"],["hits","安打"],
+                   ["obp","出塁率"],["slg","長打率"],["ops","OPS"],["sb","盗塁"],
+                   ["pa","打席"],["so_b","三振"],["bb_b","四球"]];
+  var SORTS_PIT = [["era","防御率"],["so_p","奪三振"],["wins","勝利"],["saves","セーブ"],
+                   ["whip","WHIP"],["outs","投球回"],["k9","K/9"],["bb_p","与四球"]];
+
+  function defaultSort(group){
+    return group==="pitcher" ? "era" : "avg";
+  }
+
+  /* 野手／投手の切替 */
+  function setSeasonGroup(g){
+    if(seasonGroup===g) return;
+    seasonGroup=g;
+    seasonSort=defaultSort(g);   // 項目もそのグループの既定に戻す
+    renderSeason();
+  }
 
   /* 自動モードで規定到達者だけに絞る指標。
      打率と防御率はタイトル同様に規定到達が前提なので、この2つだけを対象にする。 */
@@ -1320,14 +1343,27 @@
       return String(tMini(a)).localeCompare(String(tMini(b)));
     });
 
-    var sorts=[["avg","打率"],["hr","本塁打"],["rbi","打点"],["hits","安打"],
-               ["ops","OPS"],["era","防御率"],["so_p","奪三振"],["wins","勝利"]];
+    var isPitchStat = (seasonGroup==="pitcher");
+    var sorts = isPitchStat ? SORTS_PIT : SORTS_BAT;
+
+    // 項目が今のグループに無いものだったら既定に戻す
+    var validSort=false;
+    sorts.forEach(function(s){ if(s[0]===seasonSort) validSort=true; });
+    if(!validSort) seasonSort=defaultSort(seasonGroup);
 
     var h='<div class="stabs">';
     [["all","両リーグ",null],["セ","セ・リーグ","セ"],["パ","パ・リーグ","パ"]].forEach(function(x){
       var col = x[2] ? LEAGUE_COLOR[x[2]] : "var(--accent)";
       h+='<button class="stab'+(seasonLeagueFilter===x[0]?" on":"")+'" style="--sc:'+col+'" '+
          'onclick="setSeasonLeague(\''+x[0]+'\')">'+x[1]+'</button>';
+    });
+    h+='</div>';
+
+    // 野手／投手の切替
+    h+='<div class="stabs gtabs">';
+    [["batter","野手成績"],["pitcher","投手成績"]].forEach(function(x){
+      h+='<button class="stab'+(seasonGroup===x[0]?" on":"")+'" style="--sc:var(--accent)" '+
+         'onclick="setSeasonGroup(\''+x[0]+'\')">'+x[1]+'</button>';
     });
     h+='</div>';
 
@@ -1349,7 +1385,6 @@
       '<option value="qualified"'+(seasonQualified==="qualified"?" selected":"")+'>規定到達のみ</option>'+
       '</select></div>';
 
-    var isPitchStat = (seasonSort==="era"||seasonSort==="so_p"||seasonSort==="wins");
     var mode = qualMode();
 
     // まず所属・成績の有無で絞る
@@ -1380,23 +1415,37 @@
     function val(p){
       var b=p.batting||{}, q=p.pitching||{};
       switch(seasonSort){
+        // 野手
         case "avg": return b.avg;
         case "hr": return b.hr;
         case "rbi": return b.rbi;
         case "hits": return b.hits;
+        case "obp": return b.obp;
+        case "slg": return b.slg;
         case "ops": return b.ops;
+        case "sb": return b.sb;
+        case "pa": return b.pa;
+        case "so_b": return b.so;
+        case "bb_b": return b.bb;
+        // 投手
         case "era": return q.era;
         case "so_p": return q.so;
         case "wins": return q.wins;
+        case "saves": return q.saves;
+        case "whip": return q.whip;
+        case "outs": return q.outs;
+        case "k9": return q.k9;
+        case "bb_p": return q.bb;
       }
       return null;
     }
+    // 防御率・WHIPは小さいほうが上位
+    var ASC={era:1, whip:1};
     list.sort(function(a,b){
       var va=val(a), vb=val(b);
       if(va==null) return 1;
       if(vb==null) return -1;
-      // 防御率は小さいほうが上位
-      return seasonSort==="era" ? va-vb : vb-va;
+      return ASC[seasonSort] ? va-vb : vb-va;
     });
 
     if(!list.length){
@@ -1410,7 +1459,7 @@
        sorts.filter(function(s){return s[0]===seasonSort;})[0][1]+'）</h3><div class="tblwrap">';
     if(isPitchStat){
       h+='<table class="stbl"><thead><tr><th>#</th><th class="nm">選手</th><th>チーム</th>'+
-         '<th>登板</th><th>回</th><th>防御率</th><th>WHIP</th><th>奪三</th><th>四球</th>'+
+         '<th>登板</th><th>回</th><th>防御率</th><th>WHIP</th><th>K/9</th><th>奪三</th><th>四球</th>'+
          '<th>勝</th><th>敗</th><th>S</th></tr></thead><tbody>';
       list.slice(0,50).forEach(function(p,i){
         var q=p.pitching||{};
@@ -1420,14 +1469,15 @@
            '<td class="num">'+esc(q.innings||"0")+'</td>'+
            '<td class="num hi">'+(q.era==null?"-":q.era.toFixed(2))+'</td>'+
            '<td class="num">'+(q.whip==null?"-":q.whip.toFixed(2))+'</td>'+
+           '<td class="num">'+(q.k9==null?"-":q.k9.toFixed(1))+'</td>'+
            '<td class="num">'+(q.so||0)+'</td><td class="num">'+(q.bb||0)+'</td>'+
            '<td class="num">'+(q.wins||0)+'</td><td class="num">'+(q.losses||0)+'</td>'+
            '<td class="num">'+(q.saves||0)+'</td></tr>';
       });
     }else{
       h+='<table class="stbl"><thead><tr><th>#</th><th class="nm">選手</th><th>チーム</th>'+
-         '<th>試合</th><th>打席</th><th>打数</th><th>安打</th><th>本</th><th>点</th>'+
-         '<th>打率</th><th>OPS</th></tr></thead><tbody>';
+         '<th>試合</th><th>打席</th><th>打数</th><th>安打</th><th>本</th><th>点</th><th>盗</th>'+
+         '<th>打率</th><th>出塁</th><th>長打</th><th>OPS</th></tr></thead><tbody>';
       list.slice(0,50).forEach(function(p,i){
         var b=p.batting||{};
         h+='<tr onclick="showPlayer(\''+esc(p.key)+'\')"><td class="num">'+(i+1)+'</td>'+
@@ -1436,7 +1486,10 @@
            '<td class="num">'+(b.ab||0)+'</td><td class="num">'+(b.hits||0)+'</td>'+
            '<td class="num'+((b.hr||0)>0?' hi':'')+'">'+(b.hr||0)+'</td>'+
            '<td class="num">'+(b.rbi||0)+'</td>'+
+           '<td class="num">'+(b.sb||0)+'</td>'+
            '<td class="num hi">'+fmtAvg(b.avg)+'</td>'+
+           '<td class="num">'+fmtAvg(b.obp)+'</td>'+
+           '<td class="num">'+fmtAvg(b.slg)+'</td>'+
            '<td class="num">'+(b.ops==null?"-":b.ops.toFixed(3).replace(/^0\./,"."))+'</td></tr>';
       });
     }
