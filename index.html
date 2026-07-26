@@ -1203,13 +1203,13 @@
       seasonData=d.players||[];
       try{
         var rt=await fetch("data/"+year+"/teams/stats.json?t="+Date.now());
-        if(rt.ok){ seasonTeams=(await rt.json()).teams||[]; }
+        if(rt.ok){ seasonTeams=(await rt.json()).teams||[]; _tgCache=null; }
       }catch(e){}
-      // 規定打席・規定投球回の判定にチーム試合数（順位表）が要る
+      // 順位表は表示用（規定の判定には収集データの試合数を使う）
       if(!standings){
         try{
           var rs2=await fetch("data/"+year+"/standings.json?t="+Date.now());
-          if(rs2.ok){ standings=await rs2.json(); _tgCache=null; }
+          if(rs2.ok){ standings=await rs2.json(); }
         }catch(e){}
       }
       renderSeason();
@@ -1224,19 +1224,17 @@
      NPBの基準:
        規定打席   = チーム試合数 × 3.1
        規定投球回 = チーム試合数 × 1.0
-     チーム試合数は順位表（公式）の値を使う。 */
+     チーム試合数は「収集済みデータ」の試合数を使う。
+     公式の消化試合数ではなく手元のデータ量に合わせることで、
+     集めた範囲の中での規定到達を判定できる。 */
   var _tgCache = null;
 
   function teamGamesMap(){
     if(_tgCache) return _tgCache;
     var m={};
-    if(standings){
-      ["central","pacific"].forEach(function(k){
-        (standings[k]||[]).forEach(function(r){
-          if(r.team) m[r.team]=r.games||0;
-        });
-      });
-    }
+    (seasonTeams||[]).forEach(function(t){
+      if(t.team) m[t.team]=t.games||0;
+    });
     _tgCache = m;
     return m;
   }
@@ -1275,18 +1273,18 @@
     for(var k in m){ if(m[k]) gs.push(m[k]); }
     if(!gs.length){
       return (isPitchStat?"登板した投手":"打席に立った野手")+
-             'を対象（チーム試合数が未取得のため規定は判定できません）';
+             'を対象（収集済み試合数が不明なため規定は判定できません）';
     }
     var mn=Math.min.apply(null,gs), mx=Math.max.apply(null,gs);
     var base = mn===mx ? (mn+"試合") : (mn+"〜"+mx+"試合");
     var need = isPitchStat
-      ? '規定投球回 = チーム試合数×1.0（現在 '+ (mn===mx? (mn+"回") : (mn+"〜"+mx+"回")) +'）'
-      : '規定打席 = チーム試合数×3.1（現在 '+
+      ? '規定投球回 = 試合数×1.0（'+ (mn===mx ? (mn+"回") : (mn+"〜"+mx+"回")) +'）'
+      : '規定打席 = 試合数×3.1（'+
         (mn===mx ? Math.ceil(mn*3.1)+"打席"
                  : Math.ceil(mn*3.1)+"〜"+Math.ceil(mx*3.1)+"打席") +'）';
     return (seasonQualified==="qualified" ? "規定到達者のみ表示" :
             (isPitchStat?"登板した投手":"打席に立った野手")+"を対象")+
-           '／'+need+'　※チーム試合数は順位表の'+base+'基準';
+           '／'+need+'　※収集済みの'+base+'を基準に算出';
   }
 
   function renderSeason(){
