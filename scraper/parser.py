@@ -321,25 +321,52 @@ def parse_stats_page(html: str) -> dict:
             }
 
     # --- 打撃成績（bb-statsTable が2つ：先攻・後攻の順） ---
+    # 位置が「(遊)」のように括弧付き＝スタメン、「走指」「左」など括弧なし＝交代選手。
+    # 交代選手は直前のスタメンの打順を引き継ぐ（表の並びがそのまま打順）。
     bat_tables = soup.select("table.bb-statsTable")
     bat_sides = ["away", "home"]
     for i, t in enumerate(bat_tables[:2]):
         side = bat_sides[i] if i < len(bat_sides) else f"t{i}"
         players = []
+        order = 0
         for tr in t.find_all("tr"):
+            trcls = " ".join(tr.get("class", []))
+            if "--total" in trcls:      # チーム合計の行は選手ではない
+                continue
             cells = [td.get_text(strip=True) for td in tr.find_all("td")]
             if len(cells) < 14:
                 continue
             name = cells[1]
             if not name:
                 continue
+
+            pos_raw = cells[0].strip()
+            is_starter = pos_raw.startswith("(") or pos_raw.startswith("（")
+            pos = pos_raw.strip("()（）")
+            if is_starter:
+                order += 1
+
+            # 交代の種類（先頭文字で判別）
+            sub_type = None
+            if not is_starter:
+                if pos.startswith("打"):
+                    sub_type = "代打"
+                elif pos.startswith("走"):
+                    sub_type = "代走"
+                else:
+                    sub_type = "守備"
+
             link = tr.find("a", href=re.compile(r"/npb/player/\d+"))
             pid = None
             if link:
                 m = re.search(r"/npb/player/(\d+)", link["href"])
                 pid = m.group(1) if m else None
             players.append({
-                "position": cells[0].strip("()（）"),
+                "order": order if order else None,
+                "position": pos,
+                "position_raw": pos_raw,
+                "is_starter": is_starter,
+                "sub_type": sub_type,
                 "name": name,
                 "player_id": pid,
                 "season_avg": _to_float(cells[2]),
