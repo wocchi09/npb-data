@@ -1258,7 +1258,13 @@
     // 2.5) 順位表を読む
     try{
       var rst=await fetch("data/"+year+"/standings.json?t="+Date.now());
-      if(rst.ok){ standings=await rst.json(); _tgCache=null; }
+      if(rst.ok){ standings=await rst.json(); }
+    }catch(e){}
+
+    // 2.6) チーム成績を読む（規定打席・規定投球回の判定に使う）
+    try{
+      var rtm=await fetch("data/"+year+"/teams/stats.json?t="+Date.now());
+      if(rtm.ok){ seasonTeams=(await rtm.json()).teams||[]; _tgCache=null; }
     }catch(e){}
 
     // 3) 最新日の試合結果を読む
@@ -1375,6 +1381,12 @@
       var lp = players.filter(function(p){
         return dashLeague==="all" || tLeague(p.team)===dashLeague;
       });
+      // 率の指標用（規定到達者がいなければ全選手にフォールバック）
+      var qb = lp.filter(isQualifiedBatter);
+      var qp = lp.filter(isQualifiedPitcher);
+      var usedQual = (qb.length>0 || qp.length>0);
+      var batList = qb.length ? qb : lp;
+      var pitList = qp.length ? qp : lp;
 
       h+='<div class="dash-sec"><div class="dash-h"><span class="dot"></span>'+
          year+' シーズンリーダー</div>';
@@ -1390,16 +1402,26 @@
         h+='<div class="msg">このリーグの選手データがありません</div>';
       }else{
         h+='<div class="rankgrid">';
-        h+=rankBlock("打率", lp, bat(function(b){return b.pa>=1?b.avg:null;}), fmtA);
+        // 率の指標（打率・防御率）は規定到達者だけで比べる
+        h+=rankBlock("打率", batList, bat(function(b){return b.pa>=1?b.avg:null;}), fmtA);
         h+=rankBlock("本塁打", lp, bat(function(b){return b.hr;}), fmtN);
         h+=rankBlock("打点", lp, bat(function(b){return b.rbi;}), fmtN);
         h+=rankBlock("安打", lp, bat(function(b){return b.hits;}), fmtN);
         h+=rankBlock("OPS", lp, bat(function(b){return b.pa>=1?b.ops:null;}), fmtO);
         h+=rankBlock("盗塁", lp, bat(function(b){return b.sb;}), fmtN);
-        h+=rankBlock("防御率", lp, pit(function(q){return q.era;}), fmtE, true);
+        h+=rankBlock("防御率", pitList, pit(function(q){return q.era;}), fmtE, true);
         h+=rankBlock("奪三振", lp, pit(function(q){return q.so;}), fmtN);
         h+=rankBlock("勝利", lp, pit(function(q){return q.wins;}), fmtN);
+        h+=rankBlock("セーブ", lp, pit(function(q){return q.saves;}), fmtN);
+        h+=rankBlock("ホールド", lp, pit(function(q){return q.holds;}), fmtN);
+        h+=rankBlock("勝率", lp, pit(function(q){
+              return ((q.wins||0)+(q.losses||0))>=1 ? q.win_pct : null;
+            }), fmtO);
         h+='</div>';
+        h+='<div class="sub" style="font-size:11px;margin-bottom:8px">'+
+           (usedQual ? '打率・防御率は規定到達者のみ（規定＝収集済み試合数×3.1打席／×1.0回）'
+                     : '規定到達者がまだいないため、打率・防御率も全選手で表示しています')+
+           '／勝率は勝敗がついた投手のみ</div>';
       }
       h+='<button class="btn" onclick="setView(\'season\')">シーズン成績をすべて見る ▶</button></div>';
     }
@@ -1439,7 +1461,8 @@
                    ["obp","出塁率"],["slg","長打率"],["ops","OPS"],["sb","盗塁"],
                    ["pa","打席"],["so_b","三振"],["bb_b","四球"]];
   var SORTS_PIT = [["era","防御率"],["so_p","奪三振"],["wins","勝利"],["saves","セーブ"],
-                   ["whip","WHIP"],["outs","投球回"],["k9","K/9"],["bb_p","与四球"]];
+                   ["holds","ホールド"],["win_pct","勝率"],["whip","WHIP"],
+                   ["outs","投球回"],["k9","K/9"],["bb_p","与四球"]];
 
   function defaultSort(group){
     return group==="pitcher" ? "era" : "avg";
@@ -1688,6 +1711,8 @@
         case "so_p": return q.so;
         case "wins": return q.wins;
         case "saves": return q.saves;
+        case "holds": return q.holds;
+        case "win_pct": return ((q.wins||0)+(q.losses||0))>=1 ? q.win_pct : null;
         case "whip": return q.whip;
         case "outs": return q.outs;
         case "k9": return q.k9;
@@ -1716,7 +1741,7 @@
     if(isPitchStat){
       h+='<table class="stbl"><thead><tr><th>#</th><th class="nm">選手</th><th>チーム</th>'+
          '<th>登板</th><th>回</th><th>防御率</th><th>WHIP</th><th>K/9</th><th>奪三</th><th>四球</th>'+
-         '<th>勝</th><th>敗</th><th>S</th></tr></thead><tbody>';
+         '<th>勝</th><th>敗</th><th>勝率</th><th>S</th><th>H</th></tr></thead><tbody>';
       list.slice(0,50).forEach(function(p,i){
         var q=p.pitching||{};
         h+='<tr onclick="showPlayer(\''+esc(p.key)+'\')"><td class="num">'+(i+1)+'</td>'+
@@ -1728,7 +1753,9 @@
            '<td class="num">'+(q.k9==null?"-":q.k9.toFixed(1))+'</td>'+
            '<td class="num">'+(q.so||0)+'</td><td class="num">'+(q.bb||0)+'</td>'+
            '<td class="num">'+(q.wins||0)+'</td><td class="num">'+(q.losses||0)+'</td>'+
-           '<td class="num">'+(q.saves||0)+'</td></tr>';
+           '<td class="num">'+(q.win_pct==null?"-":q.win_pct.toFixed(3).replace(/^0\./,"."))+'</td>'+
+           '<td class="num">'+(q.saves||0)+'</td>'+
+           '<td class="num">'+(q.holds||0)+'</td></tr>';
       });
     }else{
       h+='<table class="stbl"><thead><tr><th>#</th><th class="nm">選手</th><th>チーム</th>'+
@@ -2121,7 +2148,8 @@
         '<div class="stat"><div class="sv">'+(q.wins||0)+'</div><div class="sl">勝利</div></div>'+
         '<div class="stat"><div class="sv">'+(q.losses||0)+'</div><div class="sl">敗戦</div></div>'+
         '<div class="stat"><div class="sv">'+(q.saves||0)+'</div><div class="sl">セーブ</div></div>'+
-        '<div class="stat"><div class="sv">'+(q.bb||0)+'</div><div class="sl">与四球</div></div>'+
+        '<div class="stat"><div class="sv">'+(q.holds||0)+'</div><div class="sl">ホールド</div></div>'+
+        '<div class="stat"><div class="sv">'+(q.win_pct==null?"-":q.win_pct.toFixed(3).replace(/^0\./,"."))+'</div><div class="sl">勝率</div></div>'+
         '<div class="stat"><div class="sv">'+(q.hits_allowed||0)+'</div><div class="sl">被安打</div></div>'+
         '<div class="stat"><div class="sv">'+(q.hr_allowed||0)+'</div><div class="sl">被本塁打</div></div>'+
         '</div></div>';
