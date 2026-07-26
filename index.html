@@ -1174,7 +1174,17 @@
   var seasonSort = "avg";     // 並び替えキー
   var seasonTeamFilter = "all";
   var seasonLeagueFilter = "all";
-  var seasonQualified = "all";   // all | qualified
+  var seasonQualified = "auto";   // auto | all | qualified
+
+  /* 自動モードで規定到達者だけに絞る指標。
+     打率と防御率はタイトル同様に規定到達が前提なので、この2つだけを対象にする。 */
+  var RATE_STATS = {avg:1, era:1};
+
+  /* 実際に適用する規定モードを決める */
+  function qualMode(){
+    if(seasonQualified !== "auto") return seasonQualified;
+    return RATE_STATS[seasonSort] ? "qualified" : "all";
+  }
 
   function setView(v){
     curView = v;
@@ -1267,7 +1277,7 @@
   }
 
   /* ランキング下の注記（規定の基準値を明示する） */
-  function qualNote(isPitchStat){
+  function qualNote(isPitchStat, applied, fellBack){
     var m=teamGamesMap();
     var gs=[];
     for(var k in m){ if(m[k]) gs.push(m[k]); }
@@ -1282,9 +1292,16 @@
       : '規定打席 = 試合数×3.1（'+
         (mn===mx ? Math.ceil(mn*3.1)+"打席"
                  : Math.ceil(mn*3.1)+"〜"+Math.ceil(mx*3.1)+"打席") +'）';
-    return (seasonQualified==="qualified" ? "規定到達者のみ表示" :
-            (isPitchStat?"登板した投手":"打席に立った野手")+"を対象")+
-           '／'+need+'　※収集済みの'+base+'を基準に算出';
+
+    var head;
+    if(fellBack){
+      head='規定到達者がまだいないため全選手を表示';
+    }else if(applied==="qualified"){
+      head='規定到達者のみ表示';
+    }else{
+      head=(isPitchStat?"登板した投手":"打席に立った野手")+"を対象";
+    }
+    return head+'／'+need+'　※収集済みの'+base+'を基準に算出';
   }
 
   function renderSeason(){
@@ -1327,23 +1344,37 @@
         return '<option value="'+esc(t)+'"'+(seasonTeamFilter===t?" selected":"")+'>'+esc(t)+'</option>';
       }).join("")+'</select>'+
       '<span class="lb">対象</span><select id="squal" onchange="onSeasonChange()">'+
+      '<option value="auto"'+(seasonQualified==="auto"?" selected":"")+'>自動（率は規定者のみ）</option>'+
       '<option value="all"'+(seasonQualified==="all"?" selected":"")+'>全選手</option>'+
       '<option value="qualified"'+(seasonQualified==="qualified"?" selected":"")+'>規定到達のみ</option>'+
       '</select></div>';
 
     var isPitchStat = (seasonSort==="era"||seasonSort==="so_p"||seasonSort==="wins");
+    var mode = qualMode();
 
-    // 対象選手を絞る
-    var list=seasonData.filter(function(p){
+    // まず所属・成績の有無で絞る
+    var base=seasonData.filter(function(p){
       if(seasonLeagueFilter!=="all" && tLeague(p.team)!==seasonLeagueFilter) return false;
       if(seasonTeamFilter!=="all" && p.team!==seasonTeamFilter) return false;
-      if(isPitchStat){
-        if(!hasPitching(p)) return false;
-        return seasonQualified!=="qualified" || isQualifiedPitcher(p);
-      }
-      if(!hasBatting(p)) return false;
-      return seasonQualified!=="qualified" || isQualifiedBatter(p);
+      return isPitchStat ? hasPitching(p) : hasBatting(p);
     });
+
+    // 規定で絞る
+    var list = base;
+    var fellBack = false;
+    if(mode==="qualified"){
+      var q=base.filter(function(p){
+        return isPitchStat ? isQualifiedPitcher(p) : isQualifiedBatter(p);
+      });
+      if(q.length){
+        list=q;
+      }else if(seasonQualified==="auto"){
+        // 自動モードで到達者ゼロなら、空表示を避けて全選手に戻す
+        list=base; fellBack=true;
+      }else{
+        list=q;
+      }
+    }
 
     // 並び替え
     function val(p){
@@ -1411,7 +1442,7 @@
     }
     h+='</tbody></table></div>'+
        '<div class="sub" style="margin-top:8px;font-size:11px">'+
-       qualNote(isPitchStat)+'／選手名をタップで詳細</div></div>';
+       qualNote(isPitchStat, mode, fellBack)+'／選手名をタップで詳細</div></div>';
 
     // チーム成績（セ・パでカードを分ける）
     if(seasonTeams&&seasonTeams.length){
