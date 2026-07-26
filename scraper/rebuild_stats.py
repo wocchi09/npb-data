@@ -207,6 +207,13 @@ def rebuild(season, base="data"):
     seen_game_per_player_pit = {}
     pos_count = {}                  # player_key -> {守備位置: 出場数}
 
+    # 日別の試合数を数える（打席が1つも無いファイルは試合として数えない）
+    day_games = {}      # "YYYY-MM-DD" -> 有効な試合数
+    day_pitches = {}    # "YYYY-MM-DD" -> 投球数
+    empty_games = []    # 打席0件のファイル（過去のバグ由来のゴミ）
+    seen_gid_date = {}  # game_id -> 最初に見つけた日付（別日重複の検出用）
+    dup_games = []
+
     for path in games:
         try:
             g = load_json(path)
@@ -217,6 +224,23 @@ def rebuild(season, base="data"):
         gid = g.get("game_id")
         home = normalize_team(g.get("home"))
         away = normalize_team(g.get("away"))
+
+        # --- 日別の集計（無効なファイルは試合として数えない）---
+        import re as _re
+        dm = _re.search(r"/(\d{4})/(\d{2})/(\d{2})/", path.replace("\\", "/"))
+        day = f"{dm.group(1)}-{dm.group(2)}-{dm.group(3)}" if dm else None
+        n_ab = g.get("atbat_count") or len(g.get("atbats") or [])
+        if n_ab <= 0:
+            empty_games.append(path)
+            continue          # 打席が無いファイルは集計対象から除外する
+        if gid:
+            if gid in seen_gid_date and day and seen_gid_date[gid] != day:
+                dup_games.append((gid, seen_gid_date[gid], day))
+            elif day:
+                seen_gid_date[gid] = day
+        if day:
+            day_games[day] = day_games.get(day, 0) + 1
+            day_pitches[day] = day_pitches.get(day, 0) + (g.get("pitch_count") or 0)
         for t in (home, away):
             if t and t not in team_stats:
                 team_stats[t] = {"games": 0, "runs": 0, "runs_allowed": 0,
@@ -424,6 +448,24 @@ def rebuild(season, base="data"):
         info = team_info(t)
         team_out.append({"team": t, "mini": info["mini"], "league": info["league"], **s})
     team_out.sort(key=lambda x: (x.get("league") or "", -x.get("runs", 0)))
+
+    # 日別の試合数（ダッシュボードのカレンダー・概況が参照する正しい集計）
+    total_games = sum(day_games.values())
+    total_pitches = sum(day_pitches.values())
+    save_json(f"{base}/{season}/calendar.json", {
+        "season": season,
+        "total_games": total_games,
+        "total_pitches": total_pitches,
+        "days": dict(sorted(day_games.items())),
+        "pitches_by_day": dict(sorted(day_pitches.items())),
+    })
+    print(f"[INFO] 日別集計: {len(day_games)}日 / 有効{total_games}試合 / {total_pitches:,}球")
+    if empty_games:
+        print(f"[WARN] 打席が0件のファイル {len(empty_games)}件を集計から除外しました"
+              f"（例: {empty_games[0]}）")
+    if dup_games:
+        print(f"[WARN] 同じ試合IDが別の日にも保存されています {len(dup_games)}件"
+              f"（例: {dup_games[0]}）")
 
     save_json(f"{base}/masters/players.json", {"count": len(master), "players": master})
     save_json(f"{base}/masters/teams.json",
