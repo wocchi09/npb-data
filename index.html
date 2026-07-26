@@ -242,6 +242,22 @@
   .stabs.gtabs{margin-top:-2px;}
   .stabs.gtabs .stab{flex:1;max-width:200px;}
 
+  /* ---- スタメン ---- */
+  .lineupwrap{display:grid;grid-template-columns:1fr;gap:0;}
+  @media(min-width:1000px){
+    .lineupwrap{grid-template-columns:1fr 1fr;gap:12px;}
+    .lineupwrap>.card2{margin-top:12px;}
+  }
+  table.lineuptbl{min-width:560px;}
+  table.lineuptbl td.ord{font-weight:700;font-size:14px;color:var(--accent);}
+  table.lineuptbl td.pos{font-size:12px;white-space:nowrap;}
+  table.lineuptbl tr.subrow td{background:var(--panel2);opacity:.92;}
+  table.lineuptbl tr.subrow td.nm{font-weight:400;font-size:12.5px;}
+  .subarrow{color:var(--muted);margin-right:2px;}
+  .subtag{display:inline-block;font-size:9.5px;font-weight:700;padding:2px 4px;
+    border-radius:3px;background:var(--muted);color:#fff;line-height:1;
+    vertical-align:middle;}
+
   /* ---- 規定到達マーク ---- */
   .qmark{display:inline-block;margin-left:5px;font-size:9.5px;font-weight:700;
     line-height:1;padding:2px 4px;border-radius:3px;vertical-align:middle;
@@ -824,7 +840,7 @@
 
   function render(){
     var g=curGame;if(!g) return;
-    var tabs=[["summary","概要"],["batting","打撃"],["pitching","投手"],
+    var tabs=[["summary","概要"],["lineup","スタメン"],["batting","打撃"],["pitching","投手"],
               ["analysis","配球"],["pitches","全打席"]];
     var h='<div class="tabs">';
     tabs.forEach(function(t){
@@ -835,6 +851,7 @@
 
     var body=document.getElementById("tabbody");
     if(curTab==="summary") body.innerHTML=renderSummary(g);
+    else if(curTab==="lineup") body.innerHTML=renderLineup(g);
     else if(curTab==="batting") body.innerHTML=renderBatting(g);
     else if(curTab==="pitching") body.innerHTML=renderPitching(g);
     else if(curTab==="analysis") body.innerHTML=renderAnalysis(g);
@@ -1746,6 +1763,74 @@
     h+='<button class="btn" style="margin-top:12px" onclick="document.getElementById(\'playerDetail\').innerHTML=\'\'">閉じる</button></div>';
     el.innerHTML=h;
     el.scrollIntoView({behavior:"smooth",block:"nearest"});
+  }
+
+  /* ===== スタメンタブ ===== */
+  function renderLineup(g){
+    var box=g.boxscore;
+    if(!box||!box.batting) return notReady("スタメン");
+    // 打順が入っていない古いデータへの案内
+    var anyOrder=false;
+    ["away","home"].forEach(function(s){
+      (box.batting[s]||[]).forEach(function(p){ if(p.order) anyOrder=true; });
+    });
+    if(!anyOrder){
+      return '<div class="msg">この試合のデータには打順が入っていません<br>'+
+        '<span style="font-size:12px">Actionsで再収集すると表示されます</span></div>';
+    }
+
+    var h='<div class="lineupwrap">';
+    [["away",g.away],["home",g.home]].forEach(function(x){
+      var side=x[0], team=x[1];
+      var rows=box.batting[side]||[];
+      if(!rows.length) return;
+
+      // 先発投手（投手表の1行目）
+      var pitchers=(box.pitching&&box.pitching[side])||[];
+      var starter=pitchers.length?pitchers[0]:null;
+
+      h+='<div class="card2"><h3 class="thead" style="border-left-color:'+
+         (tColor(team)||'var(--accent)')+'">'+teamBadge(team)+' '+esc(team||side)+'</h3>';
+
+      h+='<div class="tblwrap"><table class="stbl lineuptbl"><thead><tr>'+
+         '<th>打順</th><th>位置</th><th class="nm">選手</th>'+
+         '<th>打数</th><th>安打</th><th>点</th><th>本</th><th>三振</th><th>四球</th>'+
+         '<th>シーズン打率</th></tr></thead><tbody>';
+
+      rows.forEach(function(p){
+        var isSub=!p.is_starter;
+        h+='<tr class="'+(isSub?"subrow":"")+'">'+
+          '<td class="num ord">'+(isSub?'':(p.order||""))+'</td>'+
+          '<td class="pos">'+(isSub
+             ? '<span class="subtag">'+esc(p.sub_type||"交代")+'</span> '+esc(p.position||"")
+             : esc(p.position||""))+'</td>'+
+          '<td class="nm">'+(isSub?'<span class="subarrow">└</span> ':'')+esc(p.name)+'</td>'+
+          '<td class="num">'+(p.ab||0)+'</td>'+
+          '<td class="num'+((p.hits||0)>0?' hi':'')+'">'+(p.hits||0)+'</td>'+
+          '<td class="num">'+(p.rbi||0)+'</td>'+
+          '<td class="num'+((p.hr||0)>0?' hi':'')+'">'+(p.hr||0)+'</td>'+
+          '<td class="num">'+(p.so||0)+'</td>'+
+          '<td class="num">'+(p.bb||0)+'</td>'+
+          '<td class="num">'+fmtAvg(p.season_avg)+'</td>'+
+          '</tr>';
+      });
+      h+='</tbody></table></div>';
+
+      if(starter){
+        h+='<div class="kv" style="margin-top:10px"><span class="k">先発投手</span>'+
+           '<b>'+esc(starter.name)+'</b> <span class="sub2">'+
+           esc(starter.innings||"")+'回 '+(starter.pitches||0)+'球 '+
+           '自責'+(starter.earned_runs||0)+
+           (starter.season_era!=null?' ／ 防御率'+starter.season_era.toFixed(2):'')+
+           '</span></div>';
+      }
+      h+='</div>';
+    });
+    h+='</div>';
+    h+='<div class="sub" style="font-size:11px;margin-top:6px">'+
+       '括弧付きの守備位置がスタメン、インデントされた行が途中出場の選手です'+
+       '（直前のスタメンの打順を引き継ぎます）</div>';
+    return h;
   }
 
   /* ===== 配球分析タブ ===== */
