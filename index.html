@@ -242,6 +242,32 @@
   .stabs.gtabs{margin-top:-2px;}
   .stabs.gtabs .stab{flex:1;max-width:200px;}
 
+  /* ---- データ出力 ---- */
+  .expsec{margin-top:14px;}
+  .expsec:first-child{margin-top:0;}
+  .expsets{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px;}
+  .expset{display:flex;flex-direction:column;gap:2px;cursor:pointer;
+    background:var(--panel2);border:2px solid var(--line);border-radius:10px;
+    padding:10px 12px;}
+  .expset.on{border-color:var(--accent);background:var(--zone);}
+  .expset input{display:none;}
+  .expset .et{font-weight:700;font-size:14px;}
+  .expset .ed{font-size:11px;color:var(--muted);line-height:1.4;}
+  .expform{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;}
+  .ef{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);}
+  .ef input,.ef select{font-family:inherit;font-size:14px;padding:8px 10px;
+    border-radius:8px;border:2px solid var(--line);background:var(--panel);
+    color:var(--ink);}
+  .expbtns{display:flex;gap:8px;flex-wrap:wrap;}
+  .exresult{margin-top:10px;}
+  .exok{font-size:13px;font-weight:700;color:var(--accent);
+    background:var(--zone);border:1px solid var(--line2);border-radius:8px;
+    padding:9px 12px;}
+  .explinks{display:flex;flex-wrap:wrap;gap:10px;}
+  .explink{font-size:12.5px;background:var(--panel2);border:1px solid var(--line);
+    border-radius:8px;padding:7px 11px;}
+  .explink a{color:var(--accent);font-weight:700;margin-left:5px;}
+
   /* ---- スタメン・途中交代 ---- */
   .lineupwrap{display:grid;grid-template-columns:1fr;gap:0;}
   @media(min-width:1000px){
@@ -422,6 +448,7 @@
       <button class="vbtn on" id="vb-dash" onclick="setView('dash')">ホーム</button>
       <button class="vbtn" id="vb-games" onclick="setView('games')">試合</button>
       <button class="vbtn" id="vb-season" onclick="setView('season')">シーズン成績</button>
+      <button class="vbtn" id="vb-export" onclick="setView('export')">データ出力</button>
     </div>
 
     <div id="dashView"></div>
@@ -440,6 +467,8 @@
     </div>
 
     <div id="seasonView" style="display:none"></div>
+
+    <div id="exportView" style="display:none"></div>
 
     <div class="foot">
       ▸ データは毎晩 JST 23時台に自動収集。過去の日付は Actions の「Run workflow」で収集できます。<br>
@@ -1390,17 +1419,16 @@
 
   function setView(v){
     curView = v;
-    var dv=document.getElementById("dashView");
-    var gv=document.getElementById("gameView");
-    var sv=document.getElementById("seasonView");
-    dv.style.display = v==="dash" ? "block" : "none";
-    gv.style.display = v==="games" ? "block" : "none";
-    sv.style.display = v==="season" ? "block" : "none";
-    document.getElementById("vb-dash").classList.toggle("on", v==="dash");
-    document.getElementById("vb-games").classList.toggle("on", v==="games");
-    document.getElementById("vb-season").classList.toggle("on", v==="season");
+    var ids={dash:"dashView", games:"gameView", season:"seasonView", export:"exportView"};
+    for(var k in ids){
+      var el=document.getElementById(ids[k]);
+      if(el) el.style.display = (k===v ? "block" : "none");
+      var btn=document.getElementById("vb-"+k);
+      if(btn) btn.classList.toggle("on", k===v);
+    }
     if(v==="dash") loadDash();
     else if(v==="season") loadSeason();
+    else if(v==="export") loadExport();
   }
 
   async function loadSeason(){
@@ -1769,6 +1797,226 @@
     h+='<button class="btn" style="margin-top:12px" onclick="document.getElementById(\'playerDetail\').innerHTML=\'\'">閉じる</button></div>';
     el.innerHTML=h;
     el.scrollIntoView({behavior:"smooth",block:"nearest"});
+  }
+
+  /* ===== データ出力（CSV） ===== */
+  var EXPORT_SETS = [
+    ["pitches",        "一球データ",   "1行＝1球。球種・球速・コース・カウント・結果まで全部入り"],
+    ["atbats",         "打席データ",   "1行＝1打席。結果・打球方向・走者状況"],
+    ["batting_lines",  "打撃成績",     "1行＝1選手1試合。公式ボックススコア（打順・守備位置つき）"],
+    ["pitching_lines", "投手成績",     "1行＝1投手1試合。先発フラグ・QS判定つき"],
+    ["games",          "試合",         "1行＝1試合。スコア・勝敗投手・球場"]
+  ];
+  var expSet="pitches", expFrom="", expTo="", expTeam="all", expPlayer="";
+  var expCache={};      // set -> {header:[], rows:[[...]]}
+  var expLoading=false;
+
+  function loadExport(){
+    var ev=document.getElementById("exportView");
+    if(!ev.innerHTML) ev.innerHTML=renderExport();
+  }
+
+  function renderExport(){
+    var year=(dp.value||todayJST()).split("-")[0];
+    var teams=Object.keys(TEAM_META);
+
+    var h='<div class="dash-sec"><div class="dash-h"><span class="dot"></span>'+
+      'データ出力（CSV）<span class="dash-date">'+year+' シーズン</span></div>';
+
+    // データ種別
+    h+='<div class="expsec"><div class="subttl">① データの種類</div><div class="expsets">';
+    EXPORT_SETS.forEach(function(s){
+      h+='<label class="expset'+(expSet===s[0]?" on":"")+'">'+
+         '<input type="radio" name="expset" value="'+s[0]+'"'+(expSet===s[0]?" checked":"")+
+         ' onchange="onExportSet(this.value)">'+
+         '<span class="et">'+s[1]+'</span><span class="ed">'+s[2]+'</span></label>';
+    });
+    h+='</div></div>';
+
+    // 絞り込み
+    h+='<div class="expsec"><div class="subttl">② 絞り込み（空欄なら全部）</div>'+
+      '<div class="expform">'+
+      '<label class="ef"><span>開始日</span><input type="date" id="exFrom" value="'+esc(expFrom)+'"></label>'+
+      '<label class="ef"><span>終了日</span><input type="date" id="exTo" value="'+esc(expTo)+'"></label>'+
+      '<label class="ef"><span>球団</span><select id="exTeam">'+
+        '<option value="all">全球団</option>'+
+        teams.map(function(t){
+          return '<option value="'+esc(t)+'"'+(expTeam===t?" selected":"")+'>'+esc(t)+'</option>';
+        }).join("")+'</select></label>'+
+      '<label class="ef"><span>選手名</span><input type="text" id="exPlayer" placeholder="部分一致（例: 近藤）" value="'+esc(expPlayer)+'"></label>'+
+      '</div></div>';
+
+    // 実行
+    h+='<div class="expsec"><div class="subttl">③ 実行</div>'+
+      '<div class="expbtns">'+
+      '<button class="btn primary" onclick="runExport(\'preview\')">絞り込んで確認</button>'+
+      '<button class="btn" onclick="runExport(\'download\')">CSVをダウンロード</button>'+
+      '</div><div id="exResult" class="exresult"></div></div>';
+
+    // 元ファイルへの直接リンク
+    h+='<div class="expsec"><div class="subttl">元ファイルを直接ダウンロード（絞り込みなし・最速）</div>'+
+      '<div class="explinks">';
+    EXPORT_SETS.forEach(function(s){
+      var base="data/"+year+"/dataset/"+s[0];
+      h+='<span class="explink">'+esc(s[1])+
+         ' <a href="'+base+'.csv" download>CSV</a>'+
+         ' <a href="'+base+'.parquet" download>Parquet</a></span>';
+    });
+    h+='</div><div class="sub" style="font-size:11px;margin-top:6px">'+
+       'Parquet は Power BI や pandas でそのまま読めます。'+
+       'CSV は Excel 用に BOM 付きで出力しています。</div></div>';
+
+    h+='</div>';
+    return h;
+  }
+
+  function onExportSet(v){
+    expSet=v;
+    var ev=document.getElementById("exportView");
+    // 選択状態だけ更新（入力値は保持）
+    readExportForm();
+    ev.innerHTML=renderExport();
+  }
+  function readExportForm(){
+    var f=document.getElementById("exFrom"), t=document.getElementById("exTo");
+    var tm=document.getElementById("exTeam"), pl=document.getElementById("exPlayer");
+    if(f) expFrom=f.value;
+    if(t) expTo=t.value;
+    if(tm) expTeam=tm.value;
+    if(pl) expPlayer=pl.value;
+  }
+
+  /* 簡易CSVパーサ（引用符・改行を含むフィールドに対応） */
+  function parseCSV(text){
+    if(text.charCodeAt(0)===0xFEFF) text=text.slice(1);   // BOMを除去
+    var rows=[], row=[], cur="", inQ=false, i=0;
+    while(i<text.length){
+      var c=text[i];
+      if(inQ){
+        if(c==='"'){
+          if(text[i+1]==='"'){ cur+='"'; i+=2; continue; }
+          inQ=false; i++; continue;
+        }
+        cur+=c; i++; continue;
+      }
+      if(c==='"'){ inQ=true; i++; continue; }
+      if(c===','){ row.push(cur); cur=""; i++; continue; }
+      if(c==='\r'){ i++; continue; }
+      if(c==='\n'){ row.push(cur); rows.push(row); row=[]; cur=""; i++; continue; }
+      cur+=c; i++;
+    }
+    if(cur!=="" || row.length){ row.push(cur); rows.push(row); }
+    return rows;
+  }
+
+  function toCSV(header, rows){
+    function q(v){
+      v=(v==null?"":String(v));
+      return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v;
+    }
+    var out=[header.map(q).join(",")];
+    rows.forEach(function(r){ out.push(r.map(q).join(",")); });
+    return out.join("\r\n");
+  }
+
+  var TEAM_COLS=["team","batting_team","fielding_team","home","away","opponent"];
+  var PLAYER_COLS=["player","batter","pitcher","win_pitcher","lose_pitcher","save_pitcher"];
+
+  function filterRows(header, rows){
+    var idx={};
+    header.forEach(function(hname,i){ idx[hname]=i; });
+    var dateI=idx["date"];
+    var teamIs=TEAM_COLS.filter(function(c){return idx[c]!=null;}).map(function(c){return idx[c];});
+    var plIs=PLAYER_COLS.filter(function(c){return idx[c]!=null;}).map(function(c){return idx[c];});
+    var pl=(expPlayer||"").trim();
+
+    return rows.filter(function(r){
+      if(dateI!=null){
+        var d=r[dateI];
+        if(expFrom && d < expFrom) return false;
+        if(expTo && d > expTo) return false;
+      }
+      if(expTeam!=="all"){
+        var okT=false;
+        for(var i=0;i<teamIs.length;i++){ if(r[teamIs[i]]===expTeam){ okT=true; break; } }
+        if(!okT) return false;
+      }
+      if(pl){
+        var okP=false;
+        for(var j=0;j<plIs.length;j++){
+          if((r[plIs[j]]||"").indexOf(pl)>=0){ okP=true; break; }
+        }
+        if(!okP) return false;
+      }
+      return true;
+    });
+  }
+
+  async function runExport(mode){
+    if(expLoading) return;
+    readExportForm();
+    var res=document.getElementById("exResult");
+    var year=(dp.value||todayJST()).split("-")[0];
+    var url="data/"+year+"/dataset/"+expSet+".csv";
+
+    try{
+      if(!expCache[expSet]){
+        expLoading=true;
+        res.innerHTML='<div class="msg">読み込み中…（初回はファイルサイズにより時間がかかります）</div>';
+        var r=await fetch(url+"?t="+Date.now());
+        if(!r.ok) throw new Error("notfound");
+        var text=await r.text();
+        var all=parseCSV(text).filter(function(x){return x.length>1;});
+        if(!all.length) throw new Error("empty");
+        expCache[expSet]={header:all[0], rows:all.slice(1)};
+        expLoading=false;
+      }
+      var d=expCache[expSet];
+      var rows=filterRows(d.header, d.rows);
+
+      if(mode==="download"){
+        if(!rows.length){ res.innerHTML='<div class="msg">条件に合うデータがありません</div>'; return; }
+        var csv=toCSV(d.header, rows);
+        var blob=new Blob(["\uFEFF"+csv], {type:"text/csv;charset=utf-8;"});
+        var a=document.createElement("a");
+        a.href=URL.createObjectURL(blob);
+        a.download=fileNameFor(year);
+        document.body.appendChild(a); a.click();
+        setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+        res.innerHTML='<div class="exok">✓ '+rows.length.toLocaleString()+' 行を書き出しました（'+esc(a.download)+'）</div>';
+        return;
+      }
+
+      // プレビュー
+      var h='<div class="exok">該当 '+rows.length.toLocaleString()+' 行 / 全体 '+
+            d.rows.length.toLocaleString()+' 行　（列数 '+d.header.length+'）</div>';
+      if(rows.length){
+        var cols=d.header.slice(0,10);
+        h+='<div class="tblwrap"><table class="stbl"><thead><tr>'+
+           cols.map(function(c){return '<th>'+esc(c)+'</th>';}).join("")+
+           (d.header.length>10?'<th>…</th>':'')+'</tr></thead><tbody>';
+        rows.slice(0,10).forEach(function(r){
+          h+='<tr>'+cols.map(function(c,i){return '<td>'+esc(r[i])+'</td>';}).join("")+
+             (d.header.length>10?'<td>…</td>':'')+'</tr>';
+        });
+        h+='</tbody></table></div><div class="sub" style="font-size:11px;margin-top:5px">'+
+           '先頭10行・先頭10列のみ表示しています</div>';
+      }
+      res.innerHTML=h;
+
+    }catch(e){
+      expLoading=false;
+      res.innerHTML='<div class="msg">データセットが見つかりません<br>'+
+        '<span style="font-size:12px">Actionsで収集すると '+esc(url)+' が生成されます</span></div>';
+    }
+  }
+
+  function fileNameFor(year){
+    var parts=["npb", year, expSet];
+    if(expFrom||expTo) parts.push((expFrom||"start")+"_"+(expTo||"end"));
+    if(expTeam!=="all") parts.push(tMini(expTeam)||expTeam);
+    if(expPlayer) parts.push(expPlayer);
+    return parts.join("_").replace(/[\/\\:*?"<>|]/g,"") + ".csv";
   }
 
   /* ===== スタメンタブ ===== */
