@@ -1233,27 +1233,42 @@
     if(dashLoaded){ return; }
     dv.innerHTML='<div class="msg">読み込み中…</div>';
 
-    // 1) 最新のデータがある日を index.json から検出
+    // 1) 最新のデータがある日を検出
+    //    calendar.json（再集計で作られる正確な日別集計）があればそれを使い、
+    //    無ければ index.json から推定する
     var latestDate=null;
+    var year0=(dp.value||todayJST()).split("-")[0];
+    var gotCal=false;
     try{
-      var ri=await fetch("data/index.json?t="+Date.now());
-      if(ri.ok){
-        var idx=await ri.json();
-        var days={};
-        (idx.files||[]).forEach(function(f){
-          var m=f.match(/data\/(\d{4})\/(\d{2})\/(\d{2})\/([^\/]+)$/);
-          if(!m) return;
-          var d=m[1]+"-"+m[2]+"-"+m[3];
-          var name=m[4];
-          if(!days[d]) days[d]=0;
-          // _summary.json 以外＝試合ファイルとして数える
-          if(name.charAt(0)!=="_" && name!=="index.json") days[d]++;
-        });
-        dashDays=days;
-        var dl=Object.keys(days).sort();
-        if(dl.length) latestDate=dl[dl.length-1];
+      var rc=await fetch("data/"+year0+"/calendar.json?t="+Date.now());
+      if(rc.ok){
+        var cal=await rc.json();
+        dashDays=cal.days||{};
+        var ck=Object.keys(dashDays).sort();
+        if(ck.length){ latestDate=ck[ck.length-1]; gotCal=true; }
       }
     }catch(e){}
+
+    if(!gotCal){
+      try{
+        var ri=await fetch("data/index.json?t="+Date.now());
+        if(ri.ok){
+          var idx=await ri.json();
+          var days={};
+          (idx.files||[]).forEach(function(f){
+            var m=f.match(/data\/(\d{4})\/(\d{2})\/(\d{2})\/([^\/]+)$/);
+            if(!m) return;
+            var d=m[1]+"-"+m[2]+"-"+m[3];
+            var name=m[4];
+            if(!days[d]) days[d]=0;
+            if(name.charAt(0)!=="_" && name!=="index.json") days[d]++;
+          });
+          dashDays=days;
+          var dl=Object.keys(days).sort();
+          if(dl.length) latestDate=dl[dl.length-1];
+        }
+      }catch(e){}
+    }
 
     // 2) シーズン成績を読む（ランキング用）
     var year=(latestDate||todayJST()).split("-")[0];
