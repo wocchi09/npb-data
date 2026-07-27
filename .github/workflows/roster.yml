@@ -15,6 +15,12 @@ on:
         required: false
         default: ""
 
+concurrency:
+  # データを書き込むワークフロー同士が同時に走らないようにする。
+  # 同時実行は index.json などの競合を引き起こすため、順番待ちにする。
+  group: npb-data-write
+  cancel-in-progress: false
+
 permissions:
   contents: write
 
@@ -52,17 +58,26 @@ jobs:
 
           for i in 1 2 3; do
             git fetch origin main
-            if git rebase origin/main; then
+            # index.json のような生成ファイルは中身が競合しやすい。
+            # 競合したらこちらの変更を採用し、そのあと実ファイルから作り直す。
+            if git rebase -X theirs origin/main; then
+              python scraper/fix_index.py || true
+              if ! git diff --quiet; then
+                git add -A
+                git commit --amend --no-edit
+              fi
               if git push origin HEAD:main; then
                 echo "push成功"
                 exit 0
               fi
+              echo "pushが弾かれました。取り込み直します。"
             else
-              echo "rebase失敗。中断して再試行します。"
+              echo "自動で解決できない競合です。中断して再試行します。"
               git rebase --abort || true
             fi
             echo "リトライ $i 回目"
-            sleep 5
+            sleep $((5 * i))
           done
+
           echo "pushに3回失敗しました。"
           exit 1
