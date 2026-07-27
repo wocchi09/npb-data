@@ -622,6 +622,16 @@
     }
     return null;
   }
+  /* 本塁打を打った選手の所属を判定する。
+     detail の「3回裏3ラン」から、表＝ビジター・裏＝ホームで確実に分かる。
+     detail が取れない場合だけ、出場成績の名簿と照合する。 */
+  function hrTeam(g, hr){
+    var d=(hr && hr.detail) || "";
+    if(d.indexOf("表")>=0) return g.away;
+    if(d.indexOf("裏")>=0) return g.home;
+    return batterTeam(g, hr && hr.batter);
+  }
+
   function rcls(r){
     if(!r) return "";
     if(/本塁打|安打|塁打|適時|四球|死球|安$|本$|２$|2$/.test(r)) return "hit";
@@ -874,14 +884,14 @@
         }
         // 責任投手
         var pit=[];
-        if(res.win_pitcher) pit.push('<b>勝</b> '+esc(res.win_pitcher));
-        if(res.lose_pitcher) pit.push('<b>敗</b> '+esc(res.lose_pitcher));
-        if(res.save_pitcher) pit.push('<b>S</b> '+esc(res.save_pitcher));
+        if(res.win_pitcher) pit.push('<b>勝</b> '+withTeam(res.win_pitcher,pitcherTeam(g,"win")));
+        if(res.lose_pitcher) pit.push('<b>敗</b> '+withTeam(res.lose_pitcher,pitcherTeam(g,"lose")));
+        if(res.save_pitcher) pit.push('<b>S</b> '+withTeam(res.save_pitcher,pitcherTeam(g,"save")));
         if(pit.length) h+='<div class="gpit">'+pit.join('　')+'</div>';
-        // 本塁打
+        // 本塁打（打った回の表・裏から所属を判定）
         if(res.homeruns&&res.homeruns.length){
           var hr=res.homeruns.map(function(x){
-            return esc(x.batter)+(x.number?" "+x.number+"号":"");
+            return withTeam(x.batter, hrTeam(g,x))+(x.number?" "+x.number+"号":"");
           }).join('、');
           h+='<div class="ghr">本塁打 '+hr+'</div>';
         }
@@ -970,7 +980,7 @@
     // 本塁打（打者の所属は出場成績から照合）
     if(res.homeruns&&res.homeruns.length){
       var hr=res.homeruns.map(function(x){
-        return '<div class="kv"><span class="k">'+withTeam(x.batter,batterTeam(g,x.batter))+'</span><b>'+
+        return '<div class="kv"><span class="k">'+withTeam(x.batter,hrTeam(g,x))+'</span><b>'+
           (x.number?x.number+"号":"")+'</b> <span class="sub">'+esc(x.detail||"")+'</span></div>';
       }).join("");
       h+='<div class="card2"><h3>本塁打</h3>'+hr+'</div>';
