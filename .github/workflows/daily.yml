@@ -36,7 +36,6 @@ jobs:
   collect:
     runs-on: ubuntu-latest
     timeout-minutes: 600
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -82,6 +81,11 @@ jobs:
           if [ -z "$SEASON" ]; then SEASON=$(date +%Y); fi
           python scraper/build_dataset.py --season "$SEASON" --format both || echo "データセット生成をスキップ"
 
+      - name: Build awards
+        run: |
+          SEASON=$(date +%Y)
+          python scraper/build_awards.py --season "$SEASON" || echo "表彰の算出をスキップ"
+
       - name: Validate data
         run: |
           # 検証は失敗してもワークフローは止めない（情報として記録）
@@ -94,38 +98,31 @@ jobs:
 
           find . -name "__pycache__" -type d -prune -exec rm -rf {} + 2>/dev/null || true
           git add -A
-
           if git diff --cached --quiet; then
             echo "変更なし。pushをスキップします。"
             exit 0
           fi
-
           git commit -m "data: auto collect $(date +'%Y-%m-%d %H:%M')"
 
           for i in 1 2 3; do
             git fetch origin main
-
             # index.json のような生成ファイルは中身が競合しやすい。
             # 競合したらこちらの変更を採用し、そのあと実ファイルから作り直す。
             if git rebase -X theirs origin/main; then
               python scraper/fix_index.py || true
-
               if ! git diff --quiet; then
                 git add -A
                 git commit --amend --no-edit
               fi
-
               if git push origin HEAD:main; then
                 echo "push成功"
                 exit 0
               fi
-
               echo "pushが弾かれました。取り込み直します。"
             else
               echo "自動で解決できない競合です。中断して再試行します。"
               git rebase --abort || true
             fi
-
             echo "リトライ $i 回目"
             sleep $((5 * i))
           done
