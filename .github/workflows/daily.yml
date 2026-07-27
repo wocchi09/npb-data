@@ -3,7 +3,7 @@ name: Daily NPB Data Collection
 on:
   schedule:
     # JST 23:47 = UTC 14:47（試合終了後・毎時0分を避けて混雑回避）
-    - cron: "47 14 * * *"
+    - cron: "47 13 * * *"
   workflow_dispatch:
     inputs:
       date:
@@ -85,6 +85,11 @@ jobs:
         run: |
           SEASON=$(date +%Y)
           python scraper/build_awards.py --season "$SEASON" || echo "表彰の算出をスキップ"
+
+      - name: Build weekly and monthly awards
+        run: |
+          SEASON=$(date +%Y)
+          python scraper/build_period_awards.py --season "$SEASON" || echo "週間・月間表彰の算出をスキップ"
 
       - name: Validate data
         run: |
