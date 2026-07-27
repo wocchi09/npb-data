@@ -1,0 +1,268 @@
+{
+  "scoreVersion": "1.0.0",
+  "_note": "MVP・ベストメンバーの配点。値を変えて再集計すれば結果に反映されます。available_max は取得できるデータだけで到達しうる上限で、換算スコアの分母に使います。",
+  "daily_batter": {
+    "categories": {
+      "basicBatting": {
+        "max": 30,
+        "available_max": 30
+      },
+      "runProduction": {
+        "max": 25,
+        "available_max": 25
+      },
+      "clutch": {
+        "max": 15,
+        "available_max": 15
+      },
+      "baserunning": {
+        "max": 10,
+        "available_max": 8,
+        "note": "盗塁・余分な進塁（好走塁）・一塁から長打で生還は算出可能。三盗/本盗/盗塁死/タッチアップ/走塁死/牽制死はデータなし"
+      },
+      "defense": {
+        "max": 10,
+        "available_max": 0,
+        "note": "好守備・補殺・併殺貢献・盗塁阻止・捕逸はデータなし（失策の減点のみ算出）"
+      },
+      "teamWin": {
+        "max": 5,
+        "available_max": 5
+      }
+    },
+    "basicBatting": {
+      "single": 3,
+      "double": 5,
+      "triple": 7,
+      "hr": 10,
+      "bb": 2,
+      "hbp": 1.5,
+      "sf": 1.5,
+      "three_hits_bonus": 3,
+      "four_hits_bonus": 6
+    },
+    "runProduction": {
+      "rbi_each": 3,
+      "run_each": 1.5,
+      "game_winning_hit": 8,
+      "tying_hit": 5,
+      "go_ahead_hit": 5,
+      "comeback_hit": 7,
+      "walkoff_hit": 10,
+      "grand_slam_bonus": 5,
+      "multi_hr_each": 3
+    },
+    "clutch": {
+      "risp_hit": 3,
+      "risp_bb": 1,
+      "risp_perfect_bonus": 4,
+      "risp_multi_hit_bonus": 3,
+      "two_out_risp_hit": 2,
+      "late_close_hit": 2,
+      "late_close_hr": 4,
+      "late_inning_from": 7,
+      "close_score_diff": 2
+    },
+    "baserunning": {
+      "sb": 2,
+      "extra_base": 1,
+      "score_from_first": 1.5
+    },
+    "defense": {},
+    "teamWin": {
+      "team_win": 3,
+      "game_winning_hit_in_win": 2
+    },
+    "penalty": {
+      "so_each": -1,
+      "so_cap": -4,
+      "risp_so_each": -1,
+      "gidp": -3,
+      "bases_loaded_gidp": -5,
+      "error": -3
+    },
+    "pa_multiplier": {
+      "1": 0.8,
+      "2": 0.9
+    }
+  },
+  "daily_starter": {
+    "categories": {
+      "innings": {
+        "max": 20,
+        "available_max": 20
+      },
+      "prevention": {
+        "max": 25,
+        "available_max": 25
+      },
+      "strikeout": {
+        "max": 15,
+        "available_max": 15
+      },
+      "whip": {
+        "max": 15,
+        "available_max": 15
+      },
+      "winContrib": {
+        "max": 15,
+        "available_max": 15
+      }
+    },
+    "innings": {
+      "per_inning": 3,
+      "bonus_6": 2,
+      "bonus_7": 3,
+      "bonus_8": 4,
+      "complete_game": 6,
+      "shutout": 10,
+      "no_hitter": 20,
+      "perfect_game": 30
+    },
+    "prevention": {
+      "er_0": 20,
+      "er_1": 15,
+      "er_2": 9,
+      "er_3": 4,
+      "er_4plus": 0
+    },
+    "strikeout": {
+      "per_k": 1.5,
+      "ten_k_bonus": 3,
+      "high_k_rate_max": 2,
+      "high_k_rate_per9": 9.0
+    },
+    "whip": {
+      "t050": 15,
+      "t080": 12,
+      "t100": 9,
+      "t120": 6,
+      "t150": 3
+    },
+    "winContrib": {
+      "win": 7,
+      "hqs": 6,
+      "qs": 3,
+      "team_win": 2,
+      "win_eligible": 2
+    },
+    "penalty": {
+      "hr_allowed": -3,
+      "bb": -1,
+      "hbp": -1,
+      "balk": -2,
+      "under_5_innings": -5,
+      "under_3_innings_extra": -7,
+      "loss": -2
+    }
+  },
+  "daily_reliever": {
+    "categories": {
+      "base": {
+        "max": 40,
+        "available_max": 40
+      },
+      "situation": {
+        "max": 25,
+        "available_max": 20,
+        "note": "引継走者の生還阻止はデータなし"
+      }
+    },
+    "base": {
+      "per_out": 2,
+      "per_k": 2,
+      "scoreless": 8,
+      "no_hit": 4,
+      "no_walk": 3,
+      "hold": 6,
+      "win": 5,
+      "multi_inning_scoreless": 5
+    },
+    "situation": {
+      "tied": 4,
+      "lead_1": 4,
+      "behind_1": 3,
+      "risp": 3,
+      "no_out_risp_bonus": 3,
+      "bases_loaded": 5,
+      "blowout_diff": 5
+    },
+    "penalty": {
+      "earned_run": -6,
+      "hr_allowed": -4,
+      "bb": -1.5,
+      "blown_hold": -5,
+      "loss": -4
+    }
+  },
+  "daily_closer": {
+    "categories": {
+      "base": {
+        "max": 40,
+        "available_max": 40
+      },
+      "situation": {
+        "max": 20,
+        "available_max": 20
+      }
+    },
+    "base": {
+      "save": 12,
+      "per_out": 2,
+      "per_k": 2,
+      "scoreless": 8,
+      "three_up_three_down": 5,
+      "multi_k_bonus": 3,
+      "four_out_save": 5,
+      "five_out_save": 8
+    },
+    "situation": {
+      "save_diff_1": 5,
+      "save_diff_2": 3,
+      "runners_on": 3,
+      "risp": 5,
+      "tied_final_scoreless": 4
+    },
+    "penalty": {
+      "blown_save": -10,
+      "earned_run": -6,
+      "hr_allowed": -5,
+      "bb": -2,
+      "loss": -7
+    }
+  },
+  "positions": {
+    "捕": "捕手",
+    "一": "一塁手",
+    "二": "二塁手",
+    "三": "三塁手",
+    "遊": "遊撃手",
+    "左": "左翼手",
+    "中": "中堅手",
+    "右": "右翼手",
+    "指": "指名打者"
+  },
+  "best_member_positions": {
+    "セ": [
+      "捕",
+      "一",
+      "二",
+      "三",
+      "遊",
+      "左",
+      "中",
+      "右"
+    ],
+    "パ": [
+      "捕",
+      "一",
+      "二",
+      "三",
+      "遊",
+      "左",
+      "中",
+      "右",
+      "指"
+    ]
+  }
+}
