@@ -542,6 +542,7 @@
     <div id="dailyView" style="display:none"></div>
 
     <div id="awardsView" style="display:none"></div>
+    <div id="awardsGuideView" style="display:none"></div>
 
     <div id="exportView" style="display:none"></div>
 
@@ -1771,7 +1772,7 @@
     curView = v;
     var ids={dash:"dashView", games:"gameView", season:"seasonView",
              players:"playersView", daily:"dailyView", awards:"awardsView",
-             export:"exportView"};
+             awardsGuide:"awardsGuideView", export:"exportView"};
     for(var k in ids){
       var el=document.getElementById(ids[k]);
       if(el) el.style.display = (k===v ? "block" : "none");
@@ -1783,6 +1784,9 @@
     else if(v==="players") loadPlayers();
     else if(v==="daily") loadDaily();
     else if(v==="awards") loadAwards();
+    else if(v==="awardsGuide"){
+      document.getElementById("awardsGuideView").innerHTML=renderAwardsGuide();
+    }
     else if(v==="export") loadExport();
   }
 
@@ -3514,6 +3518,15 @@
 
   /* ===== 表彰（日刊MVP・ベストメンバー） ===== */
   var awardsDate=null, awardsLg="パ", awardsData=null;
+  var awardsKind="daily";     // daily | weekly | monthly
+  var awardsMonday=null, awardsMonth=null;
+
+  function mondayOf(dateStr){
+    var t=new Date(dateStr+"T00:00:00");
+    var wd=(t.getDay()+6)%7;              // 月曜=0
+    t.setDate(t.getDate()-wd);
+    return fmtDate(t);
+  }
 
   async function loadAwards(){
     var av=document.getElementById("awardsView");
@@ -3521,35 +3534,85 @@
       var ks=Object.keys(dashDays||{}).sort();
       awardsDate = ks.length ? ks[ks.length-1] : (dp.value||todayJST());
     }
-    av.innerHTML='<div class="msg">読み込み中…</div>';
-    var year=awardsDate.split("-")[0];
-    try{
-      var r=await fetch("data/"+year+"/awards/daily/"+awardsDate+".json?t="+Date.now());
-      awardsData = r.ok ? await r.json() : null;
-    }catch(e){ awardsData=null; }
+    if(!awardsMonday) awardsMonday=mondayOf(awardsDate);
+    if(!awardsMonth) awardsMonth=awardsDate.slice(0,7);
+    await fetchAwards();
     renderAwards();
   }
-  function shiftAwards(n){
-    var t=new Date(awardsDate+"T00:00:00");
-    t.setDate(t.getDate()+n);
-    awardsDate=fmtDate(t);
-    loadAwards();
+
+  async function fetchAwards(){
+    var year=(awardsKind==="daily"?awardsDate:awardsKind==="weekly"?awardsMonday:awardsMonth).split("-")[0];
+    var url = awardsKind==="daily" ? "data/"+year+"/awards/daily/"+awardsDate+".json"
+            : awardsKind==="weekly" ? "data/"+year+"/awards/weekly/"+awardsMonday+".json"
+            : "data/"+year+"/awards/monthly/"+awardsMonth+".json";
+    try{
+      var r=await fetch(url+"?t="+Date.now());
+      awardsData = r.ok ? await r.json() : null;
+    }catch(e){ awardsData=null; }
   }
-  function setAwardsDate(v){ if(v){ awardsDate=v; loadAwards(); } }
+
+  function setAwardsKind(k){
+    awardsKind=k;
+    document.getElementById("awardsView").innerHTML='<div class="msg">読み込み中…</div>';
+    fetchAwards().then(renderAwards);
+  }
+  function shiftAwards(n){
+    if(awardsKind==="daily"){
+      var t=new Date(awardsDate+"T00:00:00"); t.setDate(t.getDate()+n); awardsDate=fmtDate(t);
+    }else if(awardsKind==="weekly"){
+      var t2=new Date(awardsMonday+"T00:00:00"); t2.setDate(t2.getDate()+n*7); awardsMonday=fmtDate(t2);
+    }else{
+      var p=awardsMonth.split("-"); var y=parseInt(p[0],10), m=parseInt(p[1],10)+n;
+      while(m<1){m+=12;y--;} while(m>12){m-=12;y++;}
+      awardsMonth=y+"-"+("0"+m).slice(-2);
+    }
+    document.getElementById("awardsView").innerHTML='<div class="msg">読み込み中…</div>';
+    fetchAwards().then(renderAwards);
+  }
+  function setAwardsDate(v){
+    if(!v) return;
+    if(awardsKind==="daily") awardsDate=v;
+    else if(awardsKind==="weekly") awardsMonday=mondayOf(v);
+    else awardsMonth=v.slice(0,7);
+    document.getElementById("awardsView").innerHTML='<div class="msg">読み込み中…</div>';
+    fetchAwards().then(renderAwards);
+  }
   function setAwardsLg(l){ awardsLg=l; renderAwards(); }
 
   function renderAwards(){
     var av=document.getElementById("awardsView");
-    var h='<div class="dash-sec"><div class="dash-h"><span class="dot"></span>日刊MVP・ベストメンバー'+
-      '<span class="dash-date">'+esc(awardsDate.replace(/-/g,"/"))+'</span></div>'+
-      '<div class="calnav">'+
-        '<button class="btn" onclick="shiftAwards(-1)">◀ 前日</button>'+
-        '<input type="date" id="awDate" value="'+esc(awardsDate)+'" onchange="setAwardsDate(this.value)">'+
-        '<button class="btn" onclick="shiftAwards(1)">翌日 ▶</button>'+
+    var titles={daily:"日刊",weekly:"週間",monthly:"月間"};
+    var navLabel={daily:["◀ 前日","翌日 ▶"],weekly:["◀ 前週","翌週 ▶"],monthly:["◀ 前月","翌月 ▶"]};
+    var period = awardsKind==="daily" ? awardsDate
+               : awardsKind==="weekly" ? awardsMonday : awardsMonth;
+    var dispDate = awardsKind==="monthly" ? awardsMonth : period;
+    var pickType = awardsKind==="monthly" ? "month" : "date";
+
+    var h='<div class="dash-sec"><div class="dash-h"><span class="dot"></span>MVP・ベストメンバー'+
+      (awardsData?('<span class="dash-date">'+esc((awardsData.date_from||dispDate).replace(/-/g,"/"))+
+        (awardsData.date_to&&awardsData.date_to!==awardsData.date_from
+          ?' 〜 '+esc(awardsData.date_to.replace(/-/g,"/")):'')+'</span>'):'')+
       '</div>';
 
+    h+='<div class="stabs gtabs">';
+    [["daily","日刊"],["weekly","週間"],["monthly","月間"]].forEach(function(k){
+      h+='<button class="stab'+(awardsKind===k[0]?" on":"")+'" style="--sc:var(--accent)" '+
+         'onclick="setAwardsKind(\''+k[0]+'\')">'+k[1]+'</button>';
+    });
+    h+='</div>';
+
+    h+='<div class="calnav">'+
+        '<button class="btn" onclick="shiftAwards(-1)">'+navLabel[awardsKind][0]+'</button>'+
+        '<input type="'+pickType+'" id="awDate" value="'+esc(dispDate)+'" onchange="setAwardsDate(this.value)">'+
+        '<button class="btn" onclick="shiftAwards(1)">'+navLabel[awardsKind][1]+'</button>'+
+      '</div>';
+
+    if(awardsKind==="weekly"){
+      h+='<div class="sub" style="font-size:11px;margin:6px 0">月曜〜日曜で集計（週の途中は最新試合日までの暫定集計）</div>';
+    }
+
     if(!awardsData){
-      h+='<div class="msg">この日の表彰データがありません<br>'+
+      h+='<div class="msg">この期間の表彰データがありません<br>'+
          '<span style="font-size:12px">Actionsで再集計すると作られます</span></div></div>';
       av.innerHTML=h;
       return;
@@ -3603,9 +3666,80 @@
 
     h+='<div class="sub" style="font-size:11px;margin-top:8px">'+
        esc(awardsData.note||"")+'／採点式 v'+esc(awardsData.scoreVersion||"")+
-       '　※スコアは利用可能な配点を100点に換算した値です</div>';
+       '　※スコアは利用可能な配点を100点に換算した値です　'+
+       '<a href="#" onclick="setView(\'awardsGuide\');return false;">選出基準の説明 ▶</a></div>';
     h+='</div>';
     av.innerHTML=h;
+  }
+
+  /* ===== 選出基準の説明ページ ===== */
+  function renderAwardsGuide(){
+    var h='<div class="dash-sec"><div class="dash-h"><span class="dot"></span>MVP・ベストメンバー 選出基準</div>';
+
+    h+='<p style="line-height:1.8;font-size:13.5px">試合データから、打撃内容・得点への貢献・勝負どころでの活躍・走塁・守備・チームの勝敗を組み合わせた独自スコアで選出します。単純な打率や防御率の順位ではなく、「その日／その週に最も価値のある活躍をしたか」を数値化する試みです。</p>';
+
+    h+='<div class="subsec"><div class="subttl">日刊と週間の違い</div>'+
+       '<div class="tblwrap"><table class="stbl"><thead><tr><th class="nm">区分</th><th class="nm">重視すること</th></tr></thead><tbody>'+
+       '<tr><td class="nm"><b>日刊</b></td><td class="nm" style="font-weight:400">その試合でのインパクト。決勝打・サヨナラ打・逆転打・得点圏での結果・好走塁・完投完封・僅差のセーブなど「その日のヒーロー」</td></tr>'+
+       '<tr><td class="nm"><b>週間</b></td><td class="nm" style="font-weight:400">月曜〜日曜の継続的な活躍。OPS・出塁率・長打率・投球回・防御率・WHIPなど「その週最も優れた成績を残した選手」</td></tr>'+
+       '<tr><td class="nm"><b>月間</b></td><td class="nm" style="font-weight:400">月初〜月末の集計。週間と同じ考え方で1ヶ月分をまとめて比較</td></tr>'+
+       '</tbody></table></div></div>';
+
+    h+='<div class="subsec"><div class="subttl">日刊 野手スコア（100点満点）</div>'+
+       '<div class="tblwrap"><table class="stbl"><thead><tr><th class="nm">区分</th><th>配点</th><th class="nm">主な内容</th></tr></thead><tbody>'+
+       gRow("打撃基礎点","30","単打3・二塁打5・三塁打7・本塁打10・四球2・死球1.5・犠飛1.5／3安打+3・4安打以上+6")+
+       gRow("長打・得点貢献点","25","打点×3・得点×1.5／決勝打8・同点打5・勝ち越し打5・逆転打7・サヨナラ打10／満塁本塁打+5")+
+       gRow("勝負強さ点","15","得点圏安打×3・得点圏四球×1／得点圏打率10割+4・得点圏2安打以上+3／7回以降の僅差での安打+2・本塁打+4")+
+       gRow("走塁点","10","盗塁成功2・好走塁による進塁1・一塁から長打で生還1.5（三盗・本盗等はデータなし）")+
+       gRow("守備点","10","失策-3のみ算出（好守備等の加点はデータなし）")+
+       gRow("チーム勝利補正","5","チーム勝利3・勝利試合での決勝打+2")+
+       gRow("マイナス点","―","三振-1(上限-4)・併殺打-3・満塁併殺-5・失策-3")+
+       '</tbody></table></div>'+
+       '<div class="sub" style="font-size:11px;margin-top:6px">1打席のみの出場は0.80倍、2打席は0.90倍に補正（代打1本での過大評価を防ぐため）</div></div>';
+
+    h+='<div class="subsec"><div class="subttl">日刊 投手スコア（先発・中継ぎ・抑え）</div>'+
+       '<div class="tblwrap"><table class="stbl"><thead><tr><th class="nm">役割</th><th class="nm">主な配点</th></tr></thead><tbody>'+
+       gRow2("先発","投球回(最大20・完封+10/ノーヒットノーラン+20/完全試合+30)・失点抑制(最大25)・奪三振(最大15)・WHIP(最大15)・勝利貢献(最大15)")+
+       gRow2("中継ぎ","無失点8・ホールド6・同点で登板+4・満塁で登板+5などの場面加点／自責点-6・被本塁打-4")+
+       gRow2("抑え","セーブ12・3者凡退+5・1点差セーブ+5／セーブ失敗-10・自責点-6")+
+       '</tbody></table></div></div>';
+
+    h+='<div class="subsec"><div class="subttl">週間スコア（配分の考え方）</div>'+
+       '<div class="tblwrap"><table class="stbl"><thead><tr><th class="nm">区分</th><th class="nm">野手</th><th class="nm">投手（先発）</th></tr></thead><tbody>'+
+       '<tr><td class="nm">最重視</td><td class="nm" style="font-weight:400">打撃内容40点（OPS15・打率8・出塁率8・長打率9）</td>'+
+       '<td class="nm" style="font-weight:400">防御率25点・投球回20点</td></tr>'+
+       '<tr><td class="nm">出場条件</td><td class="nm" style="font-weight:400">チーム試合数×2.5打席未満は0.85倍に補正</td>'+
+       '<td class="nm" style="font-weight:400">先発1試合以上。継続登板を評価</td></tr>'+
+       '</tbody></table></div>'+
+       '<div class="sub" style="font-size:11px;margin-top:6px">リーグ内の他選手との相対比較（百分位）で採点するため、リーグ全体のレベルが変わっても評価がぶれにくい仕組みです</div></div>';
+
+    h+='<div class="subsec"><div class="subttl">投手MVPの決め方</div>'+
+       '<p style="font-size:13px;line-height:1.7">先発は投球回が長いぶん素点で有利になるため、役割（先発・中継ぎ・抑え）ごとにスコアを標準化してから比較します。'+
+       '<br>標準化スコア = 50 + 10 ×（選手のスコア − 役割内平均）÷ 役割内の標準偏差'+
+       '<br>同じ役割の中で「平均からどれだけ抜きん出ているか」で比較するので、先発と抑えを公平に比べられます。</p></div>';
+
+    h+='<div class="subsec"><div class="subttl">ポジションの決め方</div>'+
+       '<p style="font-size:13px;line-height:1.7">日刊はその試合で最も長く守った位置、週間・月間は期間中最も多く守った位置を採用します。外野は左翼・中堅・右翼を別々に扱い、まとめて「外野手」にはしません。同じ選手を複数の位置で重複選出することはありません。代打のみの出場はMVP候補には入りますが、ベストメンバーの対象からは外れます。</p></div>';
+
+    h+='<div class="subsec"><div class="subttl">データが取れない項目について</div>'+
+       '<p style="font-size:13px;line-height:1.7">三盗・本盗・タッチアップ・牽制死・好守備（補殺やダイビングキャッチ等）・盗塁阻止は、取得元のデータに記録が無いため<b>採点していません</b>。推測で数字を作ることはせず、算出できた項目だけを100点満点に換算し直しています。画面にも「利用可能データのみで算出」と明記しています。</p>'+
+       '<p style="font-size:13px;line-height:1.7">一方で、走者が1人だけの場面に限り、公式の塁の記録から「単打で一塁から三塁まで進んだ」のような余分な進塁（好走塁）を検出して加点しています。走者が2人以上いる場面は誰が進んだか特定できないため対象外です。</p></div>';
+
+    h+='<div class="subsec"><div class="subttl">配点の変更について</div>'+
+       '<p style="font-size:13px;line-height:1.7">配点は設定ファイル（awards_config.json）にまとめてあり、値を変えて再集計すれば結果に反映されます。採点式にはバージョン番号を付けており、基準を変えても過去の選出結果と区別できるようにしています。</p></div>';
+
+    h+='<div class="expbtns" style="margin-top:12px">'+
+       '<button class="btn" onclick="setView(\'awards\')">◀ 表彰にもどる</button></div>';
+    h+='</div>';
+    return h;
+  }
+  function gRow(label, pt, note){
+    return '<tr><td class="nm">'+esc(label)+'</td><td class="num">'+esc(pt)+'</td>'+
+      '<td class="nm" style="font-weight:400;font-size:12px">'+esc(note)+'</td></tr>';
+  }
+  function gRow2(label, note){
+    return '<tr><td class="nm"><b>'+esc(label)+'</b></td>'+
+      '<td class="nm" style="font-weight:400;font-size:12px">'+esc(note)+'</td></tr>';
   }
 
   var POS_LABEL={"捕":"捕手","一":"一塁手","二":"二塁手","三":"三塁手","遊":"遊撃手",
