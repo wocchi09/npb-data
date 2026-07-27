@@ -24,7 +24,7 @@ from datetime import datetime, timedelta, timezone
 import requests
 
 from parser import (
-    parse_atbat, extract_atbat_indexes, parse_teams,
+    parse_atbat, extract_atbat_indexes, parse_teams, detect_game_type,
     parse_score_list, parse_homeruns, parse_battery,
     parse_stats_page, parse_stadium, parse_standings,
 )
@@ -142,6 +142,9 @@ def collect_game(game_id: str, expected_date: datetime | None = None) -> dict:
 
     teams = parse_teams(html)
     stadium = parse_stadium(html)
+    game_type = detect_game_type(html, teams)
+    if game_type != "公式戦":
+        print(f"[INFO] 試合{game_id}: 種別={game_type}")
     # 日本式の表記（主催＝ホームを先に書く）
     card = f"{teams['home'] or '?'} vs {teams['away'] or '?'}"
 
@@ -237,6 +240,8 @@ def collect_game(game_id: str, expected_date: datetime | None = None) -> dict:
         "card": card,
         # 試合ページのタイトルにある開催日。保存フォルダとのズレ検証に使う
         "game_date": jp_date_to_iso(teams.get("date_text")),
+        # 公式戦 / 交流戦 / オールスター / CS / 日本シリーズ
+        "game_type": game_type,
         "stadium": stadium,
         "final_score": final_score,
         "result": result_info,
@@ -269,6 +274,7 @@ def save_summary(date: datetime, results: list[dict]) -> str:
              "away": r.get("away"), "home": r.get("home"),
              "card": r.get("card"),
              "stadium": r.get("stadium"),
+             "game_type": r.get("game_type"),
              "result": r.get("result", {}),
              "atbat_count": r.get("atbat_count", 0),
              "pitch_count": r.get("pitch_count", 0)}
