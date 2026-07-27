@@ -40,17 +40,25 @@ def save_json(path, data):
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 
+# 試合データではない管理ファイル（集計結果や設定）
+MANAGED_FILES = {
+    "index.json", "calendar.json", "no_games.json", "exclude.json",
+    "standings.json", "npb_roster.json",
+}
+MANAGED_DIRS = ("/players/", "/teams/", "/dataset/", "/masters/")
+
+
+def _is_game_file(path: str) -> bool:
+    norm = path.replace("\\", "/")
+    name = norm.split("/")[-1]
+    if name.startswith("_") or name in MANAGED_FILES:
+        return False
+    return not any(d in norm for d in MANAGED_DIRS)
+
 def find_games(season, base="data"):
-    files = []
-    for p in glob.glob(f"{base}/{season}/**/*.json", recursive=True):
-        name = os.path.basename(p)
-        if name.startswith("_") or name == "index.json":
-            continue
-        # players/ teams/ 配下の集計ファイルは除外
-        if "/players/" in p.replace("\\", "/") or "/teams/" in p.replace("\\", "/"):
-            continue
-        files.append(p)
-    return sorted(files)
+    """その年の試合JSONだけを集める（集計結果や設定ファイルは除外）"""
+    return sorted(p for p in glob.glob(f"{base}/{season}/**/*.json", recursive=True)
+                  if _is_game_file(p))
 
 
 def is_valid_name(name) -> bool:
@@ -196,9 +204,55 @@ def calc_rate_stats(b: dict) -> dict:
             "bb_pct": bb_pct, "k_pct": k_pct, "tb": tb}
 
 
+# シーズン成績に含めない試合の種別。
+# 交流戦は公式戦の一部なので除外しない。
+EXCLUDED_TYPES = ("オールスター", "CS", "日本シリーズ")
+
+
+def load_manual_exclude(season, base="data") -> dict:
+    """
+    自動判定で拾えない試合を手作業で除外するための設定を読む。
+
+    data/{season}/exclude.json の例:
+        {
+          "dates": ["2026-07-24", "2026-07-25"],
+          "date_ranges": [["2026-10-11", "2026-11-05"]],
+          "game_ids": ["2021039999"]
+        }
+    """
+    path = os.path.join(base, str(season), "exclude.json")
+    if not os.path.exists(path):
+        return {"dates": set(), "ranges": [], "game_ids": set()}
+    try:
+        with open(path, encoding="utf-8") as f:
+            d = json.load(f)
+    except Exception as e:
+        print(f"[WARN] exclude.json の読み込みに失敗: {e}")
+        return {"dates": set(), "ranges": [], "game_ids": set()}
+    return {
+        "dates": set(d.get("dates") or []),
+        "ranges": [tuple(x) for x in (d.get("date_ranges") or []) if len(x) == 2],
+        "game_ids": set(str(x) for x in (d.get("game_ids") or [])),
+    }
+
+
+def is_manually_excluded(rule: dict, day: str | None, gid) -> bool:
+    if gid is not None and str(gid) in rule["game_ids"]:
+        return True
+    if not day:
+        return False
+    if day in rule["dates"]:
+        return True
+    for a, b in rule["ranges"]:
+        if a <= day <= b:
+            return True
+    return False
+
+
 def rebuild(season, base="data"):
     games = find_games(season, base)
     print(f"[INFO] {season}シーズン: {len(games)}試合を再集計")
+    manual = load_manual_exclude(season, base)
 
     players = {}       # player_key -> master info
     bat = {}           # player_key -> batting counts
@@ -206,6 +260,7 @@ def rebuild(season, base="data"):
     team_stats = {}    # team -> counts
     holds_found = 0                 # 推定ホールドの検出数（ログ用）
     ibb_found = 0                   # 敬遠（故意四球）の検出数（ログ用）
+    excluded = {}                   # 除外した試合の内訳（種別 -> 件数）
     seen_game_per_player_bat = {}   # (pkey, game_id) 出場ゲーム重複防止
     seen_game_per_player_pit = {}
     pos_count = {}                  # player_key -> {守備位置: 出場数}
@@ -237,6 +292,17 @@ def rebuild(season, base="data"):
         day = f"{dm.group(1)}-{dm.group(2)}-{dm.group(3)}" if dm else None
         if day:
             day_files[day] = day_files.get(day, 0) + 1
+
+        # --- シーズン成績に含めない試合を外す ---
+        gtype = g.get("game_type") or "公式戦"
+        reason = None
+        if gtype in EXCLUDED_TYPES:
+            reason = gtype
+        elif is_manually_excluded(manual, day, gid):
+            reason = "手動指定"
+        if reason:
+            excluded[reason] = excluded.get(reason, 0) + 1
+            continue
 
         # 試合ページの開催日（game_date）がフォルダの日付と違う場合は記録する
         gdate = (g.get("game_date") or "").strip()
@@ -495,6 +561,9 @@ def rebuild(season, base="data"):
         "pitches_by_day": dict(sorted(day_pitches.items())),
         "no_games": no_games,
     })
+    if excluded:
+        detail = "・".join(f"{k}{v}件" for k, v in sorted(excluded.items()))
+        print(f"[INFO] シーズン成績から除外: {sum(excluded.values())}試合（{detail}）")
     print(f"[INFO] 日別集計: {len(day_games)}日 / 有効{total_games}試合 / {total_pitches:,}球")
     if no_games:
         print(f"[INFO] 試合がなかった日として記録済み: {len(no_games)}日")
