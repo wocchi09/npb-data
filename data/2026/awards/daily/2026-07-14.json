@@ -1,0 +1,3509 @@
+{
+  "awardType": "daily",
+  "date": "2026-07-14",
+  "scoreVersion": "1.0.0",
+  "generated_at": "2026-07-28T00:17:58.433402+09:00",
+  "note": "利用可能データのみで算出（走塁・守備の細目は取得できないため対象外）",
+  "games": 6,
+  "leagues": {
+    "セ": {
+      "batter_mvp": {
+        "name": "佐藤 輝明",
+        "team": "阪神",
+        "player_id": "2000051",
+        "position": "三",
+        "order": 4,
+        "raw": 42.0,
+        "score": 50.6,
+        "available_max": 83,
+        "pa": 5,
+        "breakdown": {
+          "basicBatting": 20.0,
+          "runProduction": 18.0,
+          "clutch": 3,
+          "baserunning": 0,
+          "defense": 0,
+          "teamWin": 3,
+          "penalty": -2
+        },
+        "stat_line": "5打数2安打、2本塁打、4打点、2得点",
+        "reasons": [
+          "本塁打2本",
+          "4打点",
+          "得点圏3打数1安打"
+        ],
+        "minus_reasons": [
+          "三振1"
+        ],
+        "keys": {
+          "hits": 2,
+          "hr": 2,
+          "rbi": 4,
+          "runs": 2,
+          "risp_hit": 1,
+          "risp_ab": 3,
+          "so": 1,
+          "sb": 0
+        },
+        "game_id": "2021039134",
+        "opponent": "中日",
+        "is_starter": true,
+        "sub_type": null,
+        "comment": "5打数2安打、2本塁打、4打点、2得点。本塁打2本／4打点／得点圏3打数1安打を記録し、リーグ最高評価。",
+        "margin": 12.11
+      },
+      "pitcher_mvp": {
+        "name": "髙橋 遥人",
+        "team": "阪神",
+        "player_id": "1700078",
+        "role": "先発",
+        "raw": 65,
+        "score": 72.22,
+        "available_max": 90,
+        "breakdown": {
+          "innings": 20,
+          "prevention": 9,
+          "strikeout": 15,
+          "whip": 9,
+          "winContrib": 15,
+          "penalty": -3
+        },
+        "stat_line": "8回 2失点 自責2 9奪三振 被安打7 与四球0 WHIP0.88",
+        "reasons": [
+          "勝利投手",
+          "HQS"
+        ],
+        "minus_reasons": [
+          "被本塁打1"
+        ],
+        "keys": {
+          "outs": 24,
+          "er": 2,
+          "so": 9,
+          "whip": 0.875,
+          "qs": true,
+          "hqs": true
+        },
+        "game_id": "2021039134",
+        "z": 66.18,
+        "z_method": "役割内標準化",
+        "mvp_value": 66.18,
+        "comment": "8回 2失点 自責2 9奪三振 被安打7 与四球0 WHIP0.88。勝利投手／HQS。",
+        "margin": 6.54
+      },
+      "best_batters": {
+        "捕": {
+          "name": "古賀 優大",
+          "team": "ヤクルト",
+          "player_id": "1600078",
+          "position": "捕",
+          "order": 7,
+          "raw": 14.0,
+          "score": 16.87,
+          "available_max": 83,
+          "pa": 4,
+          "breakdown": {
+            "basicBatting": 3.0,
+            "runProduction": 0.0,
+            "clutch": 9,
+            "baserunning": 0,
+            "defense": 0,
+            "teamWin": 3,
+            "penalty": -1
+          },
+          "stat_line": "4打数1安打",
+          "reasons": [
+            "得点圏1打数1安打"
+          ],
+          "minus_reasons": [
+            "三振1"
+          ],
+          "keys": {
+            "hits": 1,
+            "hr": 0,
+            "rbi": 0,
+            "runs": 0,
+            "risp_hit": 1,
+            "risp_ab": 1,
+            "so": 1,
+            "sb": 0
+          },
+          "game_id": "2021039133",
+          "opponent": "巨人",
+          "is_starter": true,
+          "sub_type": null
+        },
+        "一": {
+          "name": "セデーニョ",
+          "team": "ヤクルト",
+          "player_id": "2108913",
+          "position": "一",
+          "order": 6,
+          "raw": 21.0,
+          "score": 25.3,
+          "available_max": 83,
+          "pa": 3,
+          "breakdown": {
+            "basicBatting": 3.0,
+            "runProduction": 6.0,
+            "clutch": 9,
+            "baserunning": 0,
+            "defense": 0,
+            "teamWin": 3,
+            "penalty": 0
+          },
+          "stat_line": "3打数1安打、2打点",
+          "reasons": [
+            "2打点",
+            "得点圏1打数1安打"
+          ],
+          "minus_reasons": [],
+          "keys": {
+            "hits": 1,
+            "hr": 0,
+            "rbi": 2,
+            "runs": 0,
+            "risp_hit": 1,
+            "risp_ab": 1,
+            "so": 0,
+            "sb": 0
+          },
+          "game_id": "2021039133",
+          "opponent": "巨人",
+          "is_starter": true,
+          "sub_type": null
+        },
+        "二": {
+          "name": "内山 壮真",
+          "team": "ヤクルト",
+          "player_id": "2000026",
+          "position": "二",
+          "order": 3,
+          "raw": 14.5,
+          "score": 17.47,
+          "available_max": 83,
+          "pa": 5,
+          "breakdown": {
+            "basicBatting": 8.0,
+            "runProduction": 1.5,
+            "clutch": 2,
+            "baserunning": 0,
+            "defense": 0,
+            "teamWin": 3,
+            "penalty": 0
+          },
+          "stat_line": "5打数2安打、1得点",
+          "reasons": [],
+          "minus_reasons": [],
+          "keys": {
+            "hits": 2,
+            "hr": 0,
+            "rbi": 0,
+            "runs": 1,
+            "risp_hit": 0,
+            "risp_ab": 1,
+            "so": 0,
+            "sb": 0
+          },
+          "game_id": "2021039133",
+          "opponent": "巨人",
+          "is_starter": true,
+          "sub_type": null
+        },
+        "三": {
+          "name": "佐藤 輝明",
+          "team": "阪神",
+          "player_id": "2000051",
+          "position": "三",
+          "order": 4,
+          "raw": 42.0,
+          "score": 50.6,
+          "available_max": 83,
+          "pa": 5,
+          "breakdown": {
+            "basicBatting": 20.0,
+            "runProduction": 18.0,
+            "clutch": 3,
+            "baserunning": 0,
+            "defense": 0,
+            "teamWin": 3,
+            "penalty": -2
+          },
+          "stat_line": "5打数2安打、2本塁打、4打点、2得点",
+          "reasons": [
+            "本塁打2本",
+            "4打点",
+            "得点圏3打数1安打"
+          ],
+          "minus_reasons": [
+            "三振1"
+          ],
+          "keys": {
+            "hits": 2,
+            "hr": 2,
+            "rbi": 4,
+            "runs": 2,
+            "risp_hit": 1,
+            "risp_ab": 3,
+            "so": 1,
+            "sb": 0
+          },
+          "game_id": "2021039134",
+          "opponent": "中日",
+          "is_starter": true,
+          "sub_type": null
+        },
+        "遊": {
+          "name": "村松 開人",
+          "team": "中日",
+          "player_id": "1750223",
+          "position": "遊",
+          "order": 3,
+          "raw": 28.5,
+          "score": 34.34,
+          "available_max": 83,
+          "pa": 4,
+          "breakdown": {
+            "basicBatting": 19.0,
+            "runProduction": 9.5,
+            "clutch": 0,
+            "baserunning": 0,
+            "defense": 0,
+            "teamWin": 0,
+            "penalty": 0
+          },
+          "stat_line": "4打数3安打、1本塁打、1打点、1得点",
+          "reasons": [
+            "猛打賞",
+            "本塁打",
+            "1打点",
+            "同点打"
+          ],
+          "minus_reasons": [],
+          "keys": {
+            "hits": 3,
+            "hr": 1,
+            "rbi": 1,
+            "runs": 1,
+            "risp_hit": 0,
+            "risp_ab": 0,
+            "so": 0,
+            "sb": 0
+          },
+          "game_id": "2021039134",
+          "opponent": "阪神",
+          "is_starter": true,
+          "sub_type": null
+        },
+        "左": {
+          "name": "ファビアン",
+          "team": "広島",
+          "player_id": "2114882",
+          "position": "左",
+          "order": 3,
+          "raw": 28.0,
+          "score": 33.73,
+          "available_max": 83,
+          "pa": 5,
+          "breakdown": {
+            "basicBatting": 16.5,
+            "runProduction": 10.5,
+            "clutch": 3,
+            "baserunning": 0,
+            "defense": 0,
+            "teamWin": 0,
+            "penalty": -2
+          },
+          "stat_line": "4打数2安打、1本塁打、3打点、1得点",
+          "reasons": [
+            "本塁打",
+            "3打点",
+            "得点圏2打数1安打"
+          ],
+          "minus_reasons": [
+            "三振1"
+          ],
+          "keys": {
+            "hits": 2,
+            "hr": 1,
+            "rbi": 3,
+            "runs": 1,
+            "risp_hit": 1,
+            "risp_ab": 2,
+            "so": 1,
+            "sb": 0
+          },
+          "game_id": "2021039135",
+          "opponent": "DeNA",
+          "is_starter": true,
+          "sub_type": null
+        },
+        "中": {
+          "name": "大盛 穂",
+          "team": "広島",
+          "player_id": "1800079",
+          "position": "中",
+          "order": 7,
+          "raw": 19.0,
+          "score": 22.89,
+          "available_max": 83,
+          "pa": 5,
+          "breakdown": {
+            "basicBatting": 8.0,
+            "runProduction": 3.0,
+            "clutch": 9,
+            "baserunning": 0,
+            "defense": 0,
+            "teamWin": 0,
+            "penalty": -1
+          },
+          "stat_line": "5打数2安打、1打点",
+          "reasons": [
+            "1打点",
+            "得点圏1打数1安打"
+          ],
+          "minus_reasons": [
+            "三振1"
+          ],
+          "keys": {
+            "hits": 2,
+            "hr": 0,
+            "rbi": 1,
+            "runs": 0,
+            "risp_hit": 1,
+            "risp_ab": 1,
+            "so": 1,
+            "sb": 0
+          },
+          "game_id": "2021039135",
+          "opponent": "DeNA",
+          "is_starter": true,
+          "sub_type": null
+        },
+        "右": {
+          "name": "森下 翔太",
+          "team": "阪神",
+          "player_id": "1850183",
+          "position": "右",
+          "order": 3,
+          "raw": 27.0,
+          "score": 32.53,
+          "available_max": 83,
+          "pa": 5,
+          "breakdown": {
+            "basicBatting": 17.0,
+            "runProduction": 6.0,
+            "clutch": 1,
+            "baserunning": 0,
+            "defense": 0,
+            "teamWin": 3,
+            "penalty": 0
+          },
+          "stat_line": "3打数2安打、1本塁打、1打点、2得点",
+          "reasons": [
+            "本塁打",
+            "1打点"
+          ],
+          "minus_reasons": [],
+          "keys": {
+            "hits": 2,
+            "hr": 1,
+            "rbi": 1,
+            "runs": 2,
+            "risp_hit": 0,
+            "risp_ab": 0,
+            "so": 0,
+            "sb": 0
+          },
+          "game_id": "2021039134",
+          "opponent": "中日",
+          "is_starter": true,
+          "sub_type": null
+        }
+      },
+      "best_pitchers": {
+        "先発": {
+          "name": "髙橋 遥人",
+          "team": "阪神",
+          "player_id": "1700078",
+          "role": "先発",
+          "raw": 65,
+          "score": 72.22,
+          "available_max": 90,
+          "breakdown": {
+            "innings": 20,
+            "prevention": 9,
+            "strikeout": 15,
+            "whip": 9,
+            "winContrib": 15,
+            "penalty": -3
+          },
+          "stat_line": "8回 2失点 自責2 9奪三振 被安打7 与四球0 WHIP0.88",
+          "reasons": [
+            "勝利投手",
+            "HQS"
+          ],
+          "minus_reasons": [
+            "被本塁打1"
+          ],
+          "keys": {
+            "outs": 24,
+            "er": 2,
+            "so": 9,
+            "whip": 0.875,
+            "qs": true,
+            "hqs": true
+          },
+          "game_id": "2021039134",
+          "z": 66.18,
+          "z_method": "役割内標準化",
+          "mvp_value": 66.18
+        },
+        "中継ぎ": {
+          "name": "岩田 将貴",
+          "team": "DeNA",
+          "player_id": "2000059",
+          "role": "中継ぎ",
+          "raw": 28.0,
+          "score": 46.67,
+          "available_max": 60,
+          "breakdown": {
+            "base": 24,
+            "situation": 4,
+            "penalty": 0.0
+          },
+          "stat_line": "1回 1奪三振 自責0 被安打1",
+          "reasons": [
+            "無失点",
+            "勝利投手",
+            "1点リードで登板"
+          ],
+          "minus_reasons": [],
+          "keys": {
+            "outs": 3,
+            "er": 0,
+            "so": 1
+          },
+          "game_id": "2021039135",
+          "z": 60.86,
+          "z_method": "役割内標準化",
+          "mvp_value": 42.6
+        },
+        "抑え": {
+          "name": "キハダ",
+          "team": "ヤクルト",
+          "player_id": "1961046",
+          "role": "抑え",
+          "raw": 38,
+          "score": 63.33,
+          "available_max": 60,
+          "breakdown": {
+            "base": 33,
+            "situation": 5,
+            "penalty": 0
+          },
+          "stat_line": "1回 1奪三振 自責0",
+          "reasons": [
+            "セーブ",
+            "無失点",
+            "3者凡退",
+            "1点差セーブ"
+          ],
+          "minus_reasons": [],
+          "keys": {
+            "outs": 3,
+            "er": 0,
+            "so": 1,
+            "save": true
+          },
+          "game_id": "2021039133",
+          "z": 63.33,
+          "z_method": "換算スコア",
+          "mvp_value": 44.33
+        }
+      },
+      "batter_ranking": [
+        {
+          "name": "佐藤 輝明",
+          "team": "阪神",
+          "player_id": "2000051",
+          "position": "三",
+          "order": 4,
+          "raw": 42.0,
+          "score": 50.6,
+          "available_max": 83,
+          "pa": 5,
+          "breakdown": {
+            "basicBatting": 20.0,
+            "runProduction": 18.0,
+            "clutch": 3,
+            "baserunning": 0,
+            "defense": 0,
+            "teamWin": 3,
+            "penalty": -2
+          },
+          "stat_line": "5打数2安打、2本塁打、4打点、2得点",
+          "reasons": [
+            "本塁打2本",
+            "4打点",
+            "得点圏3打数1安打"
+          ],
+          "minus_reasons": [
+            "三振1"
+          ],
+          "keys": {
+            "hits": 2,
+            "hr": 2,
+            "rbi": 4,
+            "runs": 2,
+            "risp_hit": 1,
+            "risp_ab": 3,
+            "so": 1,
+            "sb": 0
+          },
+          "game_id": "2021039134",
+          "opponent": "中日",
+          "is_starter": true,
+          "sub_type": null
+        },
+        {
+          "name": "坂本 勇人",
+          "team": "巨人",
+          "player_id": "700003",
+          "position": "打三",
+          "order": 8,
+          "raw": 31.95,
+          "score": 38.49,
+          "available_max": 83,
+          "pa": 2,
+          "breakdown": {
+            "basicBatting": 10.0,
+            "runProduction": 15.5,
+            "clutch": 11,
+            "baserunning": 0,
+            "defense": 0,
+            "teamWin": 0,
+            "penalty": -1
+          },
+          "stat_line": "2打数1安打、1本塁打、3打点、1得点",
+          "reasons": [
+            "本塁打",
+            "3打点",
+            "勝ち越し打",
+            "得点圏1打数1安打",
+            "終盤の競り合いで本塁打"
+          ],
+          "minus_reasons": [
+            "三振1"
+          ],
+          "keys": {
+            "hits": 1,
+            "hr": 1,
+            "rbi": 3,
+            "runs": 1,
+            "risp_hit": 1,
+            "risp_ab": 1,
+            "so": 1,
+            "sb": 0
+          },
+          "game_id": "2021039133",
+          "opponent": "ヤクルト",
+          "is_starter": false,
+          "sub_type": "代打"
+        },
+        {
+          "name": "赤羽 由紘",
+          "team": "ヤクルト",
+          "player_id": "2000031",
+          "position": "三一",
+          "order": 5,
+          "raw": 31.5,
+          "score": 37.95,
+          "available_max": 83,
+          "pa": 4,
+          "breakdown": {
+            "basicBatting": 6.0,
+            "runProduction": 7.5,
+            "clutch": 15,
+            "baserunning": 0,
+            "defense": 0,
+            "teamWin": 3,
+            "penalty": 0
+          },
+          "stat_line": "4打数2安打、2打点、1得点",
+          "reasons": [
+            "2打点",
+            "得点圏3打数2安打"
+          ],
+          "minus_reasons": [],
+          "keys": {
+            "hits": 2,
+            "hr": 0,
+            "rbi": 2,
+            "runs": 1,
+            "risp_hit": 2,
+            "risp_ab": 3,
+            "so": 0,
+            "sb": 0
+          },
+          "game_id": "2021039133",
+          "opponent": "巨人",
+          "is_starter": true,
+          "sub_type": null
+        },
+        {
+          "name": "村松 開人",
+          "team": "中日",
+          "player_id": "1750223",
+          "position": "遊",
+          "order": 3,
+          "raw": 28.5,
+          "score": 34.34,
+          "available_max": 83,
+          "pa": 4,
+          "breakdown": {
+            "basicBatting": 19.0,
+            "runProduction": 9.5,
+            "clutch": 0,
+            "baserunning": 0,
+            "defense": 0,
+            "teamWin": 0,
+            "penalty": 0
+          },
+          "stat_line": "4打数3安打、1本塁打、1打点、1得点",
+          "reasons": [
+            "猛打賞",
+            "本塁打",
+            "1打点",
+            "同点打"
+          ],
+          "minus_reasons": [],
+          "keys": {
+            "hits": 3,
+            "hr": 1,
+            "rbi": 1,
+            "runs": 1,
+            "risp_hit": 0,
+            "risp_ab": 0,
+            "so": 0,
+            "sb": 0
+          },
+          "game_id": "2021039134",
+          "opponent": "阪神",
+          "is_starter": true,
+          "sub_type": null
+        },
+        {
+          "name": "ファビアン",
+          "team": "広島",
+          "player_id": "2114882",
+          "position": "左",
+          "order": 3,
+          "raw": 28.0,
+          "score": 33.73,
+          "available_max": 83,
+          "pa": 5,
+          "breakdown": {
+            "basicBatting": 16.5,
+            "runProduction": 10.5,
+            "clutch": 3,
+            "baserunning": 0,
+            "defense": 0,
+            "teamWin": 0,
+            "penalty": -2
+          },
+          "stat_line": "4打数2安打、1本塁打、3打点、1得点",
+          "reasons": [
+            "本塁打",
+            "3打点",
+            "得点圏2打数1安打"
+          ],
+          "minus_reasons": [
+            "三振1"
+          ],
+          "keys": {
+            "hits": 2,
+            "hr": 1,
+            "rbi": 3,
+            "runs": 1,
+            "risp_hit": 1,
+            "risp_ab": 2,
+            "so": 1,
+            "sb": 0
+          },
+          "game_id": "2021039135",
+          "opponent": "DeNA",
+          "is_starter": true,
+          "sub_type": null
+        },
+        {
+          "name": "森下 翔太",
+          "team": "阪神",
+          "player_id": "1850183",
+          "position": "右",
+          "order": 3,
+          "raw": 27.0,
+          "score": 32.53,
+          "available_max": 83,
+          "pa": 5,
+          "breakdown": {
+            "basicBatting": 17.0,
+            "runProduction": 6.0,
+            "clutch": 1,
+            "baserunning": 0,
+            "defense": 0,
+            "teamWin": 3,
+            "penalty": 0
+          },
+          "stat_line": "3打数2安打、1本塁打、1打点、2得点",
+          "reasons": [
+            "本塁打",
+            "1打点"
+          ],
+          "minus_reasons": [],
+          "keys": {
+            "hits": 2,
+            "hr": 1,
+            "rbi": 1,
+            "runs": 2,
+            "risp_hit": 0,
+            "risp_ab": 0,
+            "so": 0,
+            "sb": 0
+          },
+          "game_id": "2021039134",
+          "opponent": "中日",
+          "is_starter": true,
+          "sub_type": null
+        },
+        {
+          "name": "名原 典彦",
+          "team": "広島",
+          "player_id": "1850405",
+          "position": "右",
+          "order": 1,
+          "raw": 24.0,
+          "score": 28.92,
+          "available_max": 83,
+          "pa": 5,
+          "breakdown": {
+            "basicBatting": 18.0,
+            "runProduction": 3.0,
+            "clutch": 2,
+            "baserunning": 1.0,
+            "defense": 0,
+            "teamWin": 0,
+            "penalty": 0
+          },
+          "stat_line": "5打数4安打、2得点",
+          "reasons": [
+            "4安打",
+            "単打で1塁から3塁へ"
+          ],
+          "minus_reasons": [],
+          "keys": {
+            "hits": 4,
+            "hr": 0,
+            "rbi": 0,
+            "runs": 2,
+            "risp_hit": 0,
+            "risp_ab": 0,
+            "so": 0,
+            "sb": 0
+          },
+          "game_id": "2021039135",
+          "opponent": "DeNA",
+          "is_starter": true,
+          "sub_type": null
+        },
+        {
+          "name": "セデーニョ",
+          "team": "ヤクルト",
+          "player_id": "2108913",
+          "position": "一",
+          "order": 6,
+          "raw": 21.0,
+          "score": 25.3,
+          "available_max": 83,
+          "pa": 3,
+          "breakdown": {
+            "basicBatting": 3.0,
+            "runProduction": 6.0,
+            "clutch": 9,
+            "baserunning": 0,
+            "defense": 0,
+            "teamWin": 3,
+            "penalty": 0
+          },
+          "stat_line": "3打数1安打、2打点",
+          "reasons": [
+            "2打点",
+            "得点圏1打数1安打"
+          ],
+          "minus_reasons": [],
+          "keys": {
+            "hits": 1,
+            "hr": 0,
+            "rbi": 2,
+            "runs": 0,
+            "risp_hit": 1,
+            "risp_ab": 1,
+            "so": 0,
+            "sb": 0
+          },
+          "game_id": "2021039133",
+          "opponent": "巨人",
+          "is_starter": true,
+          "sub_type": null
+        },
+        {
+          "name": "佐野 恵太",
+          "team": "DeNA",
+          "player_id": "1600089",
+          "position": "一",
+          "order": 3,
+          "raw": 21.0,
+          "score": 25.3,
+          "available_max": 83,
+          "pa": 4,
+          "breakdown": {
+            "basicBatting": 3.0,
+            "runProduction": 8.0,
+            "clutch": 7,
+            "baserunning": 0,
+            "defense": 0,
+            "teamWin": 3,
+            "penalty": 0
+          },
+          "stat_line": "4打数1安打、1打点",
+          "reasons": [
+            "1打点",
+            "同点打",
+            "得点圏1打数1安打"
+          ],
+          "minus_reasons": [],
+          "keys": {
+            "hits": 1,
+            "hr": 0,
+            "rbi": 1,
+            "runs": 0,
+            "risp_hit": 1,
+            "risp_ab": 1,
+            "so": 0,
+            "sb": 0
+          },
+          "game_id": "2021039135",
+          "opponent": "広島",
+          "is_starter": true,
+          "sub_type": null
+        },
+        {
+          "name": "宮下 朝陽",
+          "team": "DeNA",
+          "player_id": "2100014",
+          "position": "遊",
+          "order": 8,
+          "raw": 19.5,
+          "score": 23.49,
+          "available_max": 83,
+          "pa": 4,
+          "breakdown": {
+            "basicBatting": 5.0,
+            "runProduction": 4.5,
+            "clutch": 7,
+            "baserunning": 0,
+            "defense": 0,
+            "teamWin": 3,
+            "penalty": 0
+          },
+          "stat_line": "4打数1安打、1打点、1得点",
+          "reasons": [
+            "1打点",
+            "得点圏1打数1安打"
+          ],
+          "minus_reasons": [],
+          "keys": {
+            "hits": 1,
+            "hr": 0,
+            "rbi": 1,
+            "runs": 1,
+            "risp_hit": 1,
+            "risp_ab": 1,
+            "so": 0,
+            "sb": 0
+          },
+          "game_id": "2021039135",
+          "opponent": "広島",
+          "is_starter": false,
+          "sub_type": "守備"
+        },
+        {
+          "name": "大盛 穂",
+          "team": "広島",
+          "player_id": "1800079",
+          "position": "中",
+          "order": 7,
+          "raw": 19.0,
+          "score": 22.89,
+          "available_max": 83,
+          "pa": 5,
+          "breakdown": {
+            "basicBatting": 8.0,
+            "runProduction": 3.0,
+            "clutch": 9,
+            "baserunning": 0,
+            "defense": 0,
+            "teamWin": 0,
+            "penalty": -1
+          },
+          "stat_line": "5打数2安打、1打点",
+          "reasons": [
+            "1打点",
+            "得点圏1打数1安打"
+          ],
+          "minus_reasons": [
+            "三振1"
+          ],
+          "keys": {
+            "hits": 2,
+            "hr": 0,
+            "rbi": 1,
+            "runs": 0,
+            "risp_hit": 1,
+            "risp_ab": 1,
+            "so": 1,
+            "sb": 0
+          },
+          "game_id": "2021039135",
+          "opponent": "DeNA",
+          "is_starter": true,
+          "sub_type": null
+        },
+        {
+          "name": "長岡 秀樹",
+          "team": "ヤクルト",
+          "player_id": "1900028",
+          "position": "遊",
+          "order": 1,
+          "raw": 18.5,
+          "score": 22.29,
+          "available_max": 83,
+          "pa": 5,
+          "breakdown": {
+            "basicBatting": 12.0,
+            "runProduction": 1.5,
+            "clutch": 2,
+            "baserunning": 0,
+            "defense": 0,
+            "teamWin": 3,
+            "penalty": 0
+          },
+          "stat_line": "5打数3安打、1得点",
+          "reasons": [
+            "猛打賞"
+          ],
+          "minus_reasons": [],
+          "keys": {
+            "hits": 3,
+            "hr": 0,
+            "rbi": 0,
+            "runs": 1,
+            "risp_hit": 0,
+            "risp_ab": 1,
+            "so": 0,
+            "sb": 0
+          },
+          "game_id": "2021039133",
+          "opponent": "巨人",
+          "is_starter": true,
+          "sub_type": null
+        },
+        {
+          "name": "サンタナ",
+          "team": "ヤクルト",
+          "player_id": "2000135",
+          "position": "左",
+          "order": 2,
+          "raw": 18.0,
+          "score": 21.69,
+          "available_max": 83,
+          "pa": 4,
+          "breakdown": {
+            "basicBatting": 3.0,
+            "runProduction": 3.0,
+            "clutch": 9,
+            "baserunning": 1.0,
+            "defense": 0,
+            "teamWin": 3,
+            "penalty": -1
+          },
+          "stat_line": "4打数1安打、1打点",
+          "reasons": [
+            "1打点",
+            "得点圏1打数1安打",
+            "単打で1塁から3塁へ"
+          ],
+          "minus_reasons": [
+            "三振1"
+          ],
+          "keys": {
+            "hits": 1,
+            "hr": 0,
+            "rbi": 1,
+            "runs": 0,
+            "risp_hit": 1,
+            "risp_ab": 1,
+            "so": 1,
+            "sb": 0
+          },
+          "game_id": "2021039133",
+          "opponent": "巨人",
+          "is_starter": true,
+          "sub_type": null
+        },
+        {
+          "name": "エンカーナシオン",
+          "team": "DeNA",
+          "player_id": "2108195",
+          "position": "右",
+          "order": 4,
+          "raw": 18.0,
+          "score": 21.69,
+          "available_max": 83,
+          "pa": 4,
+          "breakdown": {
+            "basicBatting": 3.0,
+            "runProduction": 11.0,
+            "clutch": 0,
+            "baserunning": 0,
+            "defense": 0,
+            "teamWin": 5,
+            "penalty": -1
+          },
+          "stat_line": "3打数1安打、1打点",
+          "reasons": [
+            "1打点",
+            "決勝打"
+          ],
+          "minus_reasons": [
+            "三振1"
+          ],
+          "keys": {
+            "hits": 1,
+            "hr": 0,
+            "rbi": 1,
+            "runs": 0,
+            "risp_hit": 0,
+            "risp_ab": 2,
+            "so": 1,
+            "sb": 0
+          },
+          "game_id": "2021039135",
+          "opponent": "広島",
+          "is_starter": true,
+          "sub_type": null
+        },
+        {
+          "name": "岩田 幸宏",
+          "team": "ヤクルト",
+          "player_id": "2103917",
+          "position": "中左",
+          "order": 9,
+          "raw": 16.5,
+          "score": 19.88,
+          "available_max": 83,
+          "pa": 4,
+          "breakdown": {
+            "basicBatting": 10.0,
+            "runProduction": 1.5,
+            "clutch": 4,
+            "baserunning": 0,
+            "defense": 0,
+            "teamWin": 3,
+            "penalty": -2
+          },
+          "stat_line": "4打数2安打、1得点",
+          "reasons": [],
+          "minus_reasons": [
+            "三振2"
+          ],
+          "keys": {
+            "hits": 2,
+            "hr": 0,
+            "rbi": 0,
+            "runs": 1,
+            "risp_hit": 0,
+            "risp_ab": 0,
+            "so": 2,
+            "sb": 0
+          },
+          "game_id": "2021039133",
+          "opponent": "巨人",
+          "is_starter": true,
+          "sub_type": null
+        }
+      ],
+      "pitcher_ranking": {
+        "先発": [
+          {
+            "name": "髙橋 遥人",
+            "team": "阪神",
+            "player_id": "1700078",
+            "role": "先発",
+            "raw": 65,
+            "score": 72.22,
+            "available_max": 90,
+            "breakdown": {
+              "innings": 20,
+              "prevention": 9,
+              "strikeout": 15,
+              "whip": 9,
+              "winContrib": 15,
+              "penalty": -3
+            },
+            "stat_line": "8回 2失点 自責2 9奪三振 被安打7 与四球0 WHIP0.88",
+            "reasons": [
+              "勝利投手",
+              "HQS"
+            ],
+            "minus_reasons": [
+              "被本塁打1"
+            ],
+            "keys": {
+              "outs": 24,
+              "er": 2,
+              "so": 9,
+              "whip": 0.875,
+              "qs": true,
+              "hqs": true
+            },
+            "game_id": "2021039134",
+            "z": 66.18,
+            "z_method": "役割内標準化",
+            "mvp_value": 66.18
+          },
+          {
+            "name": "山野 太一",
+            "team": "ヤクルト",
+            "player_id": "2000025",
+            "role": "先発",
+            "raw": 51,
+            "score": 56.67,
+            "available_max": 90,
+            "breakdown": {
+              "innings": 20,
+              "prevention": 4,
+              "strikeout": 15,
+              "whip": 6,
+              "winContrib": 12,
+              "penalty": -6
+            },
+            "stat_line": "7回 3失点 自責3 9奪三振 被安打5 与四球3 WHIP1.14",
+            "reasons": [
+              "勝利投手",
+              "QS"
+            ],
+            "minus_reasons": [
+              "被本塁打1"
+            ],
+            "keys": {
+              "outs": 21,
+              "er": 3,
+              "so": 9,
+              "whip": 1.1428571428571428,
+              "qs": true,
+              "hqs": false
+            },
+            "game_id": "2021039133",
+            "z": 59.64,
+            "z_method": "役割内標準化",
+            "mvp_value": 59.64
+          },
+          {
+            "name": "山﨑 伊織",
+            "team": "巨人",
+            "player_id": "2000006",
+            "role": "先発",
+            "raw": 29.5,
+            "score": 32.78,
+            "available_max": 90,
+            "breakdown": {
+              "innings": 17.0,
+              "prevention": 4,
+              "strikeout": 7.5,
+              "whip": 3,
+              "winContrib": 0,
+              "penalty": -2
+            },
+            "stat_line": "5.2回 3失点 自責3 5奪三振 被安打5 与四球2 WHIP1.24",
+            "reasons": [],
+            "minus_reasons": [],
+            "keys": {
+              "outs": 17,
+              "er": 3,
+              "so": 5,
+              "whip": 1.2352941176470587,
+              "qs": false,
+              "hqs": false
+            },
+            "game_id": "2021039133",
+            "z": 49.61,
+            "z_method": "役割内標準化",
+            "mvp_value": 46.29
+          },
+          {
+            "name": "マラー",
+            "team": "中日",
+            "player_id": "2100961",
+            "role": "先発",
+            "raw": 20.5,
+            "score": 22.78,
+            "available_max": 90,
+            "breakdown": {
+              "innings": 20,
+              "prevention": 0,
+              "strikeout": 10.5,
+              "whip": 3,
+              "winContrib": 0,
+              "penalty": -13
+            },
+            "stat_line": "7.1回 5失点 自責5 7奪三振 被安打7 与四球2 WHIP1.23",
+            "reasons": [],
+            "minus_reasons": [
+              "敗戦",
+              "被本塁打3"
+            ],
+            "keys": {
+              "outs": 22,
+              "er": 5,
+              "so": 7,
+              "whip": 1.2272727272727273,
+              "qs": false,
+              "hqs": false
+            },
+            "game_id": "2021039134",
+            "z": 45.41,
+            "z_method": "役割内標準化",
+            "mvp_value": 45.41
+          },
+          {
+            "name": "石田 裕太郎",
+            "team": "DeNA",
+            "player_id": "2112182",
+            "role": "先発",
+            "raw": 12.0,
+            "score": 13.33,
+            "available_max": 90,
+            "breakdown": {
+              "innings": 12.0,
+              "prevention": 0,
+              "strikeout": 8.0,
+              "whip": 0,
+              "winContrib": 2,
+              "penalty": -10
+            },
+            "stat_line": "4回 4失点 自責4 4奪三振 被安打8 与四球2 WHIP2.50",
+            "reasons": [],
+            "minus_reasons": [
+              "5回未満",
+              "被本塁打1"
+            ],
+            "keys": {
+              "outs": 12,
+              "er": 4,
+              "so": 4,
+              "whip": 2.5,
+              "qs": false,
+              "hqs": false
+            },
+            "game_id": "2021039135",
+            "z": 41.45,
+            "z_method": "役割内標準化",
+            "mvp_value": 35.23
+          },
+          {
+            "name": "岡本 駿",
+            "team": "広島",
+            "player_id": "2114807",
+            "role": "先発",
+            "raw": 4.0,
+            "score": 4.44,
+            "available_max": 90,
+            "breakdown": {
+              "innings": 13.0,
+              "prevention": 0,
+              "strikeout": 0.0,
+              "whip": 0,
+              "winContrib": 0,
+              "penalty": -9
+            },
+            "stat_line": "4.1回 5失点 自責5 0奪三振 被安打6 与四球2 WHIP1.85",
+            "reasons": [],
+            "minus_reasons": [
+              "5回未満",
+              "敗戦"
+            ],
+            "keys": {
+              "outs": 13,
+              "er": 5,
+              "so": 0,
+              "whip": 1.8461538461538463,
+              "qs": false,
+              "hqs": false
+            },
+            "game_id": "2021039135",
+            "z": 37.71,
+            "z_method": "役割内標準化",
+            "mvp_value": 32.69
+          }
+        ],
+        "中継ぎ": [
+          {
+            "name": "岩田 将貴",
+            "team": "DeNA",
+            "player_id": "2000059",
+            "role": "中継ぎ",
+            "raw": 28.0,
+            "score": 46.67,
+            "available_max": 60,
+            "breakdown": {
+              "base": 24,
+              "situation": 4,
+              "penalty": 0.0
+            },
+            "stat_line": "1回 1奪三振 自責0 被安打1",
+            "reasons": [
+              "無失点",
+              "勝利投手",
+              "1点リードで登板"
+            ],
+            "minus_reasons": [],
+            "keys": {
+              "outs": 3,
+              "er": 0,
+              "so": 1
+            },
+            "game_id": "2021039135",
+            "z": 60.86,
+            "z_method": "役割内標準化",
+            "mvp_value": 42.6
+          },
+          {
+            "name": "宮城 滝太",
+            "team": "DeNA",
+            "player_id": "1800049",
+            "role": "中継ぎ",
+            "raw": 27.0,
+            "score": 45.0,
+            "available_max": 60,
+            "breakdown": {
+              "base": 23,
+              "situation": 4,
+              "penalty": 0.0
+            },
+            "stat_line": "1回 1奪三振 自責0 被安打0",
+            "reasons": [
+              "無失点",
+              "1点リードで登板"
+            ],
+            "minus_reasons": [],
+            "keys": {
+              "outs": 3,
+              "er": 0,
+              "so": 1
+            },
+            "game_id": "2021039135",
+            "z": 59.76,
+            "z_method": "役割内標準化",
+            "mvp_value": 41.83
+          },
+          {
+            "name": "髙 太一",
+            "team": "広島",
+            "player_id": "1950429",
+            "role": "中継ぎ",
+            "raw": 26.0,
+            "score": 43.33,
+            "available_max": 60,
+            "breakdown": {
+              "base": 23,
+              "situation": 3,
+              "penalty": 0.0
+            },
+            "stat_line": "1回 1奪三振 自責0 被安打0",
+            "reasons": [
+              "無失点"
+            ],
+            "minus_reasons": [],
+            "keys": {
+              "outs": 3,
+              "er": 0,
+              "so": 1
+            },
+            "game_id": "2021039135",
+            "z": 58.66,
+            "z_method": "役割内標準化",
+            "mvp_value": 41.06
+          },
+          {
+            "name": "辻 大雅",
+            "team": "広島",
+            "player_id": "2106037",
+            "role": "中継ぎ",
+            "raw": 26.0,
+            "score": 43.33,
+            "available_max": 60,
+            "breakdown": {
+              "base": 23,
+              "situation": 3,
+              "penalty": 0.0
+            },
+            "stat_line": "1回 1奪三振 自責0 被安打0",
+            "reasons": [
+              "無失点"
+            ],
+            "minus_reasons": [],
+            "keys": {
+              "outs": 3,
+              "er": 0,
+              "so": 1
+            },
+            "game_id": "2021039135",
+            "z": 58.66,
+            "z_method": "役割内標準化",
+            "mvp_value": 41.06
+          },
+          {
+            "name": "遠藤 淳志",
+            "team": "広島",
+            "player_id": "1700072",
+            "role": "中継ぎ",
+            "raw": 24.0,
+            "score": 40.0,
+            "available_max": 60,
+            "breakdown": {
+              "base": 21,
+              "situation": 3,
+              "penalty": 0.0
+            },
+            "stat_line": "1回 0奪三振 自責0 被安打0",
+            "reasons": [
+              "無失点"
+            ],
+            "minus_reasons": [],
+            "keys": {
+              "outs": 3,
+              "er": 0,
+              "so": 0
+            },
+            "game_id": "2021039135",
+            "z": 56.45,
+            "z_method": "役割内標準化",
+            "mvp_value": 39.52
+          },
+          {
+            "name": "島内 颯太郎",
+            "team": "広島",
+            "player_id": "1800073",
+            "role": "中継ぎ",
+            "raw": 23.5,
+            "score": 39.17,
+            "available_max": 60,
+            "breakdown": {
+              "base": 16,
+              "situation": 9,
+              "penalty": -1.5
+            },
+            "stat_line": "0.2回 0奪三振 自責0 被安打0",
+            "reasons": [
+              "無失点",
+              "同点で登板",
+              "満塁で登板"
+            ],
+            "minus_reasons": [],
+            "keys": {
+              "outs": 2,
+              "er": 0,
+              "so": 0
+            },
+            "game_id": "2021039135",
+            "z": 55.9,
+            "z_method": "役割内標準化",
+            "mvp_value": 38.18
+          },
+          {
+            "name": "齋藤 綱記",
+            "team": "中日",
+            "player_id": "1400199",
+            "role": "中継ぎ",
+            "raw": 22.0,
+            "score": 36.67,
+            "available_max": 60,
+            "breakdown": {
+              "base": 17,
+              "situation": 5,
+              "penalty": 0.0
+            },
+            "stat_line": "0.1回 0奪三振 自責0 被安打0",
+            "reasons": [
+              "無失点",
+              "満塁で登板"
+            ],
+            "minus_reasons": [],
+            "keys": {
+              "outs": 1,
+              "er": 0,
+              "so": 0
+            },
+            "game_id": "2021039134",
+            "z": 54.25,
+            "z_method": "役割内標準化",
+            "mvp_value": 36.18
+          },
+          {
+            "name": "浜地 真澄",
+            "team": "DeNA",
+            "player_id": "1600116",
+            "role": "中継ぎ",
+            "raw": 20.5,
+            "score": 34.17,
+            "available_max": 60,
+            "breakdown": {
+              "base": 18,
+              "situation": 4,
+              "penalty": -1.5
+            },
+            "stat_line": "1回 0奪三振 自責0 被安打0",
+            "reasons": [
+              "無失点",
+              "1点リードで登板"
+            ],
+            "minus_reasons": [],
+            "keys": {
+              "outs": 3,
+              "er": 0,
+              "so": 0
+            },
+            "game_id": "2021039135",
+            "z": 52.59,
+            "z_method": "役割内標準化",
+            "mvp_value": 36.81
+          },
+          {
+            "name": "鈴木 健矢",
+            "team": "広島",
+            "player_id": "1900073",
+            "role": "中継ぎ",
+            "raw": 20.0,
+            "score": 33.33,
+            "available_max": 60,
+            "breakdown": {
+              "base": 17,
+              "situation": 3,
+              "penalty": 0.0
+            },
+            "stat_line": "1回 0奪三振 自責0 被安打1",
+            "reasons": [
+              "無失点"
+            ],
+            "minus_reasons": [],
+            "keys": {
+              "outs": 3,
+              "er": 0,
+              "so": 0
+            },
+            "game_id": "2021039135",
+            "z": 52.04,
+            "z_method": "役割内標準化",
+            "mvp_value": 36.43
+          },
+          {
+            "name": "伊勢 大夢",
+            "team": "DeNA",
+            "player_id": "1900032",
+            "role": "中継ぎ",
+            "raw": 19.0,
+            "score": 31.67,
+            "available_max": 60,
+            "breakdown": {
+              "base": 18,
+              "situation": 4,
+              "penalty": -3.0
+            },
+            "stat_line": "1回 2奪三振 自責0 被安打1",
+            "reasons": [
+              "無失点",
+              "1点リードで登板"
+            ],
+            "minus_reasons": [],
+            "keys": {
+              "outs": 3,
+              "er": 0,
+              "so": 2
+            },
+            "game_id": "2021039135",
+            "z": 50.94,
+            "z_method": "役割内標準化",
+            "mvp_value": 35.66
+          }
+        ],
+        "抑え": [
+          {
+            "name": "キハダ",
+            "team": "ヤクルト",
+            "player_id": "1961046",
+            "role": "抑え",
+            "raw": 38,
+            "score": 63.33,
+            "available_max": 60,
+            "breakdown": {
+              "base": 33,
+              "situation": 5,
+              "penalty": 0
+            },
+            "stat_line": "1回 1奪三振 自責0",
+            "reasons": [
+              "セーブ",
+              "無失点",
+              "3者凡退",
+              "1点差セーブ"
+            ],
+            "minus_reasons": [],
+            "keys": {
+              "outs": 3,
+              "er": 0,
+              "so": 1,
+              "save": true
+            },
+            "game_id": "2021039133",
+            "z": 63.33,
+            "z_method": "換算スコア",
+            "mvp_value": 44.33
+          },
+          {
+            "name": "レイノルズ",
+            "team": "DeNA",
+            "player_id": "2117433",
+            "role": "抑え",
+            "raw": 31,
+            "score": 51.67,
+            "available_max": 60,
+            "breakdown": {
+              "base": 28,
+              "situation": 5,
+              "penalty": -2
+            },
+            "stat_line": "1回 1奪三振 自責0",
+            "reasons": [
+              "セーブ",
+              "無失点",
+              "1点差セーブ"
+            ],
+            "minus_reasons": [],
+            "keys": {
+              "outs": 3,
+              "er": 0,
+              "so": 1,
+              "save": true
+            },
+            "game_id": "2021039135",
+            "z": 51.67,
+            "z_method": "換算スコア",
+            "mvp_value": 36.17
+          },
+          {
+            "name": "ドリス",
+            "team": "阪神",
+            "player_id": "1600033",
+            "role": "抑え",
+            "raw": 29,
+            "score": 48.33,
+            "available_max": 60,
+            "breakdown": {
+              "base": 33,
+              "situation": 0,
+              "penalty": -4
+            },
+            "stat_line": "1回 2奪三振 自責0",
+            "reasons": [
+              "セーブ",
+              "無失点"
+            ],
+            "minus_reasons": [],
+            "keys": {
+              "outs": 3,
+              "er": 0,
+              "so": 2,
+              "save": true
+            },
+            "game_id": "2021039134",
+            "z": 48.33,
+            "z_method": "換算スコア",
+            "mvp_value": 33.83
+          }
+        ]
+      }
+    },
+    "パ": {
+      "batter_mvp": {
+        "name": "正木 智也",
+        "team": "ソフトバンク",
+        "player_id": "2103735",
+        "position": "右一",
+        "order": 1,
+        "raw": 44.5,
+        "score": 53.61,
+        "available_max": 83,
+        "pa": 5,
+        "breakdown": {
+          "basicBatting": 25.0,
+          "runProduction": 10.5,
+          "clutch": 7,
+          "baserunning": 0,
+          "defense": 0,
+          "teamWin": 3,
+          "penalty": -1
+        },
+        "stat_line": "5打数4安打、1本塁打、3打点、1得点",
+        "reasons": [
+          "4安打",
+          "本塁打",
+          "3打点",
+          "得点圏1打数1安打"
+        ],
+        "minus_reasons": [
+          "三振1"
+        ],
+        "keys": {
+          "hits": 4,
+          "hr": 1,
+          "rbi": 3,
+          "runs": 1,
+          "risp_hit": 1,
+          "risp_ab": 1,
+          "so": 1,
+          "sb": 0
+        },
+        "game_id": "2021039136",
+        "opponent": "日本ハム",
+        "is_starter": true,
+        "sub_type": null,
+        "comment": "5打数4安打、1本塁打、3打点、1得点。4安打／本塁打／3打点／得点圏1打数1安打を記録し、リーグ最高評価。",
+        "margin": 12.04
+      },
+      "pitcher_mvp": {
+        "name": "北山 亘基",
+        "team": "日本ハム",
+        "player_id": "1750903",
+        "role": "先発",
+        "raw": 63.0,
+        "score": 70.0,
+        "available_max": 90,
+        "breakdown": {
+          "innings": 20,
+          "prevention": 15,
+          "strikeout": 14.0,
+          "whip": 12,
+          "winContrib": 6,
+          "penalty": -4
+        },
+        "stat_line": "7回 1失点 自責1 8奪三振 被安打4 与四球1 WHIP0.71",
+        "reasons": [
+          "HQS"
+        ],
+        "minus_reasons": [
+          "被本塁打1"
+        ],
+        "keys": {
+          "outs": 21,
+          "er": 1,
+          "so": 8,
+          "whip": 0.7142857142857143,
+          "qs": true,
+          "hqs": true
+        },
+        "game_id": "2021039136",
+        "z": 59.83,
+        "z_method": "役割内標準化",
+        "mvp_value": 59.83,
+        "comment": "7回 1失点 自責1 8奪三振 被安打4 与四球1 WHIP0.71。HQS。",
+        "margin": 4.07
+      },
+      "best_batters": {
+        "捕": {
+          "name": "海野 隆司",
+          "team": "ソフトバンク",
+          "player_id": "1900101",
+          "position": "捕",
+          "order": 9,
+          "raw": 8.0,
+          "score": 9.64,
+          "available_max": 83,
+          "pa": 4,
+          "breakdown": {
+            "basicBatting": 4.0,
+            "runProduction": 0.0,
+            "clutch": 1,
+            "baserunning": 0,
+            "defense": 0,
+            "teamWin": 3,
+            "penalty": 0
+          },
+          "stat_line": "2打数0安打",
+          "reasons": [],
+          "minus_reasons": [],
+          "keys": {
+            "hits": 0,
+            "hr": 0,
+            "rbi": 0,
+            "runs": 0,
+            "risp_hit": 0,
+            "risp_ab": 0,
+            "so": 0,
+            "sb": 0
+          },
+          "game_id": "2021039136",
+          "opponent": "日本ハム",
+          "is_starter": true,
+          "sub_type": null
+        },
+        "一": {
+          "name": "清宮 幸太郎",
+          "team": "日本ハム",
+          "player_id": "1700025",
+          "position": "一",
+          "order": 2,
+          "raw": 20.5,
+          "score": 24.7,
+          "available_max": 83,
+          "pa": 5,
+          "breakdown": {
+            "basicBatting": 13.0,
+            "runProduction": 4.5,
+            "clutch": 4,
+            "baserunning": 0,
+            "defense": 0,
+            "teamWin": 0,
+            "penalty": -1
+          },
+          "stat_line": "5打数2安打、1本塁打、1打点、1得点",
+          "reasons": [
+            "本塁打",
+            "1打点",
+            "終盤の競り合いで本塁打"
+          ],
+          "minus_reasons": [
+            "三振1"
+          ],
+          "keys": {
+            "hits": 2,
+            "hr": 1,
+            "rbi": 1,
+            "runs": 1,
+            "risp_hit": 0,
+            "risp_ab": 0,
+            "so": 1,
+            "sb": 0
+          },
+          "game_id": "2021039136",
+          "opponent": "ソフトバンク",
+          "is_starter": true,
+          "sub_type": null
+        },
+        "二": {
+          "name": "小川 龍成",
+          "team": "ロッテ",
+          "player_id": "2000089",
+          "position": "二",
+          "order": 9,
+          "raw": 5.0,
+          "score": 6.02,
+          "available_max": 83,
+          "pa": 4,
+          "breakdown": {
+            "basicBatting": 3.0,
+            "runProduction": 0.0,
+            "clutch": 0,
+            "baserunning": 2,
+            "defense": 0,
+            "teamWin": 0,
+            "penalty": 0
+          },
+          "stat_line": "3打数1安打、1盗塁",
+          "reasons": [
+            "盗塁1"
+          ],
+          "minus_reasons": [],
+          "keys": {
+            "hits": 1,
+            "hr": 0,
+            "rbi": 0,
+            "runs": 0,
+            "risp_hit": 0,
+            "risp_ab": 1,
+            "so": 0,
+            "sb": 1
+          },
+          "game_id": "2021039138",
+          "opponent": "西武",
+          "is_starter": true,
+          "sub_type": null
+        },
+        "三": {
+          "name": "黒川 史陽",
+          "team": "楽天",
+          "player_id": "1900113",
+          "position": "三一",
+          "order": 8,
+          "raw": 14.5,
+          "score": 17.47,
+          "available_max": 83,
+          "pa": 4,
+          "breakdown": {
+            "basicBatting": 8.0,
+            "runProduction": 1.5,
+            "clutch": 2,
+            "baserunning": 0,
+            "defense": 0,
+            "teamWin": 3,
+            "penalty": 0
+          },
+          "stat_line": "4打数2安打、1得点",
+          "reasons": [],
+          "minus_reasons": [],
+          "keys": {
+            "hits": 2,
+            "hr": 0,
+            "rbi": 0,
+            "runs": 1,
+            "risp_hit": 0,
+            "risp_ab": 1,
+            "so": 0,
+            "sb": 0
+          },
+          "game_id": "2021039137",
+          "opponent": "オリックス",
+          "is_starter": true,
+          "sub_type": null
+        },
+        "遊": {
+          "name": "宗山 塁",
+          "team": "楽天",
+          "player_id": "1851157",
+          "position": "遊",
+          "order": 2,
+          "raw": 17.5,
+          "score": 21.08,
+          "available_max": 83,
+          "pa": 4,
+          "breakdown": {
+            "basicBatting": 10.0,
+            "runProduction": 4.5,
+            "clutch": 0,
+            "baserunning": 0,
+            "defense": 0,
+            "teamWin": 3,
+            "penalty": 0
+          },
+          "stat_line": "4打数1安打、1本塁打、1打点、1得点",
+          "reasons": [
+            "本塁打",
+            "1打点"
+          ],
+          "minus_reasons": [],
+          "keys": {
+            "hits": 1,
+            "hr": 1,
+            "rbi": 1,
+            "runs": 1,
+            "risp_hit": 0,
+            "risp_ab": 1,
+            "so": 0,
+            "sb": 0
+          },
+          "game_id": "2021039137",
+          "opponent": "オリックス",
+          "is_starter": true,
+          "sub_type": null
+        },
+        "左": {
+          "name": "郡司 裕也",
+          "team": "日本ハム",
+          "player_id": "1900040",
+          "position": "左三左",
+          "order": 6,
+          "raw": 30.5,
+          "score": 36.75,
+          "available_max": 83,
+          "pa": 4,
+          "breakdown": {
+            "basicBatting": 15.5,
+            "runProduction": 0.0,
+            "clutch": 15,
+            "baserunning": 0,
+            "defense": 0,
+            "teamWin": 0,
+            "penalty": 0
+          },
+          "stat_line": "3打数3安打",
+          "reasons": [
+            "猛打賞",
+            "得点圏2打数2安打"
+          ],
+          "minus_reasons": [],
+          "keys": {
+            "hits": 3,
+            "hr": 0,
+            "rbi": 0,
+            "runs": 0,
+            "risp_hit": 2,
+            "risp_ab": 2,
+            "so": 0,
+            "sb": 0
+          },
+          "game_id": "2021039136",
+          "opponent": "ソフトバンク",
+          "is_starter": true,
+          "sub_type": null
+        },
+        "中": {
+          "name": "辰己 涼介",
+          "team": "楽天",
+          "player_id": "1800117",
+          "position": "中",
+          "order": 3,
+          "raw": 34.5,
+          "score": 41.57,
+          "available_max": 83,
+          "pa": 4,
+          "breakdown": {
+            "basicBatting": 13.0,
+            "runProduction": 7.5,
+            "clutch": 11,
+            "baserunning": 0,
+            "defense": 0,
+            "teamWin": 3,
+            "penalty": 0
+          },
+          "stat_line": "4打数2安打、1本塁打、2打点、1得点",
+          "reasons": [
+            "本塁打",
+            "2打点",
+            "得点圏1打数1安打"
+          ],
+          "minus_reasons": [],
+          "keys": {
+            "hits": 2,
+            "hr": 1,
+            "rbi": 2,
+            "runs": 1,
+            "risp_hit": 1,
+            "risp_ab": 1,
+            "so": 0,
+            "sb": 0
+          },
+          "game_id": "2021039137",
+          "opponent": "オリックス",
+          "is_starter": true,
+          "sub_type": null
+        },
+        "右": {
+          "name": "正木 智也",
+          "team": "ソフトバンク",
+          "player_id": "2103735",
+          "position": "右一",
+          "order": 1,
+          "raw": 44.5,
+          "score": 53.61,
+          "available_max": 83,
+          "pa": 5,
+          "breakdown": {
+            "basicBatting": 25.0,
+            "runProduction": 10.5,
+            "clutch": 7,
+            "baserunning": 0,
+            "defense": 0,
+            "teamWin": 3,
+            "penalty": -1
+          },
+          "stat_line": "5打数4安打、1本塁打、3打点、1得点",
+          "reasons": [
+            "4安打",
+            "本塁打",
+            "3打点",
+            "得点圏1打数1安打"
+          ],
+          "minus_reasons": [
+            "三振1"
+          ],
+          "keys": {
+            "hits": 4,
+            "hr": 1,
+            "rbi": 3,
+            "runs": 1,
+            "risp_hit": 1,
+            "risp_ab": 1,
+            "so": 1,
+            "sb": 0
+          },
+          "game_id": "2021039136",
+          "opponent": "日本ハム",
+          "is_starter": true,
+          "sub_type": null
+        },
+        "指": {
+          "name": "レイエス",
+          "team": "日本ハム",
+          "player_id": "1860140",
+          "position": "指",
+          "order": 3,
+          "raw": 10.5,
+          "score": 12.65,
+          "available_max": 83,
+          "pa": 5,
+          "breakdown": {
+            "basicBatting": 4.5,
+            "runProduction": 8.0,
+            "clutch": 0,
+            "baserunning": 0,
+            "defense": 0,
+            "teamWin": 0,
+            "penalty": -2
+          },
+          "stat_line": "4打数1安打、1打点",
+          "reasons": [
+            "1打点",
+            "勝ち越し打"
+          ],
+          "minus_reasons": [
+            "三振2"
+          ],
+          "keys": {
+            "hits": 1,
+            "hr": 0,
+            "rbi": 1,
+            "runs": 0,
+            "risp_hit": 0,
+            "risp_ab": 0,
+            "so": 2,
+            "sb": 0
+          },
+          "game_id": "2021039136",
+          "opponent": "ソフトバンク",
+          "is_starter": true,
+          "sub_type": null
+        }
+      },
+      "best_pitchers": {
+        "先発": {
+          "name": "北山 亘基",
+          "team": "日本ハム",
+          "player_id": "1750903",
+          "role": "先発",
+          "raw": 63.0,
+          "score": 70.0,
+          "available_max": 90,
+          "breakdown": {
+            "innings": 20,
+            "prevention": 15,
+            "strikeout": 14.0,
+            "whip": 12,
+            "winContrib": 6,
+            "penalty": -4
+          },
+          "stat_line": "7回 1失点 自責1 8奪三振 被安打4 与四球1 WHIP0.71",
+          "reasons": [
+            "HQS"
+          ],
+          "minus_reasons": [
+            "被本塁打1"
+          ],
+          "keys": {
+            "outs": 21,
+            "er": 1,
+            "so": 8,
+            "whip": 0.7142857142857143,
+            "qs": true,
+            "hqs": true
+          },
+          "game_id": "2021039136",
+          "z": 59.83,
+          "z_method": "役割内標準化",
+          "mvp_value": 59.83
+        },
+        "中継ぎ": {
+          "name": "松本 裕樹",
+          "team": "ソフトバンク",
+          "player_id": "1400126",
+          "role": "中継ぎ",
+          "raw": 30.0,
+          "score": 50.0,
+          "available_max": 60,
+          "breakdown": {
+            "base": 26,
+            "situation": 4,
+            "penalty": 0.0
+          },
+          "stat_line": "1回 2奪三振 自責0 被安打1",
+          "reasons": [
+            "無失点",
+            "勝利投手",
+            "同点で登板"
+          ],
+          "minus_reasons": [],
+          "keys": {
+            "outs": 3,
+            "er": 0,
+            "so": 2
+          },
+          "game_id": "2021039136",
+          "z": 62.3,
+          "z_method": "役割内標準化",
+          "mvp_value": 43.61
+        },
+        "抑え": {
+          "name": "藤平 尚真",
+          "team": "楽天",
+          "player_id": "1600092",
+          "role": "抑え",
+          "raw": 31,
+          "score": 51.67,
+          "available_max": 60,
+          "breakdown": {
+            "base": 28,
+            "situation": 3,
+            "penalty": 0
+          },
+          "stat_line": "1回 1奪三振 自責0",
+          "reasons": [
+            "セーブ",
+            "無失点"
+          ],
+          "minus_reasons": [],
+          "keys": {
+            "outs": 3,
+            "er": 0,
+            "so": 1,
+            "save": true
+          },
+          "game_id": "2021039137",
+          "z": 51.67,
+          "z_method": "換算スコア",
+          "mvp_value": 36.17
+        }
+      },
+      "batter_ranking": [
+        {
+          "name": "正木 智也",
+          "team": "ソフトバンク",
+          "player_id": "2103735",
+          "position": "右一",
+          "order": 1,
+          "raw": 44.5,
+          "score": 53.61,
+          "available_max": 83,
+          "pa": 5,
+          "breakdown": {
+            "basicBatting": 25.0,
+            "runProduction": 10.5,
+            "clutch": 7,
+            "baserunning": 0,
+            "defense": 0,
+            "teamWin": 3,
+            "penalty": -1
+          },
+          "stat_line": "5打数4安打、1本塁打、3打点、1得点",
+          "reasons": [
+            "4安打",
+            "本塁打",
+            "3打点",
+            "得点圏1打数1安打"
+          ],
+          "minus_reasons": [
+            "三振1"
+          ],
+          "keys": {
+            "hits": 4,
+            "hr": 1,
+            "rbi": 3,
+            "runs": 1,
+            "risp_hit": 1,
+            "risp_ab": 1,
+            "so": 1,
+            "sb": 0
+          },
+          "game_id": "2021039136",
+          "opponent": "日本ハム",
+          "is_starter": true,
+          "sub_type": null
+        },
+        {
+          "name": "辰己 涼介",
+          "team": "楽天",
+          "player_id": "1800117",
+          "position": "中",
+          "order": 3,
+          "raw": 34.5,
+          "score": 41.57,
+          "available_max": 83,
+          "pa": 4,
+          "breakdown": {
+            "basicBatting": 13.0,
+            "runProduction": 7.5,
+            "clutch": 11,
+            "baserunning": 0,
+            "defense": 0,
+            "teamWin": 3,
+            "penalty": 0
+          },
+          "stat_line": "4打数2安打、1本塁打、2打点、1得点",
+          "reasons": [
+            "本塁打",
+            "2打点",
+            "得点圏1打数1安打"
+          ],
+          "minus_reasons": [],
+          "keys": {
+            "hits": 2,
+            "hr": 1,
+            "rbi": 2,
+            "runs": 1,
+            "risp_hit": 1,
+            "risp_ab": 1,
+            "so": 0,
+            "sb": 0
+          },
+          "game_id": "2021039137",
+          "opponent": "オリックス",
+          "is_starter": true,
+          "sub_type": null
+        },
+        {
+          "name": "郡司 裕也",
+          "team": "日本ハム",
+          "player_id": "1900040",
+          "position": "左三左",
+          "order": 6,
+          "raw": 30.5,
+          "score": 36.75,
+          "available_max": 83,
+          "pa": 4,
+          "breakdown": {
+            "basicBatting": 15.5,
+            "runProduction": 0.0,
+            "clutch": 15,
+            "baserunning": 0,
+            "defense": 0,
+            "teamWin": 0,
+            "penalty": 0
+          },
+          "stat_line": "3打数3安打",
+          "reasons": [
+            "猛打賞",
+            "得点圏2打数2安打"
+          ],
+          "minus_reasons": [],
+          "keys": {
+            "hits": 3,
+            "hr": 0,
+            "rbi": 0,
+            "runs": 0,
+            "risp_hit": 2,
+            "risp_ab": 2,
+            "so": 0,
+            "sb": 0
+          },
+          "game_id": "2021039136",
+          "opponent": "ソフトバンク",
+          "is_starter": true,
+          "sub_type": null
+        },
+        {
+          "name": "中川 圭太",
+          "team": "オリックス",
+          "player_id": "1800104",
+          "position": "中",
+          "order": 1,
+          "raw": 22.5,
+          "score": 27.11,
+          "available_max": 83,
+          "pa": 4,
+          "breakdown": {
+            "basicBatting": 13.0,
+            "runProduction": 9.5,
+            "clutch": 0,
+            "baserunning": 0,
+            "defense": 0,
+            "teamWin": 0,
+            "penalty": 0
+          },
+          "stat_line": "4打数2安打、1本塁打、1打点、1得点",
+          "reasons": [
+            "本塁打",
+            "1打点",
+            "同点打"
+          ],
+          "minus_reasons": [],
+          "keys": {
+            "hits": 2,
+            "hr": 1,
+            "rbi": 1,
+            "runs": 1,
+            "risp_hit": 0,
+            "risp_ab": 0,
+            "so": 0,
+            "sb": 0
+          },
+          "game_id": "2021039137",
+          "opponent": "楽天",
+          "is_starter": true,
+          "sub_type": null
+        },
+        {
+          "name": "清宮 幸太郎",
+          "team": "日本ハム",
+          "player_id": "1700025",
+          "position": "一",
+          "order": 2,
+          "raw": 20.5,
+          "score": 24.7,
+          "available_max": 83,
+          "pa": 5,
+          "breakdown": {
+            "basicBatting": 13.0,
+            "runProduction": 4.5,
+            "clutch": 4,
+            "baserunning": 0,
+            "defense": 0,
+            "teamWin": 0,
+            "penalty": -1
+          },
+          "stat_line": "5打数2安打、1本塁打、1打点、1得点",
+          "reasons": [
+            "本塁打",
+            "1打点",
+            "終盤の競り合いで本塁打"
+          ],
+          "minus_reasons": [
+            "三振1"
+          ],
+          "keys": {
+            "hits": 2,
+            "hr": 1,
+            "rbi": 1,
+            "runs": 1,
+            "risp_hit": 0,
+            "risp_ab": 0,
+            "so": 1,
+            "sb": 0
+          },
+          "game_id": "2021039136",
+          "opponent": "ソフトバンク",
+          "is_starter": true,
+          "sub_type": null
+        },
+        {
+          "name": "ネビン",
+          "team": "西武",
+          "player_id": "2101047",
+          "position": "一",
+          "order": 4,
+          "raw": 20.5,
+          "score": 24.7,
+          "available_max": 83,
+          "pa": 3,
+          "breakdown": {
+            "basicBatting": 12.0,
+            "runProduction": 4.5,
+            "clutch": 1,
+            "baserunning": 0,
+            "defense": 0,
+            "teamWin": 3,
+            "penalty": 0
+          },
+          "stat_line": "2打数1安打、1本塁打、1打点、1得点",
+          "reasons": [
+            "本塁打",
+            "1打点"
+          ],
+          "minus_reasons": [],
+          "keys": {
+            "hits": 1,
+            "hr": 1,
+            "rbi": 1,
+            "runs": 1,
+            "risp_hit": 0,
+            "risp_ab": 0,
+            "so": 0,
+            "sb": 0
+          },
+          "game_id": "2021039138",
+          "opponent": "ロッテ",
+          "is_starter": true,
+          "sub_type": null
+        },
+        {
+          "name": "宗山 塁",
+          "team": "楽天",
+          "player_id": "1851157",
+          "position": "遊",
+          "order": 2,
+          "raw": 17.5,
+          "score": 21.08,
+          "available_max": 83,
+          "pa": 4,
+          "breakdown": {
+            "basicBatting": 10.0,
+            "runProduction": 4.5,
+            "clutch": 0,
+            "baserunning": 0,
+            "defense": 0,
+            "teamWin": 3,
+            "penalty": 0
+          },
+          "stat_line": "4打数1安打、1本塁打、1打点、1得点",
+          "reasons": [
+            "本塁打",
+            "1打点"
+          ],
+          "minus_reasons": [],
+          "keys": {
+            "hits": 1,
+            "hr": 1,
+            "rbi": 1,
+            "runs": 1,
+            "risp_hit": 0,
+            "risp_ab": 1,
+            "so": 0,
+            "sb": 0
+          },
+          "game_id": "2021039137",
+          "opponent": "オリックス",
+          "is_starter": true,
+          "sub_type": null
+        },
+        {
+          "name": "柳町 達",
+          "team": "ソフトバンク",
+          "player_id": "1900104",
+          "position": "打",
+          "order": 8,
+          "raw": 16.0,
+          "score": 19.28,
+          "available_max": 83,
+          "pa": 1,
+          "breakdown": {
+            "basicBatting": 5.0,
+            "runProduction": 3.0,
+            "clutch": 9,
+            "baserunning": 0,
+            "defense": 0,
+            "teamWin": 3,
+            "penalty": 0
+          },
+          "stat_line": "1打数1安打、1打点",
+          "reasons": [
+            "1打点",
+            "得点圏1打数1安打"
+          ],
+          "minus_reasons": [],
+          "keys": {
+            "hits": 1,
+            "hr": 0,
+            "rbi": 1,
+            "runs": 0,
+            "risp_hit": 1,
+            "risp_ab": 1,
+            "so": 0,
+            "sb": 0
+          },
+          "game_id": "2021039136",
+          "opponent": "日本ハム",
+          "is_starter": false,
+          "sub_type": "代打"
+        },
+        {
+          "name": "万波 中正",
+          "team": "日本ハム",
+          "player_id": "1800093",
+          "position": "右",
+          "order": 4,
+          "raw": 15.0,
+          "score": 18.07,
+          "available_max": 83,
+          "pa": 5,
+          "breakdown": {
+            "basicBatting": 14.0,
+            "runProduction": 0.0,
+            "clutch": 2,
+            "baserunning": 0,
+            "defense": 0,
+            "teamWin": 0,
+            "penalty": -1
+          },
+          "stat_line": "5打数3安打",
+          "reasons": [
+            "猛打賞"
+          ],
+          "minus_reasons": [
+            "三振1"
+          ],
+          "keys": {
+            "hits": 3,
+            "hr": 0,
+            "rbi": 0,
+            "runs": 0,
+            "risp_hit": 0,
+            "risp_ab": 0,
+            "so": 1,
+            "sb": 0
+          },
+          "game_id": "2021039136",
+          "opponent": "ソフトバンク",
+          "is_starter": true,
+          "sub_type": null
+        },
+        {
+          "name": "黒川 史陽",
+          "team": "楽天",
+          "player_id": "1900113",
+          "position": "三一",
+          "order": 8,
+          "raw": 14.5,
+          "score": 17.47,
+          "available_max": 83,
+          "pa": 4,
+          "breakdown": {
+            "basicBatting": 8.0,
+            "runProduction": 1.5,
+            "clutch": 2,
+            "baserunning": 0,
+            "defense": 0,
+            "teamWin": 3,
+            "penalty": 0
+          },
+          "stat_line": "4打数2安打、1得点",
+          "reasons": [],
+          "minus_reasons": [],
+          "keys": {
+            "hits": 2,
+            "hr": 0,
+            "rbi": 0,
+            "runs": 1,
+            "risp_hit": 0,
+            "risp_ab": 1,
+            "so": 0,
+            "sb": 0
+          },
+          "game_id": "2021039137",
+          "opponent": "オリックス",
+          "is_starter": true,
+          "sub_type": null
+        },
+        {
+          "name": "浅村 栄斗",
+          "team": "楽天",
+          "player_id": "900056",
+          "position": "一",
+          "order": 7,
+          "raw": 11.0,
+          "score": 13.25,
+          "available_max": 83,
+          "pa": 4,
+          "breakdown": {
+            "basicBatting": 7.0,
+            "runProduction": 0.0,
+            "clutch": 2,
+            "baserunning": 0,
+            "defense": 0,
+            "teamWin": 3,
+            "penalty": -1
+          },
+          "stat_line": "2打数1安打",
+          "reasons": [],
+          "minus_reasons": [
+            "三振1"
+          ],
+          "keys": {
+            "hits": 1,
+            "hr": 0,
+            "rbi": 0,
+            "runs": 0,
+            "risp_hit": 0,
+            "risp_ab": 0,
+            "so": 1,
+            "sb": 0
+          },
+          "game_id": "2021039137",
+          "opponent": "オリックス",
+          "is_starter": true,
+          "sub_type": null
+        },
+        {
+          "name": "レイエス",
+          "team": "日本ハム",
+          "player_id": "1860140",
+          "position": "指",
+          "order": 3,
+          "raw": 10.5,
+          "score": 12.65,
+          "available_max": 83,
+          "pa": 5,
+          "breakdown": {
+            "basicBatting": 4.5,
+            "runProduction": 8.0,
+            "clutch": 0,
+            "baserunning": 0,
+            "defense": 0,
+            "teamWin": 0,
+            "penalty": -2
+          },
+          "stat_line": "4打数1安打、1打点",
+          "reasons": [
+            "1打点",
+            "勝ち越し打"
+          ],
+          "minus_reasons": [
+            "三振2"
+          ],
+          "keys": {
+            "hits": 1,
+            "hr": 0,
+            "rbi": 1,
+            "runs": 0,
+            "risp_hit": 0,
+            "risp_ab": 0,
+            "so": 2,
+            "sb": 0
+          },
+          "game_id": "2021039136",
+          "opponent": "ソフトバンク",
+          "is_starter": true,
+          "sub_type": null
+        },
+        {
+          "name": "中島 大輔",
+          "team": "楽天",
+          "player_id": "1950278",
+          "position": "右左",
+          "order": 1,
+          "raw": 10.0,
+          "score": 12.05,
+          "available_max": 83,
+          "pa": 4,
+          "breakdown": {
+            "basicBatting": 3.0,
+            "runProduction": 0.0,
+            "clutch": 5,
+            "baserunning": 0,
+            "defense": 0,
+            "teamWin": 3,
+            "penalty": -1
+          },
+          "stat_line": "4打数1安打",
+          "reasons": [
+            "得点圏2打数1安打"
+          ],
+          "minus_reasons": [
+            "三振1"
+          ],
+          "keys": {
+            "hits": 1,
+            "hr": 0,
+            "rbi": 0,
+            "runs": 0,
+            "risp_hit": 1,
+            "risp_ab": 2,
+            "so": 1,
+            "sb": 0
+          },
+          "game_id": "2021039137",
+          "opponent": "オリックス",
+          "is_starter": true,
+          "sub_type": null
+        },
+        {
+          "name": "蛭間 拓哉",
+          "team": "西武",
+          "player_id": "1850820",
+          "position": "左",
+          "order": 8,
+          "raw": 10.0,
+          "score": 12.05,
+          "available_max": 83,
+          "pa": 3,
+          "breakdown": {
+            "basicBatting": 5.0,
+            "runProduction": 0.0,
+            "clutch": 2,
+            "baserunning": 0,
+            "defense": 0,
+            "teamWin": 3,
+            "penalty": 0
+          },
+          "stat_line": "3打数1安打",
+          "reasons": [],
+          "minus_reasons": [],
+          "keys": {
+            "hits": 1,
+            "hr": 0,
+            "rbi": 0,
+            "runs": 0,
+            "risp_hit": 0,
+            "risp_ab": 0,
+            "so": 0,
+            "sb": 0
+          },
+          "game_id": "2021039138",
+          "opponent": "ロッテ",
+          "is_starter": true,
+          "sub_type": null
+        },
+        {
+          "name": "近藤 健介",
+          "team": "ソフトバンク",
+          "player_id": "1100097",
+          "position": "左",
+          "order": 3,
+          "raw": 9.0,
+          "score": 10.84,
+          "available_max": 83,
+          "pa": 5,
+          "breakdown": {
+            "basicBatting": 7.0,
+            "runProduction": 0.0,
+            "clutch": 1,
+            "baserunning": 0,
+            "defense": 0,
+            "teamWin": 3,
+            "penalty": -2
+          },
+          "stat_line": "4打数1安打",
+          "reasons": [],
+          "minus_reasons": [
+            "三振1"
+          ],
+          "keys": {
+            "hits": 1,
+            "hr": 0,
+            "rbi": 0,
+            "runs": 0,
+            "risp_hit": 0,
+            "risp_ab": 2,
+            "so": 1,
+            "sb": 0
+          },
+          "game_id": "2021039136",
+          "opponent": "日本ハム",
+          "is_starter": true,
+          "sub_type": null
+        }
+      ],
+      "pitcher_ranking": {
+        "先発": [
+          {
+            "name": "北山 亘基",
+            "team": "日本ハム",
+            "player_id": "1750903",
+            "role": "先発",
+            "raw": 63.0,
+            "score": 70.0,
+            "available_max": 90,
+            "breakdown": {
+              "innings": 20,
+              "prevention": 15,
+              "strikeout": 14.0,
+              "whip": 12,
+              "winContrib": 6,
+              "penalty": -4
+            },
+            "stat_line": "7回 1失点 自責1 8奪三振 被安打4 与四球1 WHIP0.71",
+            "reasons": [
+              "HQS"
+            ],
+            "minus_reasons": [
+              "被本塁打1"
+            ],
+            "keys": {
+              "outs": 21,
+              "er": 1,
+              "so": 8,
+              "whip": 0.7142857142857143,
+              "qs": true,
+              "hqs": true
+            },
+            "game_id": "2021039136",
+            "z": 59.83,
+            "z_method": "役割内標準化",
+            "mvp_value": 59.83
+          },
+          {
+            "name": "平良 海馬",
+            "team": "西武",
+            "player_id": "1700124",
+            "role": "先発",
+            "raw": 60.0,
+            "score": 66.67,
+            "available_max": 90,
+            "breakdown": {
+              "innings": 20.0,
+              "prevention": 20,
+              "strikeout": 6.0,
+              "whip": 3,
+              "winContrib": 12,
+              "penalty": -1
+            },
+            "stat_line": "6回 0失点 自責0 4奪三振 被安打7 与四球1 WHIP1.33",
+            "reasons": [
+              "無失点",
+              "勝利投手",
+              "QS"
+            ],
+            "minus_reasons": [],
+            "keys": {
+              "outs": 18,
+              "er": 0,
+              "so": 4,
+              "whip": 1.3333333333333333,
+              "qs": true,
+              "hqs": false
+            },
+            "game_id": "2021039138",
+            "z": 57.39,
+            "z_method": "役割内標準化",
+            "mvp_value": 54.52
+          },
+          {
+            "name": "瀧中 瞭太",
+            "team": "楽天",
+            "player_id": "1900117",
+            "role": "先発",
+            "raw": 58.0,
+            "score": 64.44,
+            "available_max": 90,
+            "breakdown": {
+              "innings": 20,
+              "prevention": 15,
+              "strikeout": 9.0,
+              "whip": 6,
+              "winContrib": 12,
+              "penalty": -4
+            },
+            "stat_line": "6.2回 1失点 自責1 6奪三振 被安打6 与四球1 WHIP1.05",
+            "reasons": [
+              "勝利投手",
+              "QS"
+            ],
+            "minus_reasons": [
+              "被本塁打1"
+            ],
+            "keys": {
+              "outs": 20,
+              "er": 1,
+              "so": 6,
+              "whip": 1.05,
+              "qs": true,
+              "hqs": false
+            },
+            "game_id": "2021039137",
+            "z": 55.76,
+            "z_method": "役割内標準化",
+            "mvp_value": 54.81
+          },
+          {
+            "name": "上沢 直之",
+            "team": "ソフトバンク",
+            "player_id": "1100099",
+            "role": "先発",
+            "raw": 56.5,
+            "score": 62.78,
+            "available_max": 90,
+            "breakdown": {
+              "innings": 20.0,
+              "prevention": 20,
+              "strikeout": 12.5,
+              "whip": 3,
+              "winContrib": 5,
+              "penalty": -4
+            },
+            "stat_line": "6回 0失点 自責0 7奪三振 被安打6 与四球2 WHIP1.33",
+            "reasons": [
+              "無失点",
+              "QS"
+            ],
+            "minus_reasons": [],
+            "keys": {
+              "outs": 18,
+              "er": 0,
+              "so": 7,
+              "whip": 1.3333333333333333,
+              "qs": true,
+              "hqs": false
+            },
+            "game_id": "2021039136",
+            "z": 54.54,
+            "z_method": "役割内標準化",
+            "mvp_value": 51.81
+          },
+          {
+            "name": "九里 亜蓮",
+            "team": "オリックス",
+            "player_id": "1300058",
+            "role": "先発",
+            "raw": 37.5,
+            "score": 41.67,
+            "available_max": 90,
+            "breakdown": {
+              "innings": 20.0,
+              "prevention": 9,
+              "strikeout": 7.5,
+              "whip": 9,
+              "winContrib": 3,
+              "penalty": -11
+            },
+            "stat_line": "6回 2失点 自責2 5奪三振 被安打3 与四球3 WHIP1.00",
+            "reasons": [
+              "QS"
+            ],
+            "minus_reasons": [
+              "敗戦",
+              "被本塁打2"
+            ],
+            "keys": {
+              "outs": 18,
+              "er": 2,
+              "so": 5,
+              "whip": 1.0,
+              "qs": true,
+              "hqs": false
+            },
+            "game_id": "2021039137",
+            "z": 39.09,
+            "z_method": "役割内標準化",
+            "mvp_value": 37.14
+          },
+          {
+            "name": "ジャクソン",
+            "team": "ロッテ",
+            "player_id": "2103904",
+            "role": "先発",
+            "raw": 30.5,
+            "score": 33.89,
+            "available_max": 90,
+            "breakdown": {
+              "innings": 16.0,
+              "prevention": 9,
+              "strikeout": 7.5,
+              "whip": 6,
+              "winContrib": 0,
+              "penalty": -8
+            },
+            "stat_line": "5.1回 2失点 自責2 5奪三振 被安打4 与四球2 WHIP1.12",
+            "reasons": [],
+            "minus_reasons": [
+              "敗戦",
+              "被本塁打1"
+            ],
+            "keys": {
+              "outs": 16,
+              "er": 2,
+              "so": 5,
+              "whip": 1.125,
+              "qs": false,
+              "hqs": false
+            },
+            "game_id": "2021039138",
+            "z": 33.39,
+            "z_method": "役割内標準化",
+            "mvp_value": 30.62
+          }
+        ],
+        "中継ぎ": [
+          {
+            "name": "松本 裕樹",
+            "team": "ソフトバンク",
+            "player_id": "1400126",
+            "role": "中継ぎ",
+            "raw": 30.0,
+            "score": 50.0,
+            "available_max": 60,
+            "breakdown": {
+              "base": 26,
+              "situation": 4,
+              "penalty": 0.0
+            },
+            "stat_line": "1回 2奪三振 自責0 被安打1",
+            "reasons": [
+              "無失点",
+              "勝利投手",
+              "同点で登板"
+            ],
+            "minus_reasons": [],
+            "keys": {
+              "outs": 3,
+              "er": 0,
+              "so": 2
+            },
+            "game_id": "2021039136",
+            "z": 62.3,
+            "z_method": "役割内標準化",
+            "mvp_value": 43.61
+          },
+          {
+            "name": "堀 瑞輝",
+            "team": "日本ハム",
+            "player_id": "1600133",
+            "role": "中継ぎ",
+            "raw": 26.0,
+            "score": 43.33,
+            "available_max": 60,
+            "breakdown": {
+              "base": 23,
+              "situation": 3,
+              "penalty": 0.0
+            },
+            "stat_line": "0.2回 2奪三振 自責0 被安打0",
+            "reasons": [
+              "無失点",
+              "得点圏に走者を置いて登板"
+            ],
+            "minus_reasons": [],
+            "keys": {
+              "outs": 2,
+              "er": 0,
+              "so": 2
+            },
+            "game_id": "2021039136",
+            "z": 58.27,
+            "z_method": "役割内標準化",
+            "mvp_value": 39.8
+          },
+          {
+            "name": "柴田 大地",
+            "team": "楽天",
+            "player_id": "2103765",
+            "role": "中継ぎ",
+            "raw": 26.0,
+            "score": 43.33,
+            "available_max": 60,
+            "breakdown": {
+              "base": 19,
+              "situation": 7,
+              "penalty": 0.0
+            },
+            "stat_line": "0.1回 1奪三振 自責0 被安打0",
+            "reasons": [
+              "無失点",
+              "1点リードで登板",
+              "得点圏に走者を置いて登板"
+            ],
+            "minus_reasons": [],
+            "keys": {
+              "outs": 1,
+              "er": 0,
+              "so": 1
+            },
+            "game_id": "2021039137",
+            "z": 58.27,
+            "z_method": "役割内標準化",
+            "mvp_value": 38.87
+          },
+          {
+            "name": "阿部 翔太",
+            "team": "オリックス",
+            "player_id": "2000101",
+            "role": "中継ぎ",
+            "raw": 22.0,
+            "score": 36.67,
+            "available_max": 60,
+            "breakdown": {
+              "base": 17,
+              "situation": 5,
+              "penalty": 0.0
+            },
+            "stat_line": "0.1回 0奪三振 自責0 被安打0",
+            "reasons": [
+              "無失点",
+              "満塁で登板"
+            ],
+            "minus_reasons": [],
+            "keys": {
+              "outs": 1,
+              "er": 0,
+              "so": 0
+            },
+            "game_id": "2021039137",
+            "z": 54.23,
+            "z_method": "役割内標準化",
+            "mvp_value": 36.17
+          },
+          {
+            "name": "坂本 光士郎",
+            "team": "ロッテ",
+            "player_id": "1800037",
+            "role": "中継ぎ",
+            "raw": 22.0,
+            "score": 36.67,
+            "available_max": 60,
+            "breakdown": {
+              "base": 19,
+              "situation": 3,
+              "penalty": 0.0
+            },
+            "stat_line": "0.2回 0奪三振 自責0 被安打0",
+            "reasons": [
+              "無失点",
+              "得点圏に走者を置いて登板"
+            ],
+            "minus_reasons": [],
+            "keys": {
+              "outs": 2,
+              "er": 0,
+              "so": 0
+            },
+            "game_id": "2021039138",
+            "z": 54.23,
+            "z_method": "役割内標準化",
+            "mvp_value": 37.04
+          },
+          {
+            "name": "オスナ",
+            "team": "ソフトバンク",
+            "player_id": "1560184",
+            "role": "中継ぎ",
+            "raw": 21.0,
+            "score": 35.0,
+            "available_max": 60,
+            "breakdown": {
+              "base": 17,
+              "situation": 4,
+              "penalty": 0.0
+            },
+            "stat_line": "1回 0奪三振 自責0 被安打2",
+            "reasons": [
+              "無失点",
+              "1点リードで登板"
+            ],
+            "minus_reasons": [],
+            "keys": {
+              "outs": 3,
+              "er": 0,
+              "so": 0
+            },
+            "game_id": "2021039136",
+            "z": 53.23,
+            "z_method": "役割内標準化",
+            "mvp_value": 37.26
+          },
+          {
+            "name": "ウィンゲンター",
+            "team": "西武",
+            "player_id": "1860167",
+            "role": "中継ぎ",
+            "raw": 21.0,
+            "score": 35.0,
+            "available_max": 60,
+            "breakdown": {
+              "base": 21,
+              "situation": 0,
+              "penalty": 0.0
+            },
+            "stat_line": "1回 0奪三振 自責0 被安打0",
+            "reasons": [
+              "無失点"
+            ],
+            "minus_reasons": [],
+            "keys": {
+              "outs": 3,
+              "er": 0,
+              "so": 0
+            },
+            "game_id": "2021039138",
+            "z": 53.23,
+            "z_method": "役割内標準化",
+            "mvp_value": 37.26
+          },
+          {
+            "name": "達 孝太",
+            "team": "日本ハム",
+            "player_id": "2050307",
+            "role": "中継ぎ",
+            "raw": 20.5,
+            "score": 34.17,
+            "available_max": 60,
+            "breakdown": {
+              "base": 18,
+              "situation": 4,
+              "penalty": -1.5
+            },
+            "stat_line": "1回 2奪三振 自責0 被安打1",
+            "reasons": [
+              "無失点",
+              "同点で登板"
+            ],
+            "minus_reasons": [],
+            "keys": {
+              "outs": 3,
+              "er": 0,
+              "so": 2
+            },
+            "game_id": "2021039136",
+            "z": 52.72,
+            "z_method": "役割内標準化",
+            "mvp_value": 36.9
+          },
+          {
+            "name": "九谷 瑠",
+            "team": "楽天",
+            "player_id": "2121018",
+            "role": "中継ぎ",
+            "raw": 19.0,
+            "score": 31.67,
+            "available_max": 60,
+            "breakdown": {
+              "base": 19,
+              "situation": 0,
+              "penalty": 0.0
+            },
+            "stat_line": "1回 1奪三振 自責0 被安打1",
+            "reasons": [
+              "無失点"
+            ],
+            "minus_reasons": [],
+            "keys": {
+              "outs": 3,
+              "er": 0,
+              "so": 1
+            },
+            "game_id": "2021039137",
+            "z": 51.21,
+            "z_method": "役割内標準化",
+            "mvp_value": 35.85
+          },
+          {
+            "name": "小野 郁",
+            "team": "ロッテ",
+            "player_id": "1400140",
+            "role": "中継ぎ",
+            "raw": 19.0,
+            "score": 31.67,
+            "available_max": 60,
+            "breakdown": {
+              "base": 19,
+              "situation": 0,
+              "penalty": 0.0
+            },
+            "stat_line": "1回 1奪三振 自責0 被安打1",
+            "reasons": [
+              "無失点"
+            ],
+            "minus_reasons": [],
+            "keys": {
+              "outs": 3,
+              "er": 0,
+              "so": 1
+            },
+            "game_id": "2021039138",
+            "z": 51.21,
+            "z_method": "役割内標準化",
+            "mvp_value": 35.85
+          }
+        ],
+        "抑え": [
+          {
+            "name": "藤平 尚真",
+            "team": "楽天",
+            "player_id": "1600092",
+            "role": "抑え",
+            "raw": 31,
+            "score": 51.67,
+            "available_max": 60,
+            "breakdown": {
+              "base": 28,
+              "situation": 3,
+              "penalty": 0
+            },
+            "stat_line": "1回 1奪三振 自責0",
+            "reasons": [
+              "セーブ",
+              "無失点"
+            ],
+            "minus_reasons": [],
+            "keys": {
+              "outs": 3,
+              "er": 0,
+              "so": 1,
+              "save": true
+            },
+            "game_id": "2021039137",
+            "z": 51.67,
+            "z_method": "換算スコア",
+            "mvp_value": 36.17
+          },
+          {
+            "name": "杉山 一樹",
+            "team": "ソフトバンク",
+            "player_id": "1800107",
+            "role": "抑え",
+            "raw": 16,
+            "score": 26.67,
+            "available_max": 60,
+            "breakdown": {
+              "base": 27,
+              "situation": 0,
+              "penalty": -11
+            },
+            "stat_line": "1回 3奪三振 自責1",
+            "reasons": [
+              "セーブ"
+            ],
+            "minus_reasons": [
+              "自責1"
+            ],
+            "keys": {
+              "outs": 3,
+              "er": 1,
+              "so": 3,
+              "save": true
+            },
+            "game_id": "2021039136",
+            "z": 26.67,
+            "z_method": "換算スコア",
+            "mvp_value": 18.67
+          },
+          {
+            "name": "甲斐野 央",
+            "team": "西武",
+            "player_id": "1800106",
+            "role": "抑え",
+            "raw": 11,
+            "score": 18.33,
+            "available_max": 60,
+            "breakdown": {
+              "base": 20,
+              "situation": 3,
+              "penalty": -12
+            },
+            "stat_line": "1回 1奪三振 自責1",
+            "reasons": [
+              "セーブ"
+            ],
+            "minus_reasons": [
+              "自責1"
+            ],
+            "keys": {
+              "outs": 3,
+              "er": 1,
+              "so": 1,
+              "save": true
+            },
+            "game_id": "2021039138",
+            "z": 18.33,
+            "z_method": "換算スコア",
+            "mvp_value": 12.83
+          }
+        ]
+      }
+    }
+  }
+}
