@@ -802,3 +802,275 @@ def classify_pitcher_roles(game, ctx):
             row["_team"] = team
             out.append((row, _role_of(i, row, ctx, rows), team))
     return out
+
+
+# ---------------------------------------------------------------- 期間集計（週間・月間共通）
+
+def _pct(rank, n):
+    """順位を0〜1の百分位に変換する（1位が1.0）"""
+    if n <= 1:
+        return 1.0
+    return 1 - (rank - 1) / (n - 1)
+
+
+def _percentile_score(values, my_value, max_pt, higher_is_better=True):
+    """
+    リーグ内の分布の中で my_value が何点分にあたるかを返す。
+    値が無い（None）比較対象は除外する。
+    """
+    vals = [v for v in values if v is not None]
+    if my_value is None or not vals:
+        return 0.0
+    vals_sorted = sorted(vals, reverse=higher_is_better)
+    # 同値は同順位にする
+    rank = 1
+    for v in vals_sorted:
+        if (higher_is_better and v > my_value) or (not higher_is_better and v < my_value):
+            rank += 1
+    return round(_pct(rank, len(vals_sorted)) * max_pt, 2)
+
+
+def aggregate_batter_period(rows):
+    """1選手ぶんの batting_lines 行（複数試合）を期間集計する"""
+    g = len(rows)
+    ab = sum(r.get("ab") or 0 for r in rows)
+    hits = sum(r.get("hits") or 0 for r in rows)
+    singles = sum(r.get("singles") or 0 for r in rows)
+    doubles = sum(r.get("doubles") or 0 for r in rows)
+    triples = sum(r.get("triples") or 0 for r in rows)
+    hr = sum(r.get("hr") or 0 for r in rows)
+    bb = sum(r.get("bb") or 0 for r in rows)
+    hbp = sum(r.get("hbp") or 0 for r in rows)
+    so = sum(r.get("so") or 0 for r in rows)
+    rbi = sum(r.get("rbi") or 0 for r in rows)
+    runs = sum(r.get("runs") or 0 for r in rows)
+    sb = sum(r.get("sb") or 0 for r in rows)
+    errors = sum(r.get("errors") or 0 for r in rows)
+    starts = sum(1 for r in rows if r.get("is_starter"))
+
+    pa = ab + bb + hbp  # 犠打・犠飛はここでは持たないため簡易PA
+    tb = singles + doubles * 2 + triples * 3 + hr * 4
+    avg = hits / ab if ab else None
+    obp = (hits + bb + hbp) / pa if pa else None
+    slg = tb / ab if ab else None
+    ops = (obp + slg) if (obp is not None and slg is not None) else None
+
+    return {
+        "games": g, "ab": ab, "hits": hits, "hr": hr, "rbi": rbi, "runs": runs,
+        "sb": sb, "so": so, "errors": errors, "starts": starts, "pa": pa,
+        "extra_base_hits": doubles + triples + hr,
+        "avg": avg, "obp": obp, "slg": slg, "ops": ops,
+        "gidp": 0,  # batting_lines に併殺列がないため対象外（推測しない）
+    }
+
+
+def score_weekly_batter(name, team, position, agg, league_pool, team_games, cfg=None):
+    """
+    週間野手スコア。リーグ内の他選手（league_pool = 同リーグの agg のリスト）と
+    比較した百分位で「打撃内容」等を採点する（仕様書9-2）。
+    """
+    cfg = cfg or load_config()
+    c = cfg["weekly_batter"]
+    cats = c["categories"]
+    reasons = []
+
+    # --- 打撃内容：リーグ内百分位 ---
+    B = c["battingContent"]
+    content = 0
+    content += _percentile_score([p["ops"] for p in league_pool], agg["ops"], B["ops"])
+    content += _percentile_score([p["avg"] for p in league_pool], agg["avg"], B["avg"])
+    content += _percentile_score([p["obp"] for p in league_pool], agg["obp"], B["obp"])
+    content += _percentile_score([p["slg"] for p in league_pool], agg["slg"], B["slg"])
+    content = _cap(content, cats["battingContent"]["max"])
+    if agg["ops"] is not None:
+        reasons.append(f"OPS {agg['ops']:.3f}")
+
+    # --- 長打・得点貢献：リーグ最多に対する割合 ---
+    R = c["runProduction"]
+    prod = 0
+    for src_key, pt in (("hr", R["hr"]), ("rbi", R["rbi"]), ("runs", R["run"])):
+        mx = max([p[src_key] for p in league_pool] + [0])
+        prod += (agg[src_key] / mx * pt) if mx else 0
+    mx_xbh = max([p["extra_base_hits"] for p in league_pool] + [0])
+    prod += (agg["extra_base_hits"] / mx_xbh * R["extra_base_hits"]) if mx_xbh else 0
+    prod = _cap(prod, cats["runProduction"]["max"])
+    if agg["hr"]:
+        reasons.append(f"{agg['hr']}本塁打")
+    if agg["rbi"]:
+        reasons.append(f"{agg['rbi']}打点")
+
+    # --- 出場量 ---
+    T = c["playingTime"]
+    need_pa = (team_games or 0) * c["min_pa_games_factor"]
+    pt = 0
+    if need_pa:
+        pt += min(agg["pa"] / need_pa, 1) * T["qualified_pa"]
+    if team_games:
+        pt += min(agg["starts"] / team_games, 1) * T["starts"]
+        pt += min(agg["games"] / team_games, 1) * T["appearance_rate"]
+    pt = _cap(pt, cats["playingTime"]["max"])
+
+    # --- 走塁・守備（盗塁のみ）---
+    D = c["defenseBaser"]
+    db = _cap(agg["sb"] * D["sb"], cats["defenseBaser"]["available_max"])
+    if agg["sb"]:
+        reasons.append(f"盗塁{agg['sb']}")
+
+    # --- 勝負強さ（得点圏は集計に含まれないため、現状は0で明示）---
+    clutch = 0
+
+    # --- チーム勝利貢献（省略：試合ごとの勝敗紐付けが必要なため0）---
+    team_win = 0
+
+    # --- マイナス ---
+    P = c["penalty"]
+    pen = 0
+    if agg["ab"]:
+        so_rate = agg["so"] / agg["ab"]
+        pen += max(-so_rate * 10, P["so_rate_max"])
+    pen += agg["errors"] * P["error_each"]
+
+    total = content + prod + clutch + pt + db + team_win + pen
+
+    mult = 1.0
+    if need_pa and agg["pa"] < need_pa:
+        mult = c["min_pa_multiplier"]
+
+    avail = sum(v["available_max"] for v in cats.values())
+    raw = total * mult
+    return {
+        "name": name, "team": team, "position": position,
+        "raw": round(raw, 2),
+        "score": round(raw / avail * 100, 2) if avail else 0,
+        "available_max": avail,
+        "breakdown": {"battingContent": round(content, 2), "runProduction": round(prod, 2),
+                      "clutch": clutch, "playingTime": round(pt, 2),
+                      "defenseBaser": round(db, 2), "teamWin": team_win,
+                      "penalty": round(pen, 2)},
+        "stat_line": (f"{agg['games']}試合 {agg['ab']}打数{agg['hits']}安打 "
+                      f"打率{agg['avg']:.3f}" if agg['avg'] is not None else f"{agg['games']}試合") +
+                     (f" OPS{agg['ops']:.3f}" if agg['ops'] is not None else "") +
+                     f" {agg['hr']}本 {agg['rbi']}点",
+        "reasons": reasons, "minus_reasons": [],
+        "under_min_pa": need_pa and agg["pa"] < need_pa,
+    }
+
+
+def aggregate_pitcher_period(rows):
+    outs = sum(r.get("outs") or 0 for r in rows)
+    er = sum(r.get("earned_runs") or 0 for r in rows)
+    ra = sum(r.get("runs_allowed") or 0 for r in rows)
+    so = sum(r.get("so") or 0 for r in rows)
+    bb = sum(r.get("bb") or 0 for r in rows)
+    ha = sum(r.get("hits_allowed") or 0 for r in rows)
+    hra = sum(r.get("hr_allowed") or 0 for r in rows)
+    saves = sum(1 for r in rows if "Ｓ" in (r.get("decision") or "") or "S" in (r.get("decision") or ""))
+    wins = sum(1 for r in rows if "勝" in (r.get("decision") or ""))
+    losses = sum(1 for r in rows if "敗" in (r.get("decision") or ""))
+    qs = sum(1 for r in rows if (r.get("outs") or 0) >= 18 and (r.get("earned_runs") or 0) <= 3)
+    hqs = sum(1 for r in rows if (r.get("outs") or 0) >= 21 and (r.get("earned_runs") or 0) <= 2)
+    holds = sum(r.get("_hold_count") or 0 for r in rows)
+    ip = outs / 3
+    return {
+        "games": len(rows), "outs": outs, "ip": ip, "er": er, "ra": ra,
+        "so": so, "bb": bb, "ha": ha, "hra": hra, "saves": saves,
+        "wins": wins, "losses": losses, "qs": qs, "hqs": hqs, "holds": holds,
+        "era": round(er * 9 / ip, 2) if ip else None,
+        "whip": round((ha + bb) / ip, 2) if ip else None,
+        "k9": round(so * 9 / ip, 2) if ip else None,
+    }
+
+
+def score_weekly_starter(name, team, agg, league_pool, cfg=None):
+    cfg = cfg or load_config()
+    c = cfg["weekly_starter"]
+    cats = c["categories"]
+    reasons = []
+    era = _percentile_score([p["era"] for p in league_pool], agg["era"],
+                             cats["era"]["max"], higher_is_better=False)
+    innings = min(agg["ip"] / 6, 1) * cats["innings"]["max"] if agg["games"] else 0
+    whip = _percentile_score([p["whip"] for p in league_pool], agg["whip"],
+                              cats["whip"]["max"], higher_is_better=False)
+    k = _percentile_score([p["so"] for p in league_pool], agg["so"], cats["strikeout"]["max"])
+    qs = min((agg["hqs"] * 1.5 + agg["qs"]) / max(agg["games"], 1), 1) * cats["qs"]["max"]
+    wc = min(agg["wins"] / max(agg["games"], 1), 1) * cats["winContrib"]["max"]
+    total = era + innings + whip + k + qs + wc
+    if agg["wins"]:
+        reasons.append(f"{agg['wins']}勝{agg['losses']}敗")
+    if agg["hqs"]:
+        reasons.append(f"HQS{agg['hqs']}")
+    elif agg["qs"]:
+        reasons.append(f"QS{agg['qs']}")
+    avail = sum(v["available_max"] for v in cats.values())
+    return {
+        "name": name, "team": team, "role": "先発",
+        "raw": round(total, 2), "score": round(total / avail * 100, 2) if avail else 0,
+        "available_max": avail,
+        "breakdown": {"era": round(era, 2), "innings": round(innings, 2),
+                      "whip": round(whip, 2), "strikeout": round(k, 2),
+                      "qs": round(qs, 2), "winContrib": round(wc, 2)},
+        "stat_line": (f"{agg['games']}試合 {agg['ip']:.1f}回 防御率"
+                      f"{agg['era']:.2f}" if agg['era'] is not None else f"{agg['games']}試合")
+                     + f" {agg['so']}奪三振 WHIP{agg['whip']:.2f}" if agg['whip'] is not None else "",
+        "reasons": reasons, "minus_reasons": [],
+    }
+
+
+def score_weekly_reliever(name, team, agg, league_pool, cfg=None):
+    cfg = cfg or load_config()
+    c = cfg["weekly_reliever"]
+    cats = c["categories"]
+    reasons = []
+    scoreless = (1 - agg["er"] / max(agg["ip"], 0.1)) if agg["ip"] else 0
+    sr = max(scoreless, 0) * cats["scorelessRate"]["max"]
+    holds = min(agg["holds"] / 3, 1) * cats["holds"]["max"]
+    content = _percentile_score([p["whip"] for p in league_pool], agg["whip"],
+                                 cats["content"]["max"], higher_is_better=False)
+    appear = min(agg["games"] / 4, 1) * cats["appearances"]["max"]
+    total = sr + holds + content + appear
+    mult = 1.0
+    if agg["games"] == 1:
+        mult = c["single_appearance_multiplier"]
+    elif agg["games"] == 2:
+        mult = c["two_appearance_multiplier"]
+    if agg["holds"]:
+        reasons.append(f"ホールド{agg['holds']}")
+    avail = sum(v["available_max"] for v in cats.values())
+    raw = total * mult
+    return {
+        "name": name, "team": team, "role": "中継ぎ",
+        "raw": round(raw, 2), "score": round(raw / avail * 100, 2) if avail else 0,
+        "available_max": avail,
+        "breakdown": {"scorelessRate": round(sr, 2), "holds": round(holds, 2),
+                      "content": round(content, 2), "appearances": round(appear, 2)},
+        "stat_line": f"{agg['games']}試合 {agg['ip']:.1f}回 自責{agg['er']} {agg['so']}奪三振",
+        "reasons": reasons, "minus_reasons": [],
+    }
+
+
+def score_weekly_closer(name, team, agg, league_pool, cfg=None):
+    cfg = cfg or load_config()
+    c = cfg["weekly_closer"]
+    cats = c["categories"]
+    reasons = []
+    saves = min(agg["saves"] / 3, 1) * cats["saves"]["max"]
+    save_rate = cats["saveRate"]["max"] if agg["saves"] and agg["losses"] == 0 else 0
+    scoreless = max(1 - agg["er"] / max(agg["ip"], 0.1), 0) * cats["scorelessRate"]["max"] if agg["ip"] else 0
+    whip = _percentile_score([p["whip"] for p in league_pool], agg["whip"],
+                              cats["whip"]["max"], higher_is_better=False)
+    k = _percentile_score([p["so"] for p in league_pool], agg["so"], cats["strikeout"]["max"])
+    appear = min(agg["games"] / 3, 1) * cats["appearances"]["max"]
+    total = saves + save_rate + scoreless + whip + k + appear
+    if agg["saves"]:
+        reasons.append(f"セーブ{agg['saves']}")
+    avail = sum(v["available_max"] for v in cats.values())
+    return {
+        "name": name, "team": team, "role": "抑え",
+        "raw": round(total, 2), "score": round(total / avail * 100, 2) if avail else 0,
+        "available_max": avail,
+        "breakdown": {"saves": round(saves, 2), "saveRate": round(save_rate, 2),
+                      "scorelessRate": round(scoreless, 2), "whip": round(whip, 2),
+                      "strikeout": round(k, 2), "appearances": round(appear, 2)},
+        "stat_line": f"{agg['games']}試合 {agg['saves']}S 自責{agg['er']} {agg['so']}奪三振",
+        "reasons": reasons, "minus_reasons": [],
+    }
