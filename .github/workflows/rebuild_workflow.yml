@@ -44,6 +44,20 @@ jobs:
           if [ -z "$SEASON" ]; then SEASON=$(date +%Y); fi
           python scraper/build_dataset.py --season "$SEASON" --format both
 
+      - name: Build awards
+        run: |
+          SEASON="${{ github.event.inputs.season }}"
+          if [ -z "$SEASON" ]; then SEASON=$(date +%Y); fi
+          SEASON="${SEASON%%-*}"
+          python scraper/build_awards.py --season "$SEASON" || echo "表彰の算出をスキップ"
+
+      - name: Build weekly and monthly awards
+        run: |
+          SEASON="${{ github.event.inputs.season }}"
+          if [ -z "$SEASON" ]; then SEASON=$(date +%Y); fi
+          SEASON="${SEASON%%-*}"
+          python scraper/build_period_awards.py --season "$SEASON" || echo "週間・月間表彰の算出をスキップ"
+
       - name: Validate data
         run: python scraper/validate_data.py || echo "検証で問題を検出（ログ参照）"
 
