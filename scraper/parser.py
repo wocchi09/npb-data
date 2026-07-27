@@ -757,11 +757,65 @@ def parse_stadium(html: str) -> str | None:
     """
     ページ内の <ul class="stadium"> から球場名を取得する。
     一球速報ページ・statsページの両方に同じ構造で存在する。
+    引用符の種類や属性の並びが変わっても拾えるようにしている。
     """
     m = re.search(
-        r'<ul class="stadium">\s*<li>球場名：</li>\s*<li>([^<]+)</li>', html
+        r'<ul[^>]*class=["\']?[^"\'>]*\bstadium\b[^"\'>]*["\']?[^>]*>\s*'
+        r'<li>\s*球場名[：:]\s*</li>\s*<li>([^<]+)</li>',
+        html,
     )
-    return m.group(1).strip() if m else None
+    if m:
+        return m.group(1).strip()
+    # 予備：球場名ラベルの直後のリスト項目を拾う
+    m2 = re.search(r'球場名[：:]\s*</li>\s*<li>([^<]+)</li>', html)
+    return m2.group(1).strip() if m2 else None
+
+
+# 公式戦以外の試合を示す語。ページのタイトルや見出しに現れる。
+GAME_TYPE_KEYWORDS = [
+    ("オールスター", "オールスター"),
+    ("オールスターゲーム", "オールスター"),
+    ("クライマックスシリーズ", "CS"),
+    ("クライマックス", "CS"),
+    ("日本シリーズ", "日本シリーズ"),
+    ("交流戦", "交流戦"),          # 交流戦は公式戦なので、記録はするが除外しない
+]
+
+
+def detect_game_type(html: str, teams: dict | None = None) -> str:
+    """
+    試合の種別を判定する。
+      公式戦 / 交流戦 / オールスター / CS / 日本シリーズ
+
+    判定の根拠は2つ:
+      1. チーム名が12球団に含まれない → オールスター（全セ・全パなど）
+      2. タイトルや見出しに種別の語がある
+
+    どちらにも当てはまらなければ「公式戦」とする（既定を公式戦にして、
+    判定できないものを勝手に除外しないため）。
+    """
+    # --- 1) チーム名で判定（オールスターは12球団名にならない）---
+    if teams:
+        for key in ("home", "away"):
+            name = teams.get(key)
+            # 12球団に無いチーム名（全セ・全パなど）はオールスター
+            if name and team_info(name).get("league") is None:
+                return "オールスター"
+
+    # --- 2) タイトル・見出しの語で判定 ---
+    head = ""
+    m = re.search(r"<title>(.*?)</title>", html, re.S)
+    if m:
+        head += m.group(1)
+    for hm in re.finditer(r"<h[12][^>]*>(.*?)</h[12]>", html, re.S):
+        head += " " + hm.group(1)
+    head = re.sub(r"<[^>]+>", "", head)
+
+    for word, label in GAME_TYPE_KEYWORDS:
+        if word in head:
+            return label
+
+    return "公式戦"
 
 
 def parse_teams(html: str) -> dict:
