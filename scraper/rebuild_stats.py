@@ -261,6 +261,8 @@ def rebuild(season, base="data"):
     holds_found = 0                 # 推定ホールドの検出数（ログ用）
     ibb_found = 0                   # 敬遠（故意四球）の検出数（ログ用）
     excluded = {}                   # 除外した試合の内訳（種別 -> 件数）
+    day_excluded = {}               # 日付 -> 成績から除外した試合数
+    day_excluded_type = {}          # 日付 -> 除外の理由（表示用）
     seen_game_per_player_bat = {}   # (pkey, game_id) 出場ゲーム重複防止
     seen_game_per_player_pit = {}
     pos_count = {}                  # player_key -> {守備位置: 出場数}
@@ -293,16 +295,15 @@ def rebuild(season, base="data"):
         if day:
             day_files[day] = day_files.get(day, 0) + 1
 
-        # --- シーズン成績に含めない試合を外す ---
+        # --- シーズン成績に含めない試合か判定する ---
+        # ここでは抜けない。試合そのものは閲覧できるようにカレンダーには残し、
+        # 成績の集計だけを飛ばす。
         gtype = g.get("game_type") or "公式戦"
         reason = None
         if gtype in EXCLUDED_TYPES:
             reason = gtype
         elif is_manually_excluded(manual, day, gid):
             reason = "手動指定"
-        if reason:
-            excluded[reason] = excluded.get(reason, 0) + 1
-            continue
 
         # 試合ページの開催日（game_date）がフォルダの日付と違う場合は記録する
         gdate = (g.get("game_date") or "").strip()
@@ -323,6 +324,15 @@ def rebuild(season, base="data"):
         if day:
             day_games[day] = day_games.get(day, 0) + 1
             day_pitches[day] = day_pitches.get(day, 0) + (g.get("pitch_count") or 0)
+
+        # ここから先が成績の集計。除外対象はここで抜ける
+        if reason:
+            excluded[reason] = excluded.get(reason, 0) + 1
+            if day:
+                day_excluded[day] = day_excluded.get(day, 0) + 1
+                day_excluded_type[day] = reason
+            continue
+
         for t in (home, away):
             if t and t not in team_stats:
                 team_stats[t] = {"games": 0, "runs": 0, "runs_allowed": 0,
@@ -560,6 +570,9 @@ def rebuild(season, base="data"):
         "days": dict(sorted(day_games.items())),
         "pitches_by_day": dict(sorted(day_pitches.items())),
         "no_games": no_games,
+        # 成績には入れないが試合としては見られる日（オールスターなど）
+        "excluded_days": dict(sorted(day_excluded.items())),
+        "excluded_types": dict(sorted(day_excluded_type.items())),
     })
     if excluded:
         detail = "・".join(f"{k}{v}件" for k, v in sorted(excluded.items()))
