@@ -35,18 +35,26 @@ from lib.events import classify_result, classify_pitch, count_before
 
 # ---------- 入出力 ----------
 
+# 試合データではない管理ファイル（集計結果や設定）
+MANAGED_FILES = {
+    "index.json", "calendar.json", "no_games.json", "exclude.json",
+    "standings.json", "npb_roster.json",
+}
+MANAGED_DIRS = ("/players/", "/teams/", "/dataset/", "/masters/")
+
+
+def _is_game_file(path: str) -> bool:
+    norm = path.replace("\\", "/")
+    name = norm.split("/")[-1]
+    if name.startswith("_") or name in MANAGED_FILES:
+        return False
+    return not any(d in norm for d in MANAGED_DIRS)
+
 def find_games(season, base="data"):
-    """その年の試合JSONを集める（集計ファイルや出力先は除外）"""
-    out = []
-    for p in glob.glob(f"{base}/{season}/**/*.json", recursive=True):
-        norm = p.replace("\\", "/")
-        name = os.path.basename(norm)
-        if name.startswith("_") or name == "index.json":
-            continue
-        if "/players/" in norm or "/teams/" in norm or "/dataset/" in norm:
-            continue
-        out.append(norm)
-    return sorted(out)
+    """その年の試合JSONだけを集める（集計結果や設定ファイルは除外）"""
+    return sorted(p.replace("\\", "/")
+                  for p in glob.glob(f"{base}/{season}/**/*.json", recursive=True)
+                  if _is_game_file(p))
 
 
 def rebuild_index(base="data"):
