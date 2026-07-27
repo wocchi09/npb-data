@@ -3,7 +3,7 @@ name: Daily NPB Data Collection
 on:
   schedule:
     # JST 23:47 = UTC 14:47（試合終了後・毎時0分を避けて混雑回避）
-    - cron: "47 13 * * *"
+    - cron: "47 14 * * *"
   workflow_dispatch:
     inputs:
       date:
@@ -23,6 +23,12 @@ on:
         required: false
         default: ""
 
+concurrency:
+  # データを書き込むワークフロー同士が同時に走らないようにする。
+  # 同時実行は index.json などの競合を引き起こすため、順番待ちにする。
+  group: npb-data-write
+  cancel-in-progress: false
+
 permissions:
   contents: write
 
@@ -30,6 +36,7 @@ jobs:
   collect:
     runs-on: ubuntu-latest
     timeout-minutes: 600
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -85,33 +92,42 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # 保険：Pythonキャッシュが混入しても追跡から外す
-          git rm -r --cached --ignore-unmatch "scraper/__pycache__" >/dev/null 2>&1 || true
           find . -name "__pycache__" -type d -prune -exec rm -rf {} + 2>/dev/null || true
-
-          # 変更（新規・更新・削除）をすべてステージしてコミット
-          # ここでコミットまで済ませると作業ツリーが綺麗になり、rebaseが通る
           git add -A
+
           if git diff --cached --quiet; then
             echo "変更なし。pushをスキップします。"
             exit 0
           fi
+
           git commit -m "data: auto collect $(date +'%Y-%m-%d %H:%M')"
 
-          # リモートの最新を取り込んでからpush（競合時は最大3回リトライ）
           for i in 1 2 3; do
             git fetch origin main
-            if git rebase origin/main; then
+
+            # index.json のような生成ファイルは中身が競合しやすい。
+            # 競合したらこちらの変更を採用し、そのあと実ファイルから作り直す。
+            if git rebase -X theirs origin/main; then
+              python scraper/fix_index.py || true
+
+              if ! git diff --quiet; then
+                git add -A
+                git commit --amend --no-edit
+              fi
+
               if git push origin HEAD:main; then
                 echo "push成功"
                 exit 0
               fi
+
+              echo "pushが弾かれました。取り込み直します。"
             else
-              echo "rebase失敗。中断して再試行します。"
+              echo "自動で解決できない競合です。中断して再試行します。"
               git rebase --abort || true
             fi
+
             echo "リトライ $i 回目"
-            sleep 5
+            sleep $((5 * i))
           done
 
           echo "pushに3回失敗しました。"
