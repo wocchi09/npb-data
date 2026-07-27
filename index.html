@@ -253,6 +253,30 @@
     border-radius:8px;border:2px solid var(--line);background:var(--panel);
     color:var(--ink);}
 
+  /* ---- 表彰 ---- */
+  .mvpgrid{display:grid;grid-template-columns:1fr;gap:12px;}
+  @media(min-width:900px){ .mvpgrid{grid-template-columns:1fr 1fr;} }
+  .mvpcard{margin-top:0;}
+  .mvpname{font-size:19px;font-weight:700;display:flex;align-items:center;gap:7px;
+    margin-bottom:4px;}
+  .mvpscore{font-family:'Roboto Mono',monospace;font-size:34px;font-weight:700;
+    color:var(--accent);line-height:1.1;display:flex;align-items:baseline;gap:6px;}
+  .mvpunit{font-size:14px;color:var(--muted);}
+  .mvpmargin{font-size:11.5px;color:var(--muted);font-family:inherit;font-weight:400;
+    margin-left:auto;}
+  .mvpstat{font-size:13.5px;margin:6px 0 8px;}
+  .mvprow{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin-bottom:5px;}
+  .mvprow .k{font-size:11px;color:var(--muted);min-width:30px;}
+  .mvpcomment{font-size:12.5px;line-height:1.7;background:var(--panel2);
+    border-radius:8px;padding:8px 10px;margin-top:8px;}
+  .mvpbd{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;}
+  .bdchip{font-size:10.5px;font-family:'Roboto Mono',monospace;
+    background:var(--panel2);border:1px solid var(--line);border-radius:4px;
+    padding:2px 6px;color:var(--muted);}
+  .bdchip.minus{color:var(--out);}
+  .calnav #awDate{font-family:inherit;font-size:14px;padding:7px 10px;
+    border-radius:8px;border:2px solid var(--line);background:var(--panel);color:var(--ink);}
+
   /* ---- 球団タブ ---- */
   .teamtabs{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:12px;}
   .ttab{font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;
@@ -492,6 +516,7 @@
       <button class="vbtn" id="vb-season" onclick="setView('season')">シーズン成績</button>
       <button class="vbtn" id="vb-players" onclick="setView('players')">選手一覧</button>
       <button class="vbtn" id="vb-daily" onclick="setView('daily')">日別分析</button>
+      <button class="vbtn" id="vb-awards" onclick="setView('awards')">表彰</button>
       <button class="vbtn" id="vb-export" onclick="setView('export')">データ出力</button>
     </div>
 
@@ -515,6 +540,8 @@
     <div id="playersView" style="display:none"></div>
 
     <div id="dailyView" style="display:none"></div>
+
+    <div id="awardsView" style="display:none"></div>
 
     <div id="exportView" style="display:none"></div>
 
@@ -1743,7 +1770,8 @@
   function setView(v){
     curView = v;
     var ids={dash:"dashView", games:"gameView", season:"seasonView",
-             players:"playersView", daily:"dailyView", export:"exportView"};
+             players:"playersView", daily:"dailyView", awards:"awardsView",
+             export:"exportView"};
     for(var k in ids){
       var el=document.getElementById(ids[k]);
       if(el) el.style.display = (k===v ? "block" : "none");
@@ -1754,6 +1782,7 @@
     else if(v==="season") loadSeason();
     else if(v==="players") loadPlayers();
     else if(v==="daily") loadDaily();
+    else if(v==="awards") loadAwards();
     else if(v==="export") loadExport();
   }
 
@@ -3480,6 +3509,173 @@
       h+='<div class="sub" style="font-size:11px">上位15人を表示</div>';
     }
     h+='</div>';
+    return h;
+  }
+
+  /* ===== 表彰（日刊MVP・ベストメンバー） ===== */
+  var awardsDate=null, awardsLg="パ", awardsData=null;
+
+  async function loadAwards(){
+    var av=document.getElementById("awardsView");
+    if(!awardsDate){
+      var ks=Object.keys(dashDays||{}).sort();
+      awardsDate = ks.length ? ks[ks.length-1] : (dp.value||todayJST());
+    }
+    av.innerHTML='<div class="msg">読み込み中…</div>';
+    var year=awardsDate.split("-")[0];
+    try{
+      var r=await fetch("data/"+year+"/awards/daily/"+awardsDate+".json?t="+Date.now());
+      awardsData = r.ok ? await r.json() : null;
+    }catch(e){ awardsData=null; }
+    renderAwards();
+  }
+  function shiftAwards(n){
+    var t=new Date(awardsDate+"T00:00:00");
+    t.setDate(t.getDate()+n);
+    awardsDate=fmtDate(t);
+    loadAwards();
+  }
+  function setAwardsDate(v){ if(v){ awardsDate=v; loadAwards(); } }
+  function setAwardsLg(l){ awardsLg=l; renderAwards(); }
+
+  function renderAwards(){
+    var av=document.getElementById("awardsView");
+    var h='<div class="dash-sec"><div class="dash-h"><span class="dot"></span>日刊MVP・ベストメンバー'+
+      '<span class="dash-date">'+esc(awardsDate.replace(/-/g,"/"))+'</span></div>'+
+      '<div class="calnav">'+
+        '<button class="btn" onclick="shiftAwards(-1)">◀ 前日</button>'+
+        '<input type="date" id="awDate" value="'+esc(awardsDate)+'" onchange="setAwardsDate(this.value)">'+
+        '<button class="btn" onclick="shiftAwards(1)">翌日 ▶</button>'+
+      '</div>';
+
+    if(!awardsData){
+      h+='<div class="msg">この日の表彰データがありません<br>'+
+         '<span style="font-size:12px">Actionsで再集計すると作られます</span></div></div>';
+      av.innerHTML=h;
+      return;
+    }
+
+    h+='<div class="stabs">';
+    [["セ","セ・リーグ"],["パ","パ・リーグ"]].forEach(function(x){
+      h+='<button class="stab'+(awardsLg===x[0]?" on":"")+'" style="--sc:'+LEAGUE_COLOR[x[0]]+'" '+
+         'onclick="setAwardsLg(\''+x[0]+'\')">'+x[1]+'</button>';
+    });
+    h+='</div>';
+
+    var lg=(awardsData.leagues||{})[awardsLg];
+    if(!lg){
+      h+='<div class="msg">このリーグのデータがありません</div></div>';
+      av.innerHTML=h;
+      return;
+    }
+
+    // --- MVP ---
+    h+='<div class="mvpgrid">';
+    h+=mvpCard("野手MVP", lg.batter_mvp, false);
+    h+=mvpCard("投手MVP", lg.pitcher_mvp, true);
+    h+='</div>';
+
+    // --- ベストメンバー ---
+    var bb=lg.best_batters||{}, bp=lg.best_pitchers||{};
+    if(Object.keys(bb).length || Object.keys(bp).length){
+      h+='<div class="subsec"><div class="subttl">ベストメンバー</div>'+
+         '<div class="tblwrap"><table class="stbl"><thead><tr>'+
+         '<th>部門</th><th class="nm">選手</th><th>球団</th><th>スコア</th>'+
+         '<th class="nm">成績</th><th class="nm">主な加点</th></tr></thead><tbody>';
+      var order=["捕","一","二","三","遊","左","中","右","指"];
+      order.forEach(function(pos){
+        var x=bb[pos];
+        if(!x) return;
+        h+=bestRow(POS_LABEL[pos]||pos, x);
+      });
+      ["先発","中継ぎ","抑え"].forEach(function(r){
+        if(bp[r]) h+=bestRow(r, bp[r]);
+      });
+      h+='</tbody></table></div></div>';
+    }
+
+    // --- ランキング ---
+    h+=rankTable("野手ランキング", lg.batter_ranking||[], false);
+    var pr=lg.pitcher_ranking||{};
+    ["先発","中継ぎ","抑え"].forEach(function(r){
+      h+=rankTable(r+"ランキング", pr[r]||[], true);
+    });
+
+    h+='<div class="sub" style="font-size:11px;margin-top:8px">'+
+       esc(awardsData.note||"")+'／採点式 v'+esc(awardsData.scoreVersion||"")+
+       '　※スコアは利用可能な配点を100点に換算した値です</div>';
+    h+='</div>';
+    av.innerHTML=h;
+  }
+
+  var POS_LABEL={"捕":"捕手","一":"一塁手","二":"二塁手","三":"三塁手","遊":"遊撃手",
+                 "左":"左翼手","中":"中堅手","右":"右翼手","指":"指名打者"};
+
+  function mvpCard(title, x, isPit){
+    if(!x) return '<div class="card2"><h3>'+title+'</h3><div class="msg">該当なし</div></div>';
+    var col=tColor(x.team)||"var(--accent)";
+    var h='<div class="card2 mvpcard" style="border-left:5px solid '+col+'">'+
+      '<h3>'+title+(isPit&&x.role?' <span class="subtag">'+esc(x.role)+'</span>':'')+'</h3>'+
+      '<div class="mvpname">'+teamBadge(x.team)+' '+esc(x.name)+'</div>'+
+      '<div class="mvpscore">'+x.score+'<span class="mvpunit">点</span>'+
+      (x.margin!=null?'<span class="mvpmargin">2位と +'+x.margin+'</span>':'')+'</div>'+
+      '<div class="mvpstat">'+esc(x.stat_line||"")+'</div>';
+    if((x.reasons||[]).length){
+      h+='<div class="mvprow"><span class="k">加点</span>'+
+         x.reasons.map(function(r){return '<span class="qmark">'+esc(r)+'</span>';}).join(" ")+'</div>';
+    }
+    if((x.minus_reasons||[]).length){
+      h+='<div class="mvprow"><span class="k">減点</span>'+
+         x.minus_reasons.map(function(r){
+           return '<span class="subtag" style="background:var(--muted)">'+esc(r)+'</span>';}).join(" ")+'</div>';
+    }
+    if(x.comment) h+='<div class="mvpcomment">'+esc(x.comment)+'</div>';
+    if(x.breakdown){
+      h+='<div class="mvpbd">';
+      var lb={basicBatting:"打撃",runProduction:"得点貢献",clutch:"勝負強さ",
+              baserunning:"走塁",defense:"守備",teamWin:"勝利",penalty:"減点",
+              innings:"投球回",prevention:"失点抑制",strikeout:"奪三振",
+              whip:"WHIP",winContrib:"勝利貢献",base:"基礎",situation:"場面"};
+      for(var k in x.breakdown){
+        var v=x.breakdown[k];
+        if(!v) continue;
+        h+='<span class="bdchip'+(v<0?" minus":"")+'">'+(lb[k]||k)+' '+v+'</span>';
+      }
+      h+='</div>';
+    }
+    return h+'</div>';
+  }
+
+  function bestRow(label, x){
+    return '<tr><td class="pos"><b>'+esc(label)+'</b></td>'+
+      '<td class="nm">'+esc(x.name)+'</td>'+
+      '<td>'+teamBadge(x.team)+'</td>'+
+      '<td class="num hi">'+x.score+'</td>'+
+      '<td class="nm" style="font-weight:400;font-size:12px">'+esc(x.stat_line||"")+'</td>'+
+      '<td class="nm" style="font-weight:400;font-size:11.5px">'+
+        esc((x.reasons||[]).join("／"))+'</td></tr>';
+  }
+
+  function rankTable(title, list, isPit){
+    if(!list.length) return "";
+    var h='<div class="subsec"><div class="subttl">'+esc(title)+'</div>'+
+      '<div class="tblwrap"><table class="stbl"><thead><tr>'+
+      '<th>#</th><th class="nm">選手</th><th>球団</th>'+
+      (isPit?'':'<th>位置</th>')+'<th>スコア</th>'+
+      '<th class="nm">成績</th><th class="nm">加点／減点</th></tr></thead><tbody>';
+    list.forEach(function(x,i){
+      var good=(x.reasons||[]).join("／");
+      var bad=(x.minus_reasons||[]).join("／");
+      h+='<tr><td class="num">'+(i+1)+'</td>'+
+        '<td class="nm">'+esc(x.name)+'</td>'+
+        '<td>'+teamBadge(x.team)+'</td>'+
+        (isPit?'':'<td class="pos">'+esc(x.position||"-")+'</td>')+
+        '<td class="num hi">'+x.score+'</td>'+
+        '<td class="nm" style="font-weight:400;font-size:12px">'+esc(x.stat_line||"")+'</td>'+
+        '<td class="nm" style="font-weight:400;font-size:11px">'+esc(good)+
+          (bad?'<span class="dim">／'+esc(bad)+'</span>':'')+'</td></tr>';
+    });
+    h+='</tbody></table></div></div>';
     return h;
   }
 
