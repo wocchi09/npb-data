@@ -264,5 +264,170 @@
       "右",
       "指"
     ]
+  },
+  "weekly_batter": {
+    "categories": {
+      "battingContent": {
+        "max": 40,
+        "available_max": 40
+      },
+      "runProduction": {
+        "max": 20,
+        "available_max": 20
+      },
+      "clutch": {
+        "max": 15,
+        "available_max": 15
+      },
+      "playingTime": {
+        "max": 10,
+        "available_max": 10
+      },
+      "defenseBaser": {
+        "max": 10,
+        "available_max": 3,
+        "note": "盗塁のみ算出可能。守備機会・特別な守備貢献はデータなし"
+      },
+      "teamWin": {
+        "max": 5,
+        "available_max": 5
+      }
+    },
+    "battingContent": {
+      "ops": 15,
+      "avg": 8,
+      "obp": 8,
+      "slg": 9
+    },
+    "runProduction": {
+      "hr": 7,
+      "rbi": 6,
+      "run": 3,
+      "extra_base_hits": 4
+    },
+    "clutch": {
+      "game_winning_hits": 5,
+      "go_ahead_comeback": 3,
+      "risp_avg": 4,
+      "risp_rbi": 3,
+      "risp_correction_pa": 5
+    },
+    "playingTime": {
+      "qualified_pa": 5,
+      "starts": 3,
+      "appearance_rate": 2,
+      "min_pa_factor": 2.5,
+      "min_start_games": 3
+    },
+    "defenseBaser": {
+      "sb": 3
+    },
+    "teamWin": {
+      "win_rate": 2,
+      "clutch_hits": 3
+    },
+    "penalty": {
+      "so_rate_max": -3,
+      "gidp_each": -1.5,
+      "sb_out_each": -1,
+      "error_each": -1.5
+    },
+    "min_pa_multiplier": 0.85,
+    "min_pa_games_factor": 2.5,
+    "full_pa_games_factor": 3.0
+  },
+  "weekly_starter": {
+    "categories": {
+      "era": {
+        "max": 25,
+        "available_max": 25
+      },
+      "innings": {
+        "max": 20,
+        "available_max": 20
+      },
+      "whip": {
+        "max": 15,
+        "available_max": 15
+      },
+      "strikeout": {
+        "max": 15,
+        "available_max": 15
+      },
+      "qs": {
+        "max": 15,
+        "available_max": 15
+      },
+      "winContrib": {
+        "max": 10,
+        "available_max": 10
+      }
+    },
+    "min_starts": 1
+  },
+  "weekly_reliever": {
+    "categories": {
+      "scorelessRate": {
+        "max": 25,
+        "available_max": 25
+      },
+      "holds": {
+        "max": 20,
+        "available_max": 20
+      },
+      "content": {
+        "max": 20,
+        "available_max": 20
+      },
+      "appearances": {
+        "max": 15,
+        "available_max": 15
+      },
+      "situation": {
+        "max": 15,
+        "available_max": 12,
+        "note": "引継走者の生還阻止はデータなし"
+      },
+      "teamWin": {
+        "max": 5,
+        "available_max": 5
+      }
+    },
+    "min_appearances": 2,
+    "single_appearance_multiplier": 0.85,
+    "two_appearance_multiplier": 0.95
+  },
+  "weekly_closer": {
+    "categories": {
+      "saves": {
+        "max": 30,
+        "available_max": 30
+      },
+      "saveRate": {
+        "max": 20,
+        "available_max": 20
+      },
+      "scorelessRate": {
+        "max": 15,
+        "available_max": 15
+      },
+      "whip": {
+        "max": 10,
+        "available_max": 10
+      },
+      "strikeout": {
+        "max": 10,
+        "available_max": 10
+      },
+      "difficulty": {
+        "max": 10,
+        "available_max": 10
+      },
+      "appearances": {
+        "max": 5,
+        "available_max": 5
+      }
+    },
+    "min_saves": 1
   }
 }
