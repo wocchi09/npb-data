@@ -38,11 +38,9 @@ jobs:
     timeout-minutes: 330
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-
       - run: pip install -r requirements.txt
 
       - name: Backfill
@@ -52,19 +50,16 @@ jobs:
             SEASON="${{ github.event.inputs.date }}"
             SEASON="${SEASON%%-*}"
           fi
-
           if [ -z "$SEASON" ]; then SEASON=$(date +%Y); fi
 
           ARGS="--season $SEASON --what ${{ github.event.inputs.what }}"
           if [ -n "${{ github.event.inputs.date }}" ]; then
             ARGS="$ARGS --date ${{ github.event.inputs.date }}"
           fi
-
           LIMIT="${{ github.event.inputs.limit }}"
           if [ -n "$LIMIT" ] && [ "$LIMIT" != "0" ]; then
             ARGS="$ARGS --limit $LIMIT"
           fi
-
           python scraper/backfill.py $ARGS
 
       - name: Rebuild season stats
@@ -74,7 +69,6 @@ jobs:
             SEASON="${{ github.event.inputs.date }}"
             SEASON="${SEASON%%-*}"
           fi
-
           if [ -z "$SEASON" ]; then SEASON=$(date +%Y); fi
           python scraper/rebuild_stats.py --season "$SEASON" || echo "再集計をスキップ"
 
@@ -85,9 +79,15 @@ jobs:
             SEASON="${{ github.event.inputs.date }}"
             SEASON="${SEASON%%-*}"
           fi
-
           if [ -z "$SEASON" ]; then SEASON=$(date +%Y); fi
           python scraper/build_dataset.py --season "$SEASON" --format both || echo "データセット生成をスキップ"
+
+      - name: Build awards
+        run: |
+          SEASON="${{ github.event.inputs.season }}"
+          if [ -z "$SEASON" ]; then SEASON=$(date +%Y); fi
+          SEASON="${SEASON%%-*}"
+          python scraper/build_awards.py --season "$SEASON" || echo "表彰の算出をスキップ"
 
       - name: Commit and push
         run: |
@@ -96,38 +96,31 @@ jobs:
 
           find . -name "__pycache__" -type d -prune -exec rm -rf {} + 2>/dev/null || true
           git add -A
-
           if git diff --cached --quiet; then
             echo "変更なし。pushをスキップします。"
             exit 0
           fi
-
           git commit -m "backfill: 球場・出場成績を補完 $(date +'%Y-%m-%d %H:%M')"
 
           for i in 1 2 3; do
             git fetch origin main
-
             # index.json のような生成ファイルは中身が競合しやすい。
             # 競合したらこちらの変更を採用し、そのあと実ファイルから作り直す。
             if git rebase -X theirs origin/main; then
               python scraper/fix_index.py || true
-
               if ! git diff --quiet; then
                 git add -A
                 git commit --amend --no-edit
               fi
-
               if git push origin HEAD:main; then
                 echo "push成功"
                 exit 0
               fi
-
               echo "pushが弾かれました。取り込み直します。"
             else
               echo "自動で解決できない競合です。中断して再試行します。"
               git rebase --abort || true
             fi
-
             echo "リトライ $i 回目"
             sleep $((5 * i))
           done
