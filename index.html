@@ -381,6 +381,9 @@
   .cday.nogame .ccnt{font-size:10px;color:var(--muted);line-height:1;}
   .cbox.nogame{background:var(--panel2);border-style:dashed;border-color:var(--line2);
     margin-left:8px;}
+  .cday.excl{background:var(--accent2);}
+  .cday.excl .ccnt{font-size:8.5px;}
+  .cbox.excl{background:var(--accent2);border-color:var(--accent2);margin-left:8px;}
 
   /* ---- 順位表 ---- */
   .stabs{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;}
@@ -896,7 +899,9 @@
           h+='<div class="ghr">本塁打 '+hr+'</div>';
         }
         h+='<div class="gmeta">'+g.atbat_count+' 打席 ／ '+g.pitch_count+' 球'+
-             (g.stadium?' ／ '+esc(g.stadium):'')+'</div>';
+             (g.stadium?' ／ '+esc(g.stadium):'')+
+             (g.game_type && g.game_type!=="公式戦" && g.game_type!=="交流戦"
+               ? ' <span class="subtag">'+esc(g.game_type)+'</span>' : '')+'</div>';
         el.innerHTML=h;
         el.onclick=function(){loadGame(d,g.game_id,el);};
         gamesEl.appendChild(el);
@@ -1353,6 +1358,7 @@
   /* ===== データカレンダー ===== */
   var dashDays = {};      // "2026-07-24" -> その日の試合数
   var noGameDays = {};    // "2026-07-06" -> true（試合が無かった日）
+  var exclDays = {};      // "2026-07-28" -> 除外理由（オールスターなど）
   var calMonth = null;    // 表示中の月 "2026-07"
 
   function shiftCalMonth(n){
@@ -1387,6 +1393,7 @@
       '<div id="calBody">'+renderCalBody()+'</div>'+
       '<div class="callegend"><span class="cbox has"></span>データあり'+
       '<span class="cbox nogame"></span>試合なし'+
+      '<span class="cbox excl"></span>成績対象外'+
       '<span class="cbox none"></span>未収集　※日付をタップでその日の試合へ</div>'+
       '</div>';
   }
@@ -1411,9 +1418,12 @@
       var n=dashDays[ds]||0;
       var isToday=(ds===today);
       if(n>0){
-        h+='<div class="cday has'+(isToday?" today":"")+'" '+
-           'onclick="openGamesDay(\''+ds+'\')" title="'+ds+'：'+n+'試合">'+
-           '<span class="cnum">'+d+'</span><span class="ccnt">'+n+'</span></div>';
+        var ex=exclDays[ds];
+        h+='<div class="cday has'+(ex?" excl":"")+(isToday?" today":"")+'" '+
+           'onclick="openGamesDay(\''+ds+'\')" '+
+           'title="'+ds+'：'+n+'試合'+(ex?'（'+ex+'／成績には含めません）':'')+'">'+
+           '<span class="cnum">'+d+'</span><span class="ccnt">'+
+           (ex?esc(String(ex).slice(0,2)):n)+'</span></div>';
       }else if(noGameDays[ds]){
         h+='<div class="cday nogame'+(isToday?" today":"")+'" title="'+ds+'：試合なし">'+
            '<span class="cnum">'+d+'</span><span class="ccnt">−</span></div>';
@@ -1462,6 +1472,7 @@
         dashDays=cal.days||{};
         noGameDays={};
         (cal.no_games||[]).forEach(function(d){ noGameDays[d]=true; });
+        exclDays=cal.excluded_types||{};
         var ck=Object.keys(dashDays).sort();
         if(ck.length){ latestDate=ck[ck.length-1]; gotCal=true; }
       }
