@@ -1075,7 +1075,7 @@
       h+='<div class="card2"><h3 class="thead" style="border-left-color:'+(tColor(team)||'var(--accent)')+'">'+
          teamBadge(team)+' '+esc(team||side)+'</h3><div class="tblwrap"><table class="stbl">'+
          '<thead><tr><th>位置</th><th class="nm">選手</th><th>打率</th><th>打数</th>'+
-         '<th>安</th><th>二</th><th>三</th><th>点</th><th>本</th><th>三振</th>'+
+         '<th>安</th><th>二塁打</th><th>三塁打</th><th>点</th><th>本</th><th>三振</th>'+
          '<th>四球</th><th>死球</th><th>盗</th><th>失策</th></tr></thead><tbody>';
       rows.forEach(function(p){
         var key=p.player_id?("id:"+p.player_id):("name:"+(p.name||""));
