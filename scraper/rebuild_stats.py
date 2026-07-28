@@ -45,7 +45,7 @@ MANAGED_FILES = {
     "index.json", "calendar.json", "no_games.json", "exclude.json",
     "standings.json", "npb_roster.json",
 }
-MANAGED_DIRS = ("/players/", "/teams/", "/dataset/", "/masters/")
+MANAGED_DIRS = ("/players/", "/teams/", "/dataset/", "/masters/", "/awards/")
 
 
 def _is_game_file(path: str) -> bool:

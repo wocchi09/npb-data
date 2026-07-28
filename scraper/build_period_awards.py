@@ -128,7 +128,12 @@ def build_period(kind, label, date_from, date_to, season, base="data", cfg=None)
         team = normalize_team(first.get("team"))
         numeric = [{
             "ab": num(r.get("ab")), "hits": num(r.get("hits")),
-            "singles": num(r.get("singles")), "doubles": num(r.get("doubles")),
+            # 新形式は各長打列を持つ。旧CSVを読む場合だけ、残りを単打として補う。
+            "singles": (num(r.get("singles"))
+                        if r.get("singles") not in (None, "")
+                        else max(0, num(r.get("hits")) - num(r.get("doubles"))
+                                 - num(r.get("triples")) - num(r.get("hr")))),
+            "doubles": num(r.get("doubles")),
             "triples": num(r.get("triples")), "hr": num(r.get("hr")),
             "bb": num(r.get("bb")), "hbp": num(r.get("hbp")), "so": num(r.get("so")),
             "rbi": num(r.get("rbi")), "runs": num(r.get("runs")), "sb": num(r.get("sb")),
