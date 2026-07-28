@@ -1,0 +1,108 @@
+name: Rebuild Stats
+
+# 保存済みの試合データから、選手・チーム成績と分析用データセットを作り直すだけ。
+# スクレイピングは一切しないので取得元にアクセスせず、1分ほどで終わる。
+# 集計ロジック（rebuild_stats.py / build_dataset.py）を更新したあとに実行する。
+
+on:
+  workflow_dispatch:
+    inputs:
+      season:
+        description: "対象シーズン（例: 2026）"
+        required: false
+        default: "2026"
+
+concurrency:
+  # データを書き込むワークフロー同士が同時に走らないようにする。
+  # 同時実行は index.json などの競合を引き起こすため、順番待ちにする。
+  group: npb-data-write
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+
+      - name: Rebuild season stats
+        run: |
+          SEASON="${{ github.event.inputs.season }}"
+          if [ -z "$SEASON" ]; then SEASON=$(date +%Y); fi
+          python scraper/rebuild_stats.py --season "$SEASON"
+
+      - name: Build analysis dataset
+        run: |
+          SEASON="${{ github.event.inputs.season }}"
+          if [ -z "$SEASON" ]; then SEASON=$(date +%Y); fi
+          python scraper/build_dataset.py --season "$SEASON" --format both
+
+      - name: Build awards
+        run: |
+          SEASON="${{ github.event.inputs.season }}"
+          if [ -z "$SEASON" ]; then SEASON=$(date +%Y); fi
+          SEASON="${SEASON%%-*}"
+          python scraper/build_awards.py --season "$SEASON" || echo "表彰の算出をスキップ"
+
+      - name: Build weekly and monthly awards
+        run: |
+          SEASON="${{ github.event.inputs.season }}"
+          if [ -z "$SEASON" ]; then SEASON=$(date +%Y); fi
+          SEASON="${SEASON%%-*}"
+          python scraper/build_period_awards.py --season "$SEASON" || echo "週間・月間表彰の算出をスキップ"
+
+      - name: Build simplified WAR
+        run: |
+          SEASON="${{ github.event.inputs.season }}"
+          if [ -z "$SEASON" ]; then SEASON=$(date +%Y); fi
+          SEASON="${SEASON%%-*}"
+          python scraper/build_war.py --season "$SEASON" || echo "WARの算出をスキップ"
+
+      - name: Validate data
+        run: python scraper/validate_data.py || echo "検証で問題を検出（ログ参照）"
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          find . -name "__pycache__" -type d -prune -exec rm -rf {} + 2>/dev/null || true
+          git add -A
+          if git diff --cached --quiet; then
+            echo "変更なし。pushをスキップします。"
+            exit 0
+          fi
+          git commit -m "rebuild: 成績とデータセットを再集計 $(date +'%Y-%m-%d %H:%M')"
+
+          for i in 1 2 3; do
+            git fetch origin main
+            # index.json のような生成ファイルは中身が競合しやすい。
+            # 競合したらこちらの変更を採用し、そのあと実ファイルから作り直す。
+            if git rebase -X theirs origin/main; then
+              python scraper/fix_index.py || true
+              if ! git diff --quiet; then
+                git add -A
+                git commit --amend --no-edit
+              fi
+              if git push origin HEAD:main; then
+                echo "push成功"
+                exit 0
+              fi
+              echo "pushが弾かれました。取り込み直します。"
+            else
+              echo "自動で解決できない競合です。中断して再試行します。"
+              git rebase --abort || true
+            fi
+            echo "リトライ $i 回目"
+            sleep $((5 * i))
+          done
+
+          echo "pushに3回失敗しました。"
+          exit 1
