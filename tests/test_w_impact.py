@@ -9,7 +9,6 @@ sys.path.insert(0, str(ROOT / "scraper"))
 from lib.w_impact import (  # noqa: E402
     calculate,
     collect_batter_roles,
-    collect_runner_penalties,
     positions_from_text,
 )
 
@@ -32,23 +31,6 @@ class WImpactTest(unittest.TestCase):
         self.assertEqual(roles["pinch_run_apps"], 1)
         self.assertEqual(roles["def_sub_apps"], 1)
         self.assertEqual(dict(roles["position_apps"]), {"右": 1})
-
-    def test_runner_penalties_use_only_resolved_high_confidence_events(self):
-        players = [
-            {"key": "b1", "name": "大盛 穂", "team": "広島"},
-            {"key": "b2", "name": "佐藤 輝明", "team": "阪神"},
-            {"key": "b3", "name": "佐藤 蓮", "team": "阪神"},
-        ]
-        penalties, diag = collect_runner_penalties(players, [
-            {"batting_team": "広島", "result_detail": "盗塁失敗（大盛）"},
-            {"batting_team": "広島", "result_detail": "暴走（大盛）、本塁上タッチアウト（大盛）"},
-            {"batting_team": "広島", "result_detail": "暴走（大盛）、リプレー検証後判定覆る"},
-            {"batting_team": "阪神", "result_detail": "挟まれる（佐藤）"},
-        ])
-        self.assertEqual(penalties["b1"]["caught_stealing"], 1)
-        self.assertEqual(penalties["b1"]["baserunning_outs"], 1)
-        self.assertEqual(diag["overturned_skipped"], 1)
-        self.assertEqual(diag["unresolved"], 1)
 
     def test_calculation_outputs_batter_pitcher_and_overall(self):
         players = [
@@ -76,8 +58,10 @@ class WImpactTest(unittest.TestCase):
         result = calculate(
             players, [{"team": "阪神", "games": 10}],
             batting_lines, pitching_lines, [], [
-                {"batting_team": "阪神", "result_detail": "盗塁失敗（打者A）"},
-                {"batting_team": "阪神", "result_detail": "暴走（打者A）"},
+                {"player_key": "b1", "event_type": "stolen_base", "run_value": .2},
+                {"player_key": "b1", "event_type": "stolen_base", "run_value": .2},
+                {"player_key": "b1", "event_type": "caught_stealing", "run_value": -.4},
+                {"player_key": "b1", "event_type": "baserunning_out", "run_value": -.4},
             ],
         )
         self.assertEqual(len(result["batters"]), 2)

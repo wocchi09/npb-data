@@ -185,7 +185,16 @@ def calc_batter_war(
 
     games = _number(batting.get("games"))
     r_bat = (_number(ops) - _number(replacement_ops)) * pa * 0.2
-    r_baser = _number(batting.get("sb")) * 0.2
+    # rebuild_stats.py が共通走塁イベントから作った値を使用する。
+    # 旧データとの互換性のため、値が無い場合だけ盗塁成功のみへフォールバック。
+    if batting.get("baserunning_runs") is not None:
+        r_baser = _number(batting.get("baserunning_runs"))
+    else:
+        r_baser = (
+            _number(batting.get("sb")) * 0.20
+            - _number(batting.get("caught_stealing")) * 0.40
+            - _number(batting.get("baserunning_outs")) * 0.40
+        )
     r_dp = 0.0  # 併殺打の集計値がないため推測しない
     r_pos = _position_adjustment(player, games)
     rpw = _number((run_env.get(league) or {}).get("rpw"), DEFAULT_RPW)
@@ -205,6 +214,9 @@ def calc_batter_war(
             "replacement_ops": round(_number(replacement_ops), 3),
             "rpw": round(rpw, 3),
             "pa": int(pa),
+            "sb": int(_number(batting.get("sb"))),
+            "caught_stealing": int(_number(batting.get("caught_stealing"))),
+            "baserunning_outs": int(_number(batting.get("baserunning_outs"))),
         },
     }
 

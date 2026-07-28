@@ -137,6 +137,9 @@ def build_period(kind, label, date_from, date_to, season, base="data", cfg=None)
             "triples": num(r.get("triples")), "hr": num(r.get("hr")),
             "bb": num(r.get("bb")), "hbp": num(r.get("hbp")), "so": num(r.get("so")),
             "rbi": num(r.get("rbi")), "runs": num(r.get("runs")), "sb": num(r.get("sb")),
+            "caught_stealing": num(r.get("caught_stealing")),
+            "baserunning_outs": num(r.get("baserunning_outs")),
+            "baserunning_runs": num(r.get("baserunning_runs")),
             "errors": num(r.get("errors")), "is_starter": bool_(r.get("is_starter")),
         } for r in rows]
         agg = aggregate_batter_period(numeric)

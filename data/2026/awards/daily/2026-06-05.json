@@ -1,9 +1,9 @@
 {
   "awardType": "daily",
   "date": "2026-06-05",
-  "scoreVersion": "1.0.0",
-  "generated_at": "2026-07-28T21:12:50.056780+09:00",
-  "note": "利用可能データのみで算出（走塁・守備の細目は取得できないため対象外）",
+  "scoreVersion": "1.1.0",
+  "generated_at": "2026-07-28T21:57:30.637106+09:00",
+  "note": "利用可能データのみで算出。盗塁成功・盗塁失敗・高確度の走塁死を反映し、取得できない守備の細目は対象外",
   "games": 6,
   "leagues": {
     "セ": {
@@ -42,7 +42,9 @@
           "risp_hit": 1,
           "risp_ab": 1,
           "so": 0,
-          "sb": 0
+          "sb": 0,
+          "caught_stealing": 0,
+          "baserunning_outs": 0
         },
         "game_id": "2021038965",
         "opponent": "ソフトバンク",
@@ -123,7 +125,9 @@
             "risp_hit": 0,
             "risp_ab": 1,
             "so": 0,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021038965",
           "opponent": "ソフトバンク",
@@ -166,7 +170,9 @@
             "risp_hit": 1,
             "risp_ab": 2,
             "so": 2,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021038964",
           "opponent": "日本ハム",
@@ -208,7 +214,9 @@
             "risp_hit": 1,
             "risp_ab": 1,
             "so": 0,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021038965",
           "opponent": "ソフトバンク",
@@ -250,7 +258,9 @@
             "risp_hit": 1,
             "risp_ab": 3,
             "so": 1,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021038967",
           "opponent": "楽天",
@@ -294,7 +304,9 @@
             "risp_hit": 2,
             "risp_ab": 3,
             "so": 1,
-            "sb": 1
+            "sb": 1,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021038967",
           "opponent": "楽天",
@@ -338,7 +350,9 @@
             "risp_hit": 1,
             "risp_ab": 2,
             "so": 1,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021038965",
           "opponent": "ソフトバンク",
@@ -380,7 +394,9 @@
             "risp_hit": 0,
             "risp_ab": 1,
             "so": 2,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021038963",
           "opponent": "ロッテ",
@@ -420,7 +436,9 @@
             "risp_hit": 1,
             "risp_ab": 1,
             "so": 0,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021038963",
           "opponent": "ロッテ",
@@ -531,7 +549,9 @@
             "risp_hit": 1,
             "risp_ab": 1,
             "so": 0,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021038965",
           "opponent": "ソフトバンク",
@@ -571,7 +591,9 @@
             "risp_hit": 1,
             "risp_ab": 1,
             "so": 0,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021038963",
           "opponent": "ロッテ",
@@ -615,7 +637,9 @@
             "risp_hit": 2,
             "risp_ab": 3,
             "so": 1,
-            "sb": 1
+            "sb": 1,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021038967",
           "opponent": "楽天",
@@ -658,7 +682,9 @@
             "risp_hit": 1,
             "risp_ab": 1,
             "so": 1,
-            "sb": 1
+            "sb": 1,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021038967",
           "opponent": "楽天",
@@ -700,7 +726,9 @@
             "risp_hit": 0,
             "risp_ab": 0,
             "so": 1,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021038965",
           "opponent": "ソフトバンク",
@@ -744,50 +772,12 @@
             "risp_hit": 1,
             "risp_ab": 2,
             "so": 1,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021038965",
           "opponent": "ソフトバンク",
-          "is_starter": true,
-          "sub_type": null
-        },
-        {
-          "name": "佐々木 俊輔",
-          "team": "巨人",
-          "player_id": "2106178",
-          "position": "左",
-          "order": 3,
-          "raw": 19.5,
-          "score": 23.49,
-          "available_max": 83,
-          "pa": 4,
-          "breakdown": {
-            "basicBatting": 5.0,
-            "runProduction": 4.5,
-            "clutch": 7,
-            "baserunning": 0,
-            "defense": 0,
-            "teamWin": 3,
-            "penalty": 0
-          },
-          "stat_line": "3打数1安打、1打点、1得点",
-          "reasons": [
-            "1打点",
-            "得点圏1打数1安打"
-          ],
-          "minus_reasons": [],
-          "keys": {
-            "hits": 1,
-            "hr": 0,
-            "rbi": 1,
-            "runs": 1,
-            "risp_hit": 1,
-            "risp_ab": 1,
-            "so": 0,
-            "sb": 0
-          },
-          "game_id": "2021038963",
-          "opponent": "ロッテ",
           "is_starter": true,
           "sub_type": null
         },
@@ -824,7 +814,9 @@
             "risp_hit": 0,
             "risp_ab": 1,
             "so": 0,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021038965",
           "opponent": "ソフトバンク",
@@ -867,10 +859,56 @@
             "risp_hit": 1,
             "risp_ab": 2,
             "so": 2,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021038964",
           "opponent": "日本ハム",
+          "is_starter": true,
+          "sub_type": null
+        },
+        {
+          "name": "佐々木 俊輔",
+          "team": "巨人",
+          "player_id": "2106178",
+          "position": "左",
+          "order": 3,
+          "raw": 17.5,
+          "score": 21.08,
+          "available_max": 83,
+          "pa": 4,
+          "breakdown": {
+            "basicBatting": 5.0,
+            "runProduction": 4.5,
+            "clutch": 7,
+            "baserunning": 0,
+            "defense": 0,
+            "teamWin": 3,
+            "penalty": -2
+          },
+          "stat_line": "3打数1安打、1打点、1得点",
+          "reasons": [
+            "1打点",
+            "得点圏1打数1安打"
+          ],
+          "minus_reasons": [
+            "盗塁失敗1"
+          ],
+          "keys": {
+            "hits": 1,
+            "hr": 0,
+            "rbi": 1,
+            "runs": 1,
+            "risp_hit": 1,
+            "risp_ab": 1,
+            "so": 0,
+            "sb": 0,
+            "caught_stealing": 1,
+            "baserunning_outs": 0
+          },
+          "game_id": "2021038963",
+          "opponent": "ロッテ",
           "is_starter": true,
           "sub_type": null
         },
@@ -908,7 +946,9 @@
             "risp_hit": 1,
             "risp_ab": 1,
             "so": 1,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021038963",
           "opponent": "ロッテ",
@@ -950,7 +990,9 @@
             "risp_hit": 0,
             "risp_ab": 1,
             "so": 2,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021038963",
           "opponent": "ロッテ",
@@ -989,7 +1031,9 @@
             "risp_hit": 0,
             "risp_ab": 2,
             "so": 0,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021038965",
           "opponent": "ソフトバンク",
@@ -1029,7 +1073,9 @@
             "risp_hit": 1,
             "risp_ab": 2,
             "so": 0,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021038967",
           "opponent": "楽天",
@@ -1069,7 +1115,9 @@
             "risp_hit": 1,
             "risp_ab": 1,
             "so": 0,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021038966",
           "opponent": "西武",
@@ -1109,7 +1157,9 @@
             "risp_hit": 0,
             "risp_ab": 1,
             "so": 0,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021038963",
           "opponent": "ロッテ",
@@ -1668,7 +1718,9 @@
           "risp_hit": 0,
           "risp_ab": 0,
           "so": 0,
-          "sb": 0
+          "sb": 0,
+          "caught_stealing": 0,
+          "baserunning_outs": 0
         },
         "game_id": "2021038964",
         "opponent": "ヤクルト",
@@ -1745,7 +1797,9 @@
             "risp_hit": 0,
             "risp_ab": 2,
             "so": 0,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021038966",
           "opponent": "中日",
@@ -1788,7 +1842,9 @@
             "risp_hit": 0,
             "risp_ab": 0,
             "so": 0,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021038964",
           "opponent": "ヤクルト",
@@ -1827,7 +1883,9 @@
             "risp_hit": 1,
             "risp_ab": 2,
             "so": 0,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021038964",
           "opponent": "ヤクルト",
@@ -1868,7 +1926,9 @@
             "risp_hit": 1,
             "risp_ab": 1,
             "so": 1,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021038966",
           "opponent": "中日",
@@ -1911,7 +1971,9 @@
             "risp_hit": 0,
             "risp_ab": 1,
             "so": 1,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021038964",
           "opponent": "ヤクルト",
@@ -1950,7 +2012,9 @@
             "risp_hit": 0,
             "risp_ab": 0,
             "so": 0,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021038966",
           "opponent": "中日",
@@ -1990,7 +2054,9 @@
             "risp_hit": 0,
             "risp_ab": 0,
             "so": 0,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021038968",
           "opponent": "広島",
@@ -2032,7 +2098,9 @@
             "risp_hit": 1,
             "risp_ab": 1,
             "so": 2,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021038964",
           "opponent": "ヤクルト",
@@ -2175,7 +2243,9 @@
             "risp_hit": 0,
             "risp_ab": 0,
             "so": 0,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021038964",
           "opponent": "ヤクルト",
@@ -2218,7 +2288,9 @@
             "risp_hit": 0,
             "risp_ab": 1,
             "so": 1,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021038964",
           "opponent": "ヤクルト",
@@ -2258,7 +2330,9 @@
             "risp_hit": 1,
             "risp_ab": 1,
             "so": 0,
-            "sb": 1
+            "sb": 1,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021038968",
           "opponent": "広島",
@@ -2297,7 +2371,9 @@
             "risp_hit": 0,
             "risp_ab": 0,
             "so": 0,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021038966",
           "opponent": "中日",
@@ -2339,7 +2415,9 @@
             "risp_hit": 1,
             "risp_ab": 1,
             "so": 2,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021038964",
           "opponent": "ヤクルト",
@@ -2378,7 +2456,9 @@
             "risp_hit": 1,
             "risp_ab": 2,
             "so": 0,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021038964",
           "opponent": "ヤクルト",
@@ -2418,7 +2498,9 @@
             "risp_hit": 0,
             "risp_ab": 0,
             "so": 0,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021038968",
           "opponent": "広島",
@@ -2460,7 +2542,9 @@
             "risp_hit": 0,
             "risp_ab": 0,
             "so": 1,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021038968",
           "opponent": "広島",
@@ -2500,7 +2584,9 @@
             "risp_hit": 1,
             "risp_ab": 1,
             "so": 0,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021038967",
           "opponent": "阪神",
@@ -2543,7 +2629,9 @@
             "risp_hit": 0,
             "risp_ab": 1,
             "so": 2,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021038963",
           "opponent": "巨人",
@@ -2583,7 +2671,9 @@
             "risp_hit": 0,
             "risp_ab": 0,
             "so": 0,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021038965",
           "opponent": "DeNA",
@@ -2624,7 +2714,9 @@
             "risp_hit": 1,
             "risp_ab": 1,
             "so": 1,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021038966",
           "opponent": "中日",
@@ -2663,7 +2755,9 @@
             "risp_hit": 0,
             "risp_ab": 0,
             "so": 1,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021038965",
           "opponent": "DeNA",
@@ -2705,7 +2799,9 @@
             "risp_hit": 1,
             "risp_ab": 1,
             "so": 1,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021038967",
           "opponent": "阪神",
@@ -2744,7 +2840,9 @@
             "risp_hit": 0,
             "risp_ab": 0,
             "so": 1,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021038963",
           "opponent": "巨人",

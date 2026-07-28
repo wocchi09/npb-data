@@ -24,6 +24,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from lib.holds import estimate_holds
+from lib.baserunning import aggregate_runner_events, collect_game_runner_events
 from lib.normalize import (
     normalize_team, team_info, player_key, clean_name, TEAMS,
 )
@@ -82,7 +83,8 @@ def blank_batting():
     return {
         "games": 0, "pa": 0, "ab": 0, "hits": 0, "singles": 0, "ibb": 0,
         "doubles": 0, "triples": 0, "hr": 0, "rbi": 0, "bb": 0, "hbp": 0,
-        "so": 0, "runs": 0, "sf": 0, "errors": 0,
+        "so": 0, "runs": 0, "sf": 0, "sb": 0, "caught_stealing": 0,
+        "baserunning_outs": 0, "baserunning_runs": 0.0, "errors": 0,
     }
 
 
@@ -338,6 +340,7 @@ def rebuild(season, base="data"):
     seen_game_per_player_bat = {}   # (pkey, game_id) 出場ゲーム重複防止
     seen_game_per_player_pit = {}
     pos_count = {}                  # player_key -> {守備位置: 出場数}
+    runner_games = []               # 除外対象を除いた (game, date)
 
     # 日別の試合数を数える（打席が1つも無いファイルは試合として数えない）
     day_games = {}      # "YYYY-MM-DD" -> 有効な試合数
@@ -404,6 +407,7 @@ def rebuild(season, base="data"):
                 day_excluded[day] = day_excluded.get(day, 0) + 1
                 day_excluded_type[day] = reason
             continue
+        runner_games.append((g, day))
 
         for t in (home, away):
             if t and t not in team_stats:
@@ -592,6 +596,30 @@ def rebuild(season, base="data"):
                     pp["so"] += ev["so"]
                     pp["bb"] += ev["bb"]
 
+    # --- 共通走塁イベントを選手へ集約 ---
+    runner_events = []
+    runner_diag = {
+        "details_scanned": 0, "stolen_base": 0, "caught_stealing": 0,
+        "baserunning_out": 0, "unresolved": 0, "overturned_skipped": 0,
+    }
+    for game, game_day in runner_games:
+        rows, diag = collect_game_runner_events(game, players.values(), game_day)
+        runner_events.extend(rows)
+        for key in runner_diag:
+            runner_diag[key] += diag.get(key, 0)
+    runner_by_player = aggregate_runner_events(runner_events)
+    for key, batting in bat.items():
+        running = runner_by_player.get(key) or {}
+        # 盗塁成功は従来どおり公式成績を正とし、共通イベントとの不一致時も上書きしない。
+        batting["caught_stealing"] = running.get("caught_stealing", 0)
+        batting["baserunning_outs"] = running.get("baserunning_outs", 0)
+        batting["baserunning_runs"] = round(
+            (batting.get("sb", 0) * 0.20)
+            - (batting["caught_stealing"] * 0.40)
+            - (batting["baserunning_outs"] * 0.40),
+            2,
+        )
+
     # --- 出力を組み立て ---
     player_out = []
     skipped = 0
@@ -700,7 +728,8 @@ def rebuild(season, base="data"):
     save_json(f"{base}/masters/teams.json",
               {"teams": [{"name": n, **v} for n, v in TEAMS.items()]})
     save_json(f"{base}/{season}/players/stats.json",
-              {"season": season, "count": len(player_out), "players": player_out})
+              {"season": season, "count": len(player_out),
+               "runner_event_diagnostics": runner_diag, "players": player_out})
     save_json(f"{base}/{season}/teams/stats.json",
               {"season": season, "teams": team_out})
 
@@ -714,6 +743,12 @@ def rebuild(season, base="data"):
     print(f"[INFO] FIP定数: セ={((fip_constants.get('セ') or {}).get('constant'))} "
           f"パ={((fip_constants.get('パ') or {}).get('constant'))}")
     print(f"[INFO] 推定ホールド: {holds_found}件を検出")
+    print(
+        f"[INFO] 走塁イベント: 盗塁{runner_diag['stolen_base']} / "
+        f"盗塁失敗{runner_diag['caught_stealing']} / "
+        f"走塁死{runner_diag['baserunning_out']} "
+        f"（選手未解決{runner_diag['unresolved']}）"
+    )
     if ibb_found:
         print(f"[INFO] 敬遠（故意四球）: {ibb_found}件を検出")
     else:
