@@ -422,27 +422,6 @@
     padding:1px 3px;border-radius:2px;background:var(--muted);color:#fff;
     vertical-align:super;line-height:1;}
 
-  /* ---- 選手の直近推移 ---- */
-  .trend-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;}
-  .trend-head .stabs{margin:0 0 0 auto;}
-  .trend-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
-    gap:9px;}
-  .trend-card{background:var(--panel2);border:1px solid var(--line);
-    border-radius:10px;padding:9px 10px;min-width:0;}
-  .trend-title{display:flex;align-items:baseline;gap:7px;font-size:12px;
-    font-weight:700;color:var(--ink2);}
-  .trend-latest{font-family:'Roboto Mono',monospace;color:var(--accent);
-    font-size:18px;}
-  .trend-delta{font-family:'Roboto Mono',monospace;font-size:10px;color:var(--muted);}
-  .trend-svg{display:block;width:100%;height:145px;margin-top:3px;overflow:visible;}
-  .trend-gridline{stroke:var(--line);stroke-width:1;}
-  .trend-baseline{stroke:var(--muted);stroke-width:1;stroke-dasharray:4 3;}
-  .trend-line{fill:none;stroke:var(--accent);stroke-width:2.5;
-    stroke-linecap:round;stroke-linejoin:round;}
-  .trend-dot{fill:var(--panel);stroke:var(--accent);stroke-width:1.5;}
-  .trend-axis{fill:var(--muted);font-size:9px;font-family:'Roboto Mono',monospace;}
-  .trend-volume{font-size:10.5px;color:var(--muted);margin-top:4px;}
-
   /* ---- 規定到達マーク ---- */
   .qmark{display:inline-block;margin-left:5px;font-size:9.5px;font-weight:700;
     line-height:1;padding:2px 4px;border-radius:3px;vertical-align:middle;
@@ -2280,10 +2259,8 @@
         '<div class="stat"><div class="sv">'+(q.k9==null?"-":q.k9.toFixed(1))+'</div><div class="sl">K/9</div></div>'+
         '</div>';
     }
-    h+='<div id="seasonPlayerTrend"></div>'+
-       '<button class="btn" style="margin-top:12px" onclick="document.getElementById(\'playerDetail\').innerHTML=\'\'">閉じる</button></div>';
+    h+='<button class="btn" style="margin-top:12px" onclick="document.getElementById(\'playerDetail\').innerHTML=\'\'">閉じる</button></div>';
     el.innerHTML=h;
-    loadPlayerTrends(p.key,p.name,p.team,"seasonPlayerTrend");
     el.scrollIntoView({behavior:"smooth",block:"nearest"});
   }
 
@@ -2867,139 +2844,6 @@
     cv.innerHTML=h;
   }
 
-  /* ===== 選手の直近7日・30日推移 ===== */
-  var impactTrendCache={};
-  var playerTrendPeriods={};
-  var playerTrendContexts={};
-
-  async function getImpactTrends(year){
-    if(Object.prototype.hasOwnProperty.call(impactTrendCache,year)){
-      return impactTrendCache[year];
-    }
-    try{
-      var r=await fetch("data/"+year+"/w_impact_trends.json?t="+Date.now());
-      if(!r.ok) throw 0;
-      impactTrendCache[year]=await r.json();
-    }catch(e){
-      impactTrendCache[year]=false;
-    }
-    return impactTrendCache[year];
-  }
-  function trendNumber(v,digits){
-    if(v==null || !isFinite(Number(v))) return "-";
-    return Number(v).toFixed(digits);
-  }
-  function trendChart(title,points,key,digits,baseline,volumeKey,volumeLabel){
-    var valid=(points||[]).filter(function(p){
-      return p[key]!=null && isFinite(Number(p[key]));
-    });
-    if(!valid.length){
-      return '<div class="trend-card"><div class="trend-title">'+esc(title)+'</div>'+
-             '<div class="msg" style="padding:24px 4px">データなし</div></div>';
-    }
-    var values=valid.map(function(p){return Number(p[key]);});
-    var min=Math.min.apply(null,values),max=Math.max.apply(null,values);
-    if(baseline!=null){min=Math.min(min,baseline);max=Math.max(max,baseline);}
-    var spread=max-min;
-    if(spread<0.0001){spread=Math.max(Math.abs(max)*0.12,1);min-=spread/2;max+=spread/2;}
-    else{min-=spread*0.12;max+=spread*0.12;}
-    var w=360,h=145,l=42,r=9,t=12,b=24;
-    function px(i){return l+(valid.length<=1?0.5:(i/(valid.length-1)))*(w-l-r);}
-    function py(v){return t+(max-v)/(max-min)*(h-t-b);}
-    var coords=valid.map(function(p,i){return px(i).toFixed(1)+","+py(Number(p[key])).toFixed(1);});
-    var svg='<svg class="trend-svg" viewBox="0 0 '+w+' '+h+'" role="img" aria-label="'+esc(title)+'の推移">';
-    [0,0.5,1].forEach(function(rate){
-      var value=max-(max-min)*rate,y=py(value);
-      svg+='<line class="trend-gridline" x1="'+l+'" y1="'+y.toFixed(1)+'" x2="'+(w-r)+'" y2="'+y.toFixed(1)+'"></line>'+
-           '<text class="trend-axis" x="'+(l-4)+'" y="'+(y+3).toFixed(1)+'" text-anchor="end">'+
-           trendNumber(value,digits)+'</text>';
-    });
-    if(baseline!=null && baseline>=min && baseline<=max){
-      var by=py(baseline);
-      svg+='<line class="trend-baseline" x1="'+l+'" y1="'+by.toFixed(1)+'" x2="'+(w-r)+'" y2="'+by.toFixed(1)+'"></line>';
-    }
-    svg+='<polyline class="trend-line" points="'+coords.join(" ")+'"></polyline>';
-    valid.forEach(function(p,i){
-      var volume=volumeKey&&p[volumeKey]!=null?" / "+volumeLabel+p[volumeKey]:"";
-      svg+='<circle class="trend-dot" cx="'+px(i).toFixed(1)+'" cy="'+py(Number(p[key])).toFixed(1)+'" r="3">'+
-           '<title>'+esc(p.date)+" "+esc(title)+" "+trendNumber(p[key],digits)+esc(volume)+'</title></circle>';
-    });
-    var firstDate=valid[0].date.slice(5).replace("-","/"),lastDate=valid[valid.length-1].date.slice(5).replace("-","/");
-    svg+='<text class="trend-axis" x="'+l+'" y="'+(h-5)+'">'+esc(firstDate)+'</text>'+
-         '<text class="trend-axis" x="'+(w-r)+'" y="'+(h-5)+'" text-anchor="end">'+esc(lastDate)+'</text></svg>';
-    var latest=valid[valid.length-1],delta=Number(latest[key])-Number(valid[0][key]);
-    return '<div class="trend-card"><div class="trend-title">'+esc(title)+
-           '<span class="trend-latest">'+trendNumber(latest[key],digits)+'</span>'+
-           (valid.length>1?'<span class="trend-delta">'+(delta>=0?"+":"")+trendNumber(delta,digits)+'</span>':'')+
-           '</div>'+svg+
-           '<div class="trend-volume">最新窓：'+esc(volumeLabel)+(latest[volumeKey]||0)+
-           '／'+latest.games+'試合</div></div>';
-  }
-  function findPlayerTrend(data,key,name,team){
-    if(!data||!data.players) return null;
-    if(data.players[key]) return data.players[key];
-    var wanted=normName(name);
-    for(var k in data.players){
-      var p=data.players[k];
-      if(p.team===team && normName(p.name)===wanted) return p;
-    }
-    return null;
-  }
-  function renderPlayerTrends(containerId){
-    var ctx=playerTrendContexts[containerId],el=document.getElementById(containerId);
-    if(!ctx||!el) return;
-    var data=impactTrendCache[ctx.year];
-    if(data===undefined){
-      el.innerHTML='<div class="msg">直近推移を読み込み中…</div>';return;
-    }
-    if(!data){
-      el.innerHTML='<div class="subsec"><div class="subttl">直近推移</div>'+
-        '<div class="msg">推移データがまだありません<br><span style="font-size:11px">再集計後に表示されます</span></div></div>';
-      return;
-    }
-    var player=findPlayerTrend(data,ctx.key,ctx.name,ctx.team);
-    if(!player){
-      el.innerHTML='<div class="subsec"><div class="subttl">直近推移</div><div class="msg">対象期間の出場データがありません</div></div>';
-      return;
-    }
-    var period=playerTrendPeriods[containerId]||7;
-    var h='<div class="subsec"><div class="trend-head"><div class="subttl" style="margin:0">直近推移</div>'+
-      '<span class="dim">各試合日を終点とする移動集計</span><div class="stabs">';
-    [7,30].forEach(function(n){
-      h+='<button class="stab'+(period===n?" on":"")+'" onclick="setPlayerTrendPeriod(\''+
-         esc(containerId)+'\','+n+')">'+n+'日</button>';
-    });
-    h+='</div></div>';
-    var batter=(player.batter||{})[String(period)]||[];
-    var pitcher=(player.pitcher||{})[String(period)]||[];
-    if(batter.length){
-      h+='<div class="subttl">野手</div><div class="trend-grid">'+
-         trendChart("OPS",batter,"ops",3,null,"pa","打席")+
-         trendChart("W-Rating",batter,"w_rating",1,100,"pa","打席")+
-         trendChart("W-Value",batter,"w_value",2,0,"pa","打席")+'</div>';
-    }
-    if(pitcher.length){
-      h+='<div class="subttl" style="margin-top:10px">投手</div><div class="trend-grid">'+
-         trendChart("防御率",pitcher,"era",2,null,"innings","投球回")+
-         trendChart("W-Rating",pitcher,"w_rating",1,100,"innings","投球回")+
-         trendChart("W-Value",pitcher,"w_value",2,0,"innings","投球回")+'</div>';
-    }
-    h+='<div class="trend-volume">W-Ratingは表示期間ごとにリーグ内で再標準化。'+
-       '点に触れると日付と出場量を確認できます。／データ基準日 '+esc(data.latest_date||"-")+'</div></div>';
-    el.innerHTML=h;
-  }
-  function setPlayerTrendPeriod(containerId,period){
-    playerTrendPeriods[containerId]=period;
-    renderPlayerTrends(containerId);
-  }
-  async function loadPlayerTrends(key,name,team,containerId){
-    var year=(dp.value||todayJST()).split("-")[0];
-    playerTrendContexts[containerId]={key:key,name:name,team:team,year:year};
-    renderPlayerTrends(containerId);
-    await getImpactTrends(year);
-    renderPlayerTrends(containerId);
-  }
-
   /* 選手詳細（選手一覧から開く） */
   function showPlayerDetail(key){
     var p=null;
@@ -3087,14 +2931,12 @@
         '<div class="stat"><div class="sv">'+(q.hr_allowed||0)+'</div><div class="sl">被本塁打</div></div>'+
         '</div></div>';
     }
-    h+='<div id="playerTrend"></div>';
     h+='<div class="subsec"><div class="subttl">スプリット分析</div>'+
        '<div class="expbtns"><button class="btn primary" onclick="openSplits(\''+esc(key)+'\')">'+
        '試合ログ・月別・対戦球団別などを見る ▶</button></div></div>';
     h+='<div id="plSplits"></div>';
     h+='</div>';
     el.innerHTML=h;
-    loadPlayerTrends(p.key,p.name,p.team,"playerTrend");
     el.scrollIntoView({behavior:"smooth", block:"nearest"});
   }
 
