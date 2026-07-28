@@ -45,7 +45,7 @@ MANAGED_FILES = {
     "index.json", "calendar.json", "no_games.json", "exclude.json",
     "standings.json", "npb_roster.json",
 }
-MANAGED_DIRS = ("/players/", "/teams/", "/dataset/", "/masters/", "/awards/")
+MANAGED_DIRS = ("/players/", "/teams/", "/dataset/", "/masters/")
 
 
 def _is_game_file(path: str) -> bool:
@@ -81,7 +81,7 @@ def blank_batting():
     return {
         "games": 0, "pa": 0, "ab": 0, "hits": 0, "singles": 0, "ibb": 0,
         "doubles": 0, "triples": 0, "hr": 0, "rbi": 0, "bb": 0,
-        "so": 0, "runs": 0,
+        "so": 0, "runs": 0, "sf": 0,
     }
 
 
@@ -92,6 +92,46 @@ def blank_pitching():
         "runs_allowed": 0, "earned_runs": 0, "wins": 0, "losses": 0, "saves": 0,
         "holds": 0, "holds_est": 0, "relief_wins": 0,
     }
+
+
+def calc_league_fip_constants(pit: dict, players: dict) -> dict:
+    """
+    リーグごとのFIP定数を、そのシーズンの実測値から算出する。
+      FIP定数C = リーグ防御率 － (13×被本塁打 + 3×与四球 － 2×奪三振) ÷ リーグ投球回
+
+    NPBには公式のFIP定数が無いため、セ・パそれぞれ自前で算出する
+    （セ・パで投高打低の傾向が異なるため、リーグを分けて計算する）。
+    シーズン序盤はサンプルが少なく値が不安定になる点に注意。
+    """
+    totals = {"セ": {"outs": 0, "er": 0, "hr": 0, "bb": 0, "so": 0},
+              "パ": {"outs": 0, "er": 0, "hr": 0, "bb": 0, "so": 0}}
+    for k, q in pit.items():
+        team = (players.get(k) or {}).get("team")
+        lg = team_info(team).get("league") if team else None
+        if lg not in totals:
+            continue
+        t = totals[lg]
+        t["outs"] += q.get("outs", 0)
+        t["er"] += q.get("earned_runs", 0)
+        t["hr"] += q.get("hr_allowed", 0)
+        t["bb"] += q.get("bb", 0) + q.get("hbp", 0)
+        t["so"] += q.get("so", 0)
+
+    constants = {}
+    for lg, t in totals.items():
+        ip = t["outs"] / 3
+        if ip <= 0:
+            constants[lg] = None
+            continue
+        league_era = t["er"] * 9 / ip
+        raw = (13 * t["hr"] + 3 * t["bb"] - 2 * t["so"]) / ip
+        constants[lg] = {
+            "constant": round(league_era - raw, 2),
+            "league_era": round(league_era, 2),
+            "innings": round(ip, 1),
+            "sample_note": "序盤はサンプルが少なく変動しやすい" if ip < 300 else None,
+        }
+    return constants
 
 
 def calc_pitching_rates(p: dict) -> dict:
@@ -156,11 +196,17 @@ def merge_official_pitching(dst: dict, row: dict):
         dst["holds"] = dst.get("holds", 0) + 1
 
 
+# 二塁打・三塁打は「二塁打」（漢数字）と「2塁打」（数字）の両方の表記がある。
+# lib/events.py の判定と揃えるため同じパターンを使う。
+_DOUBLE_RE = re.compile(r"(?:二|2|２)塁打")
+_TRIPLE_RE = re.compile(r"(?:三|3|３)塁打")
+
+
 def classify_batting(result_summary: str) -> dict:
     """打席結果テキストから打撃イベントを分類（取れる範囲のみ・推測で埋めない）"""
     rs = result_summary or ""
     ev = {"pa": 1, "ab": 0, "hit": 0, "single": 0, "double": 0,
-          "triple": 0, "hr": 0, "bb": 0, "ibb": 0, "so": 0}
+          "triple": 0, "hr": 0, "bb": 0, "ibb": 0, "so": 0, "sf": 0}
 
     # 四死球（打数に数えない）。敬遠＝故意四球も四球に含める
     if "敬遠" in rs or "四球" in rs or "死球" in rs:
@@ -168,8 +214,11 @@ def classify_batting(result_summary: str) -> dict:
         if "敬遠" in rs or "故意四球" in rs:
             ev["ibb"] = 1
         return ev
-    # 犠打・犠飛（打数に数えない）
-    if "犠打" in rs or "犠飛" in rs:
+    # 犠打・犠飛（打数に数えない。犠飛はBABIP・出塁率の分母に使うため区別する）
+    if "犠飛" in rs:
+        ev["sf"] = 1
+        return ev
+    if "犠打" in rs:
         return ev
 
     # ここからは打数にカウント
@@ -178,9 +227,9 @@ def classify_batting(result_summary: str) -> dict:
         ev["so"] = 1
     elif "本塁打" in rs:
         ev["hit"] = ev["hr"] = 1
-    elif "三塁打" in rs:
+    elif _TRIPLE_RE.search(rs):
         ev["hit"] = ev["triple"] = 1
-    elif "二塁打" in rs:
+    elif _DOUBLE_RE.search(rs):
         ev["hit"] = ev["double"] = 1
     elif "安打" in rs and "併殺" not in rs:
         ev["hit"] = ev["single"] = 1
@@ -188,20 +237,41 @@ def classify_batting(result_summary: str) -> dict:
 
 
 def calc_rate_stats(b: dict) -> dict:
-    """打率・出塁率・長打率・OPSなどを計算（0除算対策込み）"""
+    """
+    打率・出塁率・長打率・OPS・ISO・BABIPを計算（0除算対策込み）。
+
+    単打は「安打 － 本塁打 － 二塁打 － 三塁打」から実測で求め直す。
+    （二塁打・三塁打は打席テキストから復元した実測値のため、これで正確になる）
+    """
     ab = b["ab"]
     pa = b["pa"]
     hits = b["hits"]
-    tb = b["singles"] + 2 * b["doubles"] + 3 * b["triples"] + 4 * b["hr"]
+    hr = b["hr"]
+    doubles = b["doubles"]
+    triples = b["triples"]
+    so = b["so"]
+    sf = b.get("sf", 0)
+    singles = max(0, hits - hr - doubles - triples)
+    tb = singles + 2 * doubles + 3 * triples + 4 * hr
+
     avg = round(hits / ab, 3) if ab else None
-    obp_den = ab + b["bb"]  # 犠飛は未取得のため簡易式
+    obp_den = ab + b["bb"] + sf
     obp = round((hits + b["bb"]) / obp_den, 3) if obp_den else None
     slg = round(tb / ab, 3) if ab else None
     ops = round((obp or 0) + (slg or 0), 3) if (obp is not None and slg is not None) else None
     bb_pct = round(b["bb"] / pa, 3) if pa else None
     k_pct = round(b["so"] / pa, 3) if pa else None
+
+    # ISO（純粋な長打力） = 長打率 － 打率
+    iso = round(slg - avg, 3) if (slg is not None and avg is not None) else None
+
+    # BABIP（インプレー打球の打率） = (安打－本塁打) ÷ (打数－三振－本塁打＋犠飛)
+    babip_den = ab - so - hr + sf
+    babip = round((hits - hr) / babip_den, 3) if babip_den > 0 else None
+
     return {"avg": avg, "obp": obp, "slg": slg, "ops": ops,
-            "bb_pct": bb_pct, "k_pct": k_pct, "tb": tb}
+            "bb_pct": bb_pct, "k_pct": k_pct, "tb": tb,
+            "singles": singles, "iso": iso, "babip": babip}
 
 
 # シーズン成績に含めない試合の種別。
@@ -451,27 +521,33 @@ def rebuild(season, base="data"):
                     if not players[bkey].get("hand"):
                         players[bkey]["hand"] = b.get("hand")
 
-                # 敬遠（故意四球）は公式ボックススコアに列が無いので、
-                # 公式成績を使う試合でも打席データから数える
-                ev_ibb = classify_batting(ab.get("result_summary"))
-                if ev_ibb.get("ibb"):
+                # 敬遠・二塁打・三塁打・犠飛は公式ボックススコアに列が無いため、
+                # 公式成績を使う試合でも打席結果のテキストから常に復元する。
+                # （以前は使わない試合でしか拾えておらず、長打率が過小評価されていた）
+                ev_extra = classify_batting(ab.get("result_summary"))
+                if bkey:
                     if bkey not in bat:
                         bat[bkey] = blank_batting()
-                    bat[bkey]["ibb"] = bat[bkey].get("ibb", 0) + 1
-                    ibb_found += 1
+                    eb = bat[bkey]
+                    if ev_extra.get("ibb"):
+                        eb["ibb"] = eb.get("ibb", 0) + 1
+                        ibb_found += 1
+                    eb["doubles"] += ev_extra["double"]
+                    eb["triples"] += ev_extra["triple"]
+                    eb["sf"] = eb.get("sf", 0) + ev_extra.get("sf", 0)
 
-                # 公式成績が無い試合のみ、打席結果から推定して集計
+                # 公式成績が無い試合のみ、残りの項目も打席結果から推定して集計
                 if not used_official:
                     if bkey not in bat:
                         bat[bkey] = blank_batting()
                     if (bkey, gid) not in seen_game_per_player_bat:
                         seen_game_per_player_bat[(bkey, gid)] = True
                         bat[bkey]["games"] += 1
-                    ev = classify_batting(ab.get("result_summary"))
+                    ev = ev_extra
                     bb = bat[bkey]
                     bb["pa"] += ev["pa"]; bb["ab"] += ev["ab"]
                     bb["hits"] += ev["hit"]; bb["singles"] += ev["single"]
-                    bb["doubles"] += ev["double"]; bb["triples"] += ev["triple"]
+                    # doubles/triples/sf は上ですでに加算済みなのでここでは足さない
                     bb["hr"] += ev["hr"]; bb["bb"] += ev["bb"]; bb["so"] += ev["so"]
                     m = re.search(r"＋(\d+)点", ab.get("result_summary") or "")
                     if m:
@@ -517,6 +593,9 @@ def rebuild(season, base="data"):
     # --- 出力を組み立て ---
     player_out = []
     skipped = 0
+    # FIP定数はリーグ全体の投手成績が要るため、選手ごとの出力を作る前に計算しておく
+    fip_constants = calc_league_fip_constants(pit, players)
+
     for k, info in players.items():
         # 名前が取れていない／合計行を拾ってしまった等の異常データは出力しない
         if not is_valid_name(info.get("name")):
@@ -536,6 +615,18 @@ def rebuild(season, base="data"):
             entry["batting"] = {**bat[k], **calc_rate_stats(_fill(bat[k]))}
         if k in pit:
             entry["pitching"] = {**pit[k], **calc_pitching_rates(pit[k])}
+            lg = team_info(entry.get("team")).get("league")
+            c = fip_constants.get(lg)
+            outs = pit[k].get("outs", 0)
+            ip = outs / 3
+            if c and c.get("constant") is not None and ip > 0:
+                q = pit[k]
+                fip = (13 * q.get("hr_allowed", 0) + 3 * (q.get("bb", 0) + q.get("hbp", 0))
+                       - 2 * q.get("so", 0)) / ip + c["constant"]
+                entry["pitching"]["fip"] = round(fip, 2)
+                entry["pitching"]["fip_constant"] = c["constant"]
+            else:
+                entry["pitching"]["fip"] = None
         player_out.append(entry)
     player_out.sort(key=lambda x: (x.get("team") or "", x.get("name") or ""))
 
@@ -613,6 +704,13 @@ def rebuild(season, base="data"):
 
     if skipped:
         print(f"[WARN] 名前が取得できない選手データ {skipped}件をスキップしました")
+    # FIP定数を診断用に保存（画面の説明表示にも使う）
+    save_json(f"{base}/{season}/fip_constants.json", {
+        "season": season, "constants": fip_constants,
+        "formula": "FIP = (13*被本塁打 + 3*(与四球+与死球) - 2*奪三振) / 投球回 + リーグ定数",
+    })
+    print(f"[INFO] FIP定数: セ={((fip_constants.get('セ') or {}).get('constant'))} "
+          f"パ={((fip_constants.get('パ') or {}).get('constant'))}")
     print(f"[INFO] 推定ホールド: {holds_found}件を検出")
     if ibb_found:
         print(f"[INFO] 敬遠（故意四球）: {ibb_found}件を検出")

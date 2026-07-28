@@ -38,7 +38,7 @@ from lib.events import classify_result, classify_pitch, count_before
 # 試合データではない管理ファイル（集計結果や設定）
 MANAGED_FILES = {
     "index.json", "calendar.json", "no_games.json", "exclude.json",
-    "standings.json", "npb_roster.json",
+    "standings.json", "npb_roster.json", "fip_constants.json",
 }
 MANAGED_DIRS = ("/players/", "/teams/", "/dataset/", "/masters/", "/awards/")
 
@@ -185,7 +185,7 @@ SEASON_BAT_COLS = [
     "hand", "position", "qualified",
     "games", "pa", "ab", "runs", "hits", "singles", "doubles", "triples", "hr",
     "rbi", "bb", "ibb", "so", "sb", "errors", "tb",
-    "avg", "obp", "slg", "ops", "bb_pct", "k_pct",
+    "avg", "obp", "slg", "ops", "iso", "babip", "bb_pct", "k_pct",
 ]
 
 SEASON_PIT_COLS = [
@@ -195,7 +195,7 @@ SEASON_PIT_COLS = [
     "hits_allowed", "hr_allowed", "so", "bb", "hbp",
     "runs_allowed", "earned_runs", "wins", "losses", "saves",
     "holds_official", "holds_est", "relief_wins", "hp",
-    "era", "whip", "k9", "bb9", "k_bb", "win_pct",
+    "era", "fip", "whip", "k9", "bb9", "k_bb", "win_pct",
 ]
 
 SEASON_TEAM_COLS = [
@@ -258,8 +258,8 @@ def season_tables(season, base="data"):
                     "ibb": b.get("ibb"), "so": b.get("so"),
                     "sb": b.get("sb"), "errors": b.get("errors"), "tb": b.get("tb"),
                     "avg": b.get("avg"), "obp": b.get("obp"), "slg": b.get("slg"),
-                    "ops": b.get("ops"), "bb_pct": b.get("bb_pct"),
-                    "k_pct": b.get("k_pct"),
+                    "ops": b.get("ops"), "iso": b.get("iso"), "babip": b.get("babip"),
+                    "bb_pct": b.get("bb_pct"), "k_pct": b.get("k_pct"),
                 })
 
             q = p.get("pitching")
@@ -284,7 +284,7 @@ def season_tables(season, base="data"):
                     "holds_official": q.get("holds"),
                     "holds_est": q.get("holds_est"),
                     "relief_wins": q.get("relief_wins"), "hp": q.get("hp"),
-                    "era": q.get("era"), "whip": q.get("whip"),
+                    "era": q.get("era"), "fip": q.get("fip"), "whip": q.get("whip"),
                     "k9": q.get("k9"), "bb9": q.get("bb9"),
                     "k_bb": q.get("k_bb"), "win_pct": q.get("win_pct"),
                 })
@@ -343,7 +343,6 @@ def build(season, base="data", fmt="both"):
         })
 
         # boxscoreには二塁打・三塁打の列がないため、打席結果から選手別に補う。
-        # player_keyを使い、同姓選手や表記ゆれによる混同を避ける。
         hit_types = {}
         for ab in g.get("atbats", []):
             if not ab.get("valid", True):
@@ -372,8 +371,7 @@ def build(season, base="data", fmt="both"):
                 extra = hit_types.get(
                     key, {"singles": 0, "doubles": 0, "triples": 0}
                 )
-                # 公式安打数を正とする。打席巡回から拾えなかった安打は
-                # 最小塁打となる単打へ保守的に寄せ、件数も別列で公開する。
+                # 公式安打数を正とし、分類できなかった安打は単打へ保守的に寄せる。
                 official_hits = row.get("hits") or 0
                 official_hr = row.get("hr") or 0
                 observed_hits = (
