@@ -286,6 +286,41 @@
     margin-bottom:12px;}
   .warwarn a{color:var(--accent);font-weight:700;}
 
+  /* ---- W-Impact ポジション別TOP5 ---- */
+  .impact-stage{position:relative;}
+  .impact-main{min-width:0;}
+  .impact-sideboard{display:none;}
+  .impact-top5-inline{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:8px;margin:10px 0 12px;}
+  .impact-top-card{background:var(--panel2);border:1px solid var(--line);
+    border-radius:10px;padding:9px 10px;box-shadow:var(--shadow);}
+  .impact-top-title{display:flex;align-items:center;justify-content:space-between;
+    gap:6px;color:var(--accent);font-size:12px;font-weight:700;
+    border-bottom:2px solid var(--line);padding-bottom:4px;margin-bottom:3px;}
+  .impact-top-title span{font-family:'Roboto Mono',monospace;font-size:9px;
+    color:var(--muted);}
+  .impact-top-row{display:grid;grid-template-columns:18px minmax(0,1fr) auto auto;
+    gap:5px;align-items:center;padding:3px 0;font-size:11px;
+    border-bottom:1px dashed var(--line);}
+  .impact-top-row:last-child{border-bottom:none;}
+  .impact-top-rank{font-family:'Roboto Mono',monospace;color:var(--muted);
+    text-align:center;font-weight:700;}
+  .impact-top-name{font-weight:700;white-space:nowrap;overflow:hidden;
+    text-overflow:ellipsis;}
+  .impact-top-value{font-family:'Roboto Mono',monospace;color:var(--accent);
+    font-weight:700;}
+  @media(min-width:1700px){
+    .impact-main{max-width:1120px;margin:0 auto;}
+    .impact-top5-inline{display:none;}
+    .impact-sideboard{display:flex;position:absolute;top:16px;width:220px;
+      flex-direction:column;gap:10px;}
+    .impact-side-left{left:0;}
+    .impact-side-right{right:0;}
+  }
+  @media(max-width:680px){
+    .impact-top5-inline{grid-template-columns:1fr;}
+  }
+
   /* ---- 指標一覧 ---- */
   .glossitem{border:1px solid var(--line);border-radius:10px;padding:10px 12px;
     margin-bottom:8px;background:var(--panel2);}
@@ -4337,8 +4372,7 @@
 
   /* ===== サイト独自指標 W-Impact ===== */
   var impactData=null, impactLg="パ", impactKind="overall",
-      impactQual="all", impactPos="all",
-      impactSort="w_value", impactSortDir="desc";
+      impactQual="all", impactSort="w_value", impactSortDir="desc";
 
   async function loadImpact(){
     var iv=document.getElementById("impactView");
@@ -4357,14 +4391,12 @@
     impactKind=k;
     if((k==="batter" && impactQual==="ip") ||
        (k==="pitcher" && impactQual==="pa")) impactQual="all";
-    if(k==="pitcher") impactPos="all";
     if((k==="overall" && (impactSort.indexOf("components.")===0 || impactSort.indexOf("stats.")===0)) ||
        (k==="batter" && impactSort==="stats.innings") ||
        (k==="pitcher" && impactSort==="stats.pa")) impactSort="w_value";
     renderImpact();
   }
   function setImpactQual(k){ impactQual=k; renderImpact(); }
-  function setImpactPos(k){ impactPos=k; renderImpact(); }
   function setImpactSort(k){ impactSort=k; renderImpact(); }
   function toggleImpactSortDir(){
     impactSortDir=impactSortDir==="desc"?"asc":"desc";
@@ -4395,6 +4427,39 @@
     }
     return Number(x[key]||0);
   }
+  function impactTop5Card(title, rows){
+    var top=(rows||[]).slice().sort(function(a,b){
+      return Number(b.w_value||0)-Number(a.w_value||0) ||
+             Number(b.w_rating||0)-Number(a.w_rating||0);
+    }).slice(0,5);
+    var h='<div class="impact-top-card"><div class="impact-top-title">'+
+      esc(title)+'<span>TOP 5</span></div>';
+    top.forEach(function(x,i){
+      h+='<div class="impact-top-row">'+
+         '<span class="impact-top-rank">'+(i+1)+'</span>'+
+         '<span class="impact-top-name" title="'+esc(x.name)+'">'+esc(x.name)+'</span>'+
+         teamBadge(x.team)+
+         '<span class="impact-top-value">'+Number(x.w_value||0).toFixed(2)+'</span></div>';
+    });
+    return h+(top.length?'':'<div class="sub">該当なし</div>')+'</div>';
+  }
+  function impactPositionTop5(){
+    var batters=(impactData.batters||[]).filter(function(x){
+      return (x.league||tLeague(x.team))===impactLg;
+    });
+    var pitchers=(impactData.pitchers||[]).filter(function(x){
+      return (x.league||tLeague(x.team))===impactLg;
+    });
+    function posRows(pos){
+      return batters.filter(function(x){ return impactPosition(x)===pos; });
+    }
+    return {
+      left:impactTop5Card("捕手",posRows("捕"))+
+           impactTop5Card("内野手",posRows("内")),
+      right:impactTop5Card("外野手",posRows("外"))+
+            impactTop5Card("投手",pitchers)
+    };
+  }
 
   function renderImpact(){
     var iv=document.getElementById("impactView");
@@ -4420,21 +4485,13 @@
          'onclick="setImpactKind(\''+x[0]+'\')">'+x[1]+'</button>';
     });
     h+='</div>';
+    var top5=impactPositionTop5();
+    h+='<div class="impact-top5-inline">'+top5.left+top5.right+'</div>';
     var source=impactKind==="overall"?impactData.overall:
                impactKind==="batter"?impactData.batters:impactData.pitchers;
     var list=(source||[]).filter(function(x){
       return (x.league||tLeague(x.team))===impactLg;
     });
-    var positionSet={};
-    if(impactKind!=="pitcher"){
-      list.forEach(function(x){
-        var p=impactPosition(x);
-        if(p && p!=="-") positionSet[p]=1;
-      });
-      if(impactPos!=="all"){
-        list=list.filter(function(x){ return impactPosition(x)===impactPos; });
-      }
-    }
     list=list.filter(function(x){
       var s=x.stats||{};
       if(impactQual==="pa") return impactKind==="overall"?x.qualified_pa:s.qualified_pa;
@@ -4472,14 +4529,6 @@
        (impactKind!=="pitcher"?'<option value="pa"'+(impactQual==="pa"?" selected":"")+'>規定打席到達</option>':'')+
        (impactKind!=="batter"?'<option value="ip"'+(impactQual==="ip"?" selected":"")+'>規定投球回到達</option>':'')+
        '</select></label>';
-    if(impactKind!=="pitcher"){
-      var posLabels={"投":"投手","捕":"捕手","内":"内野手","外":"外野手"};
-      h+='<label class="ef"><span>ポジション</span><select onchange="setImpactPos(this.value)">'+
-         '<option value="all"'+(impactPos==="all"?" selected":"")+'>全ポジション</option>'+
-         ["投","捕","内","外"].filter(function(p){return positionSet[p];}).map(function(p){
-           return '<option value="'+p+'"'+(impactPos===p?" selected":"")+'>'+posLabels[p]+'</option>';
-         }).join("")+'</select></label>';
-    }
     h+='<label class="ef"><span>並び順</span><select onchange="setImpactSort(this.value)">'+
        sortOptions.map(function(x){
          return '<option value="'+x[0]+'"'+(impactSort===x[0]?" selected":"")+'>'+x[1]+'</option>';
@@ -4526,7 +4575,11 @@
     h+='</tbody></table></div>'+
        '<div class="sub" style="font-size:11px;margin-top:8px">'+esc(impactData.note||"")+
        '／v'+esc(impactData.version||"")+'</div></div>';
-    iv.innerHTML=h;
+    iv.innerHTML='<div class="impact-stage">'+
+      '<aside class="impact-sideboard impact-side-left">'+top5.left+'</aside>'+
+      '<div class="impact-main">'+h+'</div>'+
+      '<aside class="impact-sideboard impact-side-right">'+top5.right+'</aside>'+
+      '</div>';
   }
 
   function renderImpactGuide(){
