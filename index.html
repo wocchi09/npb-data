@@ -253,6 +253,20 @@
     border-radius:8px;border:2px solid var(--line);background:var(--panel);
     color:var(--ink);}
 
+  /* ---- 指標一覧 ---- */
+  .glossitem{border:1px solid var(--line);border-radius:10px;padding:10px 12px;
+    margin-bottom:8px;background:var(--panel2);}
+  .glosshead{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;}
+  .glossabbr{font-family:'Roboto Mono',monospace;font-size:15px;font-weight:700;
+    color:var(--accent);min-width:52px;}
+  .glossname{font-size:13.5px;font-weight:700;}
+  .glossformula{font-family:'Roboto Mono',monospace;font-size:11.5px;color:var(--ink2);
+    background:var(--panel);border-radius:6px;padding:5px 8px;margin-bottom:6px;
+    display:inline-block;}
+  .glossdesc{font-size:12.5px;line-height:1.7;}
+  .glossnote{font-size:11px;color:var(--muted);line-height:1.6;margin-top:5px;
+    padding-top:5px;border-top:1px dashed var(--line);}
+
   /* ---- 表彰 ---- */
   .mvpgrid{display:grid;grid-template-columns:1fr;gap:12px;}
   @media(min-width:900px){ .mvpgrid{grid-template-columns:1fr 1fr;} }
@@ -517,6 +531,7 @@
       <button class="vbtn" id="vb-players" onclick="setView('players')">選手一覧</button>
       <button class="vbtn" id="vb-daily" onclick="setView('daily')">日別分析</button>
       <button class="vbtn" id="vb-awards" onclick="setView('awards')">表彰</button>
+      <button class="vbtn" id="vb-glossary" onclick="setView('glossary')">指標一覧</button>
       <button class="vbtn" id="vb-export" onclick="setView('export')">データ出力</button>
     </div>
 
@@ -543,6 +558,7 @@
 
     <div id="awardsView" style="display:none"></div>
     <div id="awardsGuideView" style="display:none"></div>
+    <div id="glossaryView" style="display:none"></div>
 
     <div id="exportView" style="display:none"></div>
 
@@ -1772,7 +1788,8 @@
     curView = v;
     var ids={dash:"dashView", games:"gameView", season:"seasonView",
              players:"playersView", daily:"dailyView", awards:"awardsView",
-             awardsGuide:"awardsGuideView", export:"exportView"};
+             awardsGuide:"awardsGuideView", glossary:"glossaryView",
+             export:"exportView"};
     for(var k in ids){
       var el=document.getElementById(ids[k]);
       if(el) el.style.display = (k===v ? "block" : "none");
@@ -1786,6 +1803,9 @@
     else if(v==="awards") loadAwards();
     else if(v==="awardsGuide"){
       document.getElementById("awardsGuideView").innerHTML=renderAwardsGuide();
+    }
+    else if(v==="glossary"){
+      document.getElementById("glossaryView").innerHTML=renderGlossary();
     }
     else if(v==="export") loadExport();
   }
@@ -3827,7 +3847,138 @@
     return h;
   }
 
-  /* ===== データ出力（CSV） ===== */
+  /* ===== セイバーメトリクス指標一覧 ===== */
+  var STAT_GLOSSARY = [
+    {group:"打撃・基本", items:[
+      {abbr:"AVG", name:"打率", status:"impl",
+       formula:"安打 ÷ 打数",
+       desc:"最も基本的な打撃指標。ヒットの出やすさを表す。四球・死球・犠打・犠飛は分母に含めない。",
+       note:"打数の少ない選手は数値がぶれやすい（規定打席で足切りするのが一般的）。"},
+      {abbr:"OBP", name:"出塁率", status:"impl",
+       formula:"(安打＋四球＋死球) ÷ (打数＋四球＋死球＋犠飛)",
+       desc:"打率よりも「アウトにならない頻度」を正確に表す。四球を安打と同じ「出塁」として評価する。"},
+      {abbr:"SLG", name:"長打率", status:"impl",
+       formula:"塁打 ÷ 打数（塁打＝単打×1＋二塁打×2＋三塁打×3＋本塁打×4）",
+       desc:"1打数あたり平均して何塁分進んだかを表す。長打力の指標。"},
+      {abbr:"OPS", name:"OPS", status:"impl",
+       formula:"出塁率 ＋ 長打率",
+       desc:"出塁能力と長打力を1つにまとめた指標。計算が単純な割に選手の総合力とよく相関するとされる。"},
+    ]},
+    {group:"打撃・応用", items:[
+      {abbr:"ISO", name:"アイソレイテッド・パワー", status:"impl",
+       formula:"長打率 － 打率",
+       desc:"単打の影響を除いた「純粋な長打力」。打率が高くても単打ばかりだとISOは低くなる。",
+       note:"目安：.200以上で長打力あり、.250以上は際立った長打力とされる。"},
+      {abbr:"BABIP", name:"インプレー打率", status:"impl",
+       formula:"(安打－本塁打) ÷ (打数－三振－本塁打＋犠飛)",
+       desc:"本塁打を除く「バットに当たってグラウンドに飛んだ打球」がヒットになった割合。守備・運の影響を大きく受けるため、平均から極端に離れている選手は今後成績が近づく（回帰する）可能性がある目安になる。",
+       note:"リーグ平均はおおむね.290〜.300。極端に高い・低い値は運の要素も疑うとよい。"},
+      {abbr:"BB%", name:"四球率", status:"impl",
+       formula:"四球 ÷ 打席",
+       desc:"打席のうち四球を選んだ割合。選球眼の指標。"},
+      {abbr:"K%", name:"三振率", status:"impl",
+       formula:"三振 ÷ 打席",
+       desc:"打席のうち三振に終わった割合。低いほどコンタクト能力が高い。"},
+    ]},
+    {group:"打撃・発展（現状は未実装）", items:[
+      {abbr:"wOBA", name:"加重出塁率", status:"planned",
+       formula:"各打撃結果に「その結果が実際にどれだけ得点に貢献したか」の係数を掛けて合算し、打席数で割る",
+       desc:"単打・二塁打・本塁打・四球などを「同じ1」として扱わず、実際の得点価値に応じて重み付けする指標。OPSより得点との相関が高いとされる。",
+       note:"係数はリーグの得点環境から算出する必要があり、NPB向けの係数をまだ算出していません。複数シーズン分のデータが貯まってから、セ・パ別に算出することを検討しています。"},
+      {abbr:"wRC+", name:"加重得点創出率＋", status:"planned",
+       formula:"wOBAを基準にリーグ平均を100として指数化し、球場の影響（パークファクター）で補正する",
+       desc:"「リーグ平均と比べてどれだけ得点を生み出したか」を球場差まで補正して比較できる指標。",
+       note:"wOBAと同様、NPBの係数とパークファクターの算出が必要なため未実装です。"},
+      {abbr:"RC27", name:"27アウトあたり創出得点", status:"planned",
+       formula:"打撃成績から、その選手だけで打線を組んだ場合に27アウト（1試合分）で生み出す得点を推定する",
+       desc:"打撃成績を「1試合でどれだけ点を取れるか」に変換した指標。",
+       note:"推定式の係数調整が必要なため未実装です。"},
+    ]},
+    {group:"投手・基本", items:[
+      {abbr:"ERA", name:"防御率", status:"impl",
+       formula:"自責点 × 9 ÷ 投球回",
+       desc:"9イニングあたりの自責点。投手の失点抑制力を表す最も基本的な指標。"},
+      {abbr:"WHIP", name:"ワーインピー", status:"impl",
+       formula:"(被安打＋与四球) ÷ 投球回",
+       desc:"1イニングあたり何人の走者を出したか。防御率より守備の巧拙に左右されにくい。"},
+      {abbr:"K/9", name:"9イニングあたり奪三振", status:"impl",
+       formula:"奪三振 × 9 ÷ 投球回",
+       desc:"奪三振能力そのものの指標。守備や運に左右されにくい。"},
+      {abbr:"BB/9", name:"9イニングあたり与四球", status:"impl",
+       formula:"与四球 × 9 ÷ 投球回",
+       desc:"制球力の指標。低いほど四球を出していない。"},
+      {abbr:"K-BB", name:"奪三振と与四球の差", status:"impl",
+       formula:"奪三振 ÷ 与四球",
+       desc:"このサイトでは奪三振÷与四球（K/BB）として算出しています。奪三振能力と制球力を1つにまとめた指標。"},
+    ]},
+    {group:"投手・応用", items:[
+      {abbr:"FIP", name:"守備非依存防御率", status:"impl",
+       formula:"(13×被本塁打＋3×与四死球－2×奪三振) ÷ 投球回 ＋ リーグ定数",
+       desc:"投手自身がコントロールしやすい「奪三振・与四球・被本塁打」だけから算出する防御率。守備力や運の影響を取り除いた「その投手本来の実力」に近いとされる。防御率との差が大きい投手は、今後数字が近づいていく可能性がある目安になる。",
+       note:"NPBには公式のFIP定数が無いため、このサイトではその年・そのリーグの実測値から自動算出しています（セ・パ別）。シーズン序盤はサンプルが少なく不安定です。"},
+      {abbr:"QS", name:"クオリティスタート", status:"impl",
+       formula:"先発して6回以上・自責点3以下",
+       desc:"先発投手が試合を作れたかどうかの目安。"},
+      {abbr:"HQS", name:"ハイクオリティスタート", status:"impl",
+       formula:"先発して7回以上・自責点2以下",
+       desc:"QSよりも基準が厳しい、より優れた先発内容の目安。"},
+    ]},
+    {group:"投手・発展（現状は未実装）", items:[
+      {abbr:"xFIP", name:"被本塁打を調整したFIP", status:"planned",
+       formula:"被本塁打の代わりに「フライ打球数×リーグ平均本塁打率」を使ってFIPを計算する",
+       desc:"被本塁打は運の影響を受けやすいため、フライ打球の割合から期待される被本塁打数に置き換えて計算する指標。",
+       note:"フライ・ゴロなど打球方向の詳しい分類データが必要なため未実装です。"},
+      {abbr:"HR/9", name:"9イニングあたり被本塁打", status:"impl",
+       formula:"被本塁打 × 9 ÷ 投球回",
+       desc:"実は算出可能ですが、現在の画面にはまだ表示していません。"},
+    ]},
+    {group:"総合・チーム", items:[
+      {abbr:"HP", name:"ホールドポイント", status:"impl",
+       formula:"ホールド ＋ 救援勝利",
+       desc:"中継ぎ投手の貢献度を1つの数字にまとめた指標。"},
+      {abbr:"勝率", name:"勝率", status:"impl",
+       formula:"勝利 ÷ (勝利＋敗戦)",
+       desc:"投手やチームの勝敗の割合。"},
+    ]},
+  ];
+
+  function renderGlossary(){
+    var implCount=0, plannedCount=0;
+    STAT_GLOSSARY.forEach(function(g){
+      g.items.forEach(function(it){ it.status==="impl" ? implCount++ : plannedCount++; });
+    });
+
+    var h='<div class="dash-sec"><div class="dash-h"><span class="dot"></span>セイバーメトリクス指標一覧'+
+      '<span class="dash-date">実装済み'+implCount+' ／ 未実装'+plannedCount+'</span></div>';
+
+    h+='<p style="line-height:1.8;font-size:13.5px">このサイトで使っている（または将来使う予定の）指標をまとめました。'+
+       '<span class="qmark">実装済</span> は実際に選手ページやシーズン成績に表示されている指標、'+
+       '<span class="subtag" style="background:var(--muted)">未実装</span> はまだ算出していない指標です。'+
+       '推測で数字を作ることはしていないので、算出に必要なデータが揃っていない指標は未実装のままにしてあります。</p>';
+
+    STAT_GLOSSARY.forEach(function(g){
+      h+='<div class="subsec"><div class="subttl">'+esc(g.group)+'</div>';
+      g.items.forEach(function(it){
+        var badge = it.status==="impl"
+          ? '<span class="qmark">実装済</span>'
+          : '<span class="subtag" style="background:var(--muted)">未実装</span>';
+        h+='<div class="glossitem"><div class="glosshead">'+
+           '<span class="glossabbr">'+esc(it.abbr)+'</span>'+
+           '<span class="glossname">'+esc(it.name)+'</span>'+badge+'</div>'+
+           '<div class="glossformula">'+esc(it.formula)+'</div>'+
+           '<div class="glossdesc">'+esc(it.desc)+'</div>'+
+           (it.note?'<div class="glossnote">'+esc(it.note)+'</div>':'')+
+           '</div>';
+      });
+      h+='</div>';
+    });
+
+    h+='<div class="expbtns" style="margin-top:12px">'+
+       '<button class="btn" onclick="setView(\'awardsGuide\')">MVP選出基準の説明 ▶</button>'+
+       '</div>';
+    h+='</div>';
+    return h;
+  }
   var EXPORT_SETS = [
     ["pitches",        "一球データ",   "1行＝1球。球種・球速・コース・カウント・結果まで全部入り"],
     ["atbats",         "打席データ",   "1行＝1打席。結果・打球方向・走者状況"],
