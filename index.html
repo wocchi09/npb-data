@@ -4457,7 +4457,7 @@
     });
     function posRows(pos){
       return batters.filter(function(x){
-        return ((x.stats||{}).qualified_positions||[]).indexOf(pos)>=0;
+        return (x.stats||{}).primary_position===pos;
       });
     }
     function roleRows(role){
@@ -4644,7 +4644,8 @@
     h+='<div class="subsec"><div class="subttl">部門別総合点</div>'+
        '<div class="glossformula" style="display:block">W-Value百分位 70% + W-Rating百分位 30%</div>'+
        '<p style="font-size:13px;line-height:1.7;margin-top:8px">守備位置や投手役割の各部門内だけでなく、同一リーグの全野手または全投手を共通の比較母集団にします。'+
-       '中央順位型の百分位を使うため、各部門の1位が自動的に100点になることはありません。</p></div>';
+       '中央順位型の百分位を使うため、各部門の1位が自動的に100点になることはありません。'+
+       '野手は最も出場数が多い守備位置1つだけに掲載し、同数の場合は選手一覧の登録位置を優先します。</p></div>';
     h+='<div class="subsec"><div class="subttl">守備評価の制約</div>'+
        '<p style="font-size:13px;line-height:1.7">守備位置の難度、失策、守備交代、複数ポジションを参考評価します。'+
        '打球座標・速度・守備イニングがないため、守備範囲や好守備は含みません。名称もUZRではなく「守備参考」としています。</p></div>';

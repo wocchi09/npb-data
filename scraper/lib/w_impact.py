@@ -282,6 +282,15 @@ def calculate(players, teams, batting_lines, pitching_lines, atbats,
 
         threshold = max(3, round(tg * 0.05))
         qualified_positions = [pos for pos, apps in position_apps.items() if apps >= threshold]
+        max_position_apps = max(position_apps.values(), default=0)
+        primary_candidates = [
+            pos for pos, apps in position_apps.items() if apps == max_position_apps
+        ]
+        roster_position = p.get("position")
+        primary_position = (
+            roster_position if roster_position in primary_candidates
+            else next((pos for pos in FIELD_POSITIONS if pos in primary_candidates), None)
+        )
         groups = {POSITION_GROUP[pos] for pos in qualified_positions}
         versatility_raw = min(
             max(len(qualified_positions) - 1, 0) + max(len(groups) - 1, 0) * 0.5,
@@ -316,6 +325,8 @@ def calculate(players, teams, batting_lines, pitching_lines, atbats,
                 "sb": int(number(batting.get("sb"))), "errors": int(number(batting.get("errors"))),
                 "starts": role["starts"], "pinch_hit_apps": role["pinch_hit_apps"],
                 "pinch_run_apps": role["pinch_run_apps"], "def_sub_apps": role["def_sub_apps"],
+                "position_apps": position_apps,
+                "primary_position": primary_position,
                 "qualified_positions": qualified_positions,
             },
         })
