@@ -567,6 +567,7 @@
       <button class="vbtn" id="vb-awards" onclick="setView('awards')">表彰</button>
       <button class="vbtn" id="vb-glossary" onclick="setView('glossary')">指標一覧</button>
       <button class="vbtn" id="vb-war" onclick="setView('war')">WAR</button>
+      <button class="vbtn" id="vb-impact" onclick="setView('impact')">W-Impact</button>
       <button class="vbtn" id="vb-export" onclick="setView('export')">データ出力</button>
     </div>
 
@@ -598,6 +599,8 @@
     <div id="glossaryView" style="display:none"></div>
     <div id="warView" style="display:none"></div>
     <div id="warGuideView" style="display:none"></div>
+    <div id="impactView" style="display:none"></div>
+    <div id="impactGuideView" style="display:none"></div>
 
     <div id="exportView" style="display:none"></div>
 
@@ -1828,7 +1831,8 @@
     var ids={dash:"dashView", games:"gameView", season:"seasonView",
              players:"playersView", compare:"compareView", daily:"dailyView", awards:"awardsView",
              awardsGuide:"awardsGuideView", glossary:"glossaryView",
-             war:"warView", warGuide:"warGuideView", export:"exportView"};
+             war:"warView", warGuide:"warGuideView",
+             impact:"impactView", impactGuide:"impactGuideView", export:"exportView"};
     for(var k in ids){
       var el=document.getElementById(ids[k]);
       if(el) el.style.display = (k===v ? "block" : "none");
@@ -1850,6 +1854,10 @@
     else if(v==="war") loadWar();
     else if(v==="warGuide"){
       document.getElementById("warGuideView").innerHTML=renderWarGuide();
+    }
+    else if(v==="impact") loadImpact();
+    else if(v==="impactGuide"){
+      document.getElementById("impactGuideView").innerHTML=renderImpactGuide();
     }
     else if(v==="export") loadExport();
   }
@@ -4130,6 +4138,13 @@
        desc:"実は算出可能ですが、現在の画面にはまだ表示していません。"},
     ]},
     {group:"総合", items:[
+      {abbr:"W-Rating", name:"役割調整済み貢献度", status:"impl",
+       formula:"100 ＋ 15 × 構成要素の加重Zスコア",
+       desc:"打撃・投球だけでなく、勝負強さ、走塁、守備参考、代打・代走・守備交代、複数守備、投手役割を含むサイト独自指標。平均は100。",
+       note:"WARやUZRではありません。取得できない守備範囲などは推測していません。"},
+      {abbr:"W-Value", name:"累積役割貢献", status:"impl",
+       formula:"W-Ratingを打席・投球回・代走・守備交代などの出場量で調整",
+       desc:"機会あたりの質に出場量を掛け、レギュラーと控え、野手と投手を総合ランキングで比較するための独自値。"},
       {abbr:"WAR", name:"Wins Above Replacement", status:"partial",
        formula:"打撃貢献＋走塁貢献＋ポジション補正－リプレイスメント基準　を得点換算し、1勝あたりの得点で割る",
        desc:"控え選手と比較して何勝分チームに貢献したかを表す総合指標。野手・投手を同じ単位で比較できる。",
@@ -4317,6 +4332,124 @@
        '<button class="btn" onclick="setView(\'war\')">◀ WARランキングにもどる</button> '+
        '<button class="btn" onclick="setView(\'glossary\')">指標一覧 ▶</button></div>';
     h+='</div>';
+    return h;
+  }
+
+  /* ===== サイト独自指標 W-Impact ===== */
+  var impactData=null, impactLg="パ", impactKind="overall";
+
+  async function loadImpact(){
+    var iv=document.getElementById("impactView");
+    iv.innerHTML='<div class="msg">読み込み中…</div>';
+    var year=(dp.value||todayJST()).split("-")[0];
+    try{
+      var r=await fetch("data/"+year+"/w_impact.json?t="+Date.now());
+      impactData = r.ok ? await r.json() : null;
+    }catch(e){ impactData=null; }
+    renderImpact();
+  }
+  function setImpactLg(l){ impactLg=l; renderImpact(); }
+  function setImpactKind(k){ impactKind=k; renderImpact(); }
+  function impactNum(v){ return v==null?"-":Number(v).toFixed(1); }
+
+  function renderImpact(){
+    var iv=document.getElementById("impactView");
+    var h='<div class="dash-sec"><div class="dash-h"><span class="dot"></span>W-Impact'+
+      '<span class="dash-date">役割を含む総合貢献指数</span></div>';
+    h+='<div class="warwarn"><b>このサイト独自の指標です。</b> W-Ratingは機会あたりの質（平均100）、'+
+       'W-Valueは出場量を含む累積貢献を表します。守備はポジション難度・失策・守備交代・'+
+       '複数守備の参考評価で、UZRではありません。　'+
+       '<a href="#" onclick="setView(\'impactGuide\');return false;">計算方法 ▶</a></div>';
+    if(!impactData){
+      h+='<div class="msg">W-Impactデータがまだありません<br>'+
+         '<span style="font-size:12px">Actionsで再集計すると作られます</span></div></div>';
+      iv.innerHTML=h; return;
+    }
+    h+='<div class="stabs">';
+    [["セ","セ・リーグ"],["パ","パ・リーグ"]].forEach(function(x){
+      h+='<button class="stab'+(impactLg===x[0]?" on":"")+'" style="--sc:'+LEAGUE_COLOR[x[0]]+'" '+
+         'onclick="setImpactLg(\''+x[0]+'\')">'+x[1]+'</button>';
+    });
+    h+='</div><div class="stabs gtabs">';
+    [["overall","総合"],["batter","野手"],["pitcher","投手"]].forEach(function(x){
+      h+='<button class="stab'+(impactKind===x[0]?" on":"")+'" style="--sc:var(--accent)" '+
+         'onclick="setImpactKind(\''+x[0]+'\')">'+x[1]+'</button>';
+    });
+    h+='</div>';
+    var source=impactKind==="overall"?impactData.overall:
+               impactKind==="batter"?impactData.batters:impactData.pitchers;
+    var list=(source||[]).filter(function(x){
+      return (x.league||tLeague(x.team))===impactLg;
+    });
+    if(!list.length){
+      h+='<div class="msg">データがありません</div></div>'; iv.innerHTML=h; return;
+    }
+    h+='<div class="tblwrap"><table class="stbl"><thead><tr>'+
+       '<th>#</th><th class="nm">選手</th><th>球団</th>'+
+       (impactKind==="batter"?'<th>位置</th>':impactKind==="pitcher"?'<th>役割</th>':'')+
+       '<th>W-Value</th><th>W-Rating</th>';
+    if(impactKind==="overall") h+='<th>野手値</th><th>投手値</th>';
+    if(impactKind==="batter") h+='<th>打撃</th><th>勝負</th><th>守備</th><th>役割</th><th>複数</th>';
+    if(impactKind==="pitcher") h+='<th>投球</th><th>奪三振</th><th>失点抑止</th><th>役割</th>';
+    h+='</tr></thead><tbody>';
+    list.forEach(function(x,i){
+      var c=x.components||{}, s=x.stats||{};
+      var roleTags="";
+      if(impactKind==="batter"){
+        if(s.pinch_hit_apps) roleTags+='<span class="subtag">代打'+s.pinch_hit_apps+'</span>';
+        if(s.pinch_run_apps) roleTags+='<span class="subtag">代走'+s.pinch_run_apps+'</span>';
+        if(s.def_sub_apps) roleTags+='<span class="subtag">守備'+s.def_sub_apps+'</span>';
+      }
+      h+='<tr><td class="num">'+(i+1)+'</td>'+
+         '<td class="nm">'+esc(x.name)+roleTags+'</td><td>'+teamBadge(x.team)+'</td>'+
+         (impactKind==="batter"?'<td class="pos">'+esc(x.position||"-")+'</td>':
+          impactKind==="pitcher"?'<td>'+esc(x.role||"-")+'</td>':'')+
+         '<td class="num hi">'+Number(x.w_value).toFixed(2)+'</td>'+
+         '<td class="num hi">'+impactNum(x.w_rating)+'</td>';
+      if(impactKind==="overall"){
+        h+='<td class="num">'+Number(x.batter_w_value||0).toFixed(2)+'</td>'+
+           '<td class="num">'+Number(x.pitcher_w_value||0).toFixed(2)+'</td>';
+      }else if(impactKind==="batter"){
+        h+='<td class="num">'+impactNum(c.batting)+'</td>'+
+           '<td class="num">'+impactNum(c.clutch)+'</td>'+
+           '<td class="num">'+impactNum(c.defense)+'</td>'+
+           '<td class="num">'+impactNum(c.role)+'</td>'+
+           '<td class="num">'+impactNum(c.versatility)+'</td>';
+      }else{
+        h+='<td class="num">'+impactNum(c.pitching)+'</td>'+
+           '<td class="num">'+impactNum(c.dominance)+'</td>'+
+           '<td class="num">'+impactNum(c.run_prevention)+'</td>'+
+           '<td class="num">'+impactNum(c.role)+'</td>';
+      }
+      h+='</tr>';
+    });
+    h+='</tbody></table></div>'+
+       '<div class="sub" style="font-size:11px;margin-top:8px">'+esc(impactData.note||"")+
+       '／v'+esc(impactData.version||"")+'</div></div>';
+    iv.innerHTML=h;
+  }
+
+  function renderImpactGuide(){
+    var h='<div class="dash-sec"><div class="dash-h"><span class="dot"></span>W-Impactの計算方法</div>';
+    h+='<div class="warwarn"><b>W-Impactはサイト独自指標です。</b> 勝利数へ換算するWARや、'+
+       '打球追跡を使うUZRとは異なります。取得できない情報は推測せず、利用可能な項目だけを評価します。</div>';
+    h+='<div class="subsec"><div class="subttl">2つの数字</div>'+
+       '<div class="tblwrap"><table class="stbl"><tbody>'+
+       gRow2("W-Rating","機会あたりの質。同一リーグ・同一投手役割の平均が100。120以上は優秀、140以上はトップ級。")+
+       gRow2("W-Value","出場量を含む累積貢献。レギュラー、代打、代走、守備交代、救援投手を総合順位で比較する。")+
+       '</tbody></table></div></div>';
+    h+='<div class="subsec"><div class="subttl">野手の構成</div>'+
+       '<div class="glossformula" style="display:block">打撃45% + 勝負強さ15% + 走塁8% + 守備参考12% + 役割10% + 複数守備5% + 出場量5%</div>'+
+       '<p style="font-size:13px;line-height:1.7;margin-top:8px">代打は出塁と打点、代走は得点と盗塁、守備交代は出場回数を評価します。'+
+       '複数守備はチーム試合数の5%（最低3試合）以上守った位置だけを数え、少数出場による過大評価を防ぎます。</p></div>';
+    h+='<div class="subsec"><div class="subttl">投手の構成</div>'+
+       '<div class="glossformula" style="display:block">投球内容50% + 支配力15% + 失点抑止15% + 役割15% + 出場量5%</div>'+
+       '<p style="font-size:13px;line-height:1.7;margin-top:8px">先発・中継ぎ・抑えを別々に標準化します。先発はQS、中継ぎは無失点登板とホールド、抑えはセーブを役割遂行として評価します。</p></div>';
+    h+='<div class="subsec"><div class="subttl">守備評価の制約</div>'+
+       '<p style="font-size:13px;line-height:1.7">守備位置の難度、失策、守備交代、複数ポジションを参考評価します。'+
+       '打球座標・速度・守備イニングがないため、守備範囲や好守備は含みません。名称もUZRではなく「守備参考」としています。</p></div>';
+    h+='<div class="expbtns" style="margin-top:12px">'+
+       '<button class="btn" onclick="setView(\'impact\')">◀ W-Impactにもどる</button></div></div>';
     return h;
   }
 

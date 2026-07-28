@@ -17,6 +17,8 @@ class PeriodHitTypesTest(unittest.TestCase):
     def test_awards_json_is_not_a_game(self):
         self.assertFalse(build_dataset._is_game_file(
             "data/2026/awards/weekly/2026-07-20.json"))
+        self.assertFalse(build_dataset._is_game_file("data/2026/war.json"))
+        self.assertFalse(build_dataset._is_game_file("data/2026/w_impact.json"))
 
     def test_batting_line_contains_hit_types(self):
         with tempfile.TemporaryDirectory() as tmp:

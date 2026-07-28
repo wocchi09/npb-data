@@ -96,6 +96,11 @@ jobs:
           SEASON=$(date +%Y)
           python scraper/build_war.py --season "$SEASON"
 
+      - name: Build W-Impact rating
+        run: |
+          SEASON=$(date +%Y)
+          python scraper/build_w_impact.py --season "$SEASON"
+
       - name: Validate data
         run: |
           # 不整合を検出した場合は停止し、壊れた集計結果をpushしない。
