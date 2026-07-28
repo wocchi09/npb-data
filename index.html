@@ -2276,8 +2276,10 @@
   /* 選手一覧の列定義（打者・投手で別々） */
   var PL_COLS_BAT = [
     ["number","背番号"],["name","選手"],["team","球団"],["position","位置"],["hand","投打"],
-    ["games","試合"],["pa","打席"],["ab","打数"],["hits","安打"],["hr","本"],["rbi","点"],
-    ["sb","盗"],["avg","打率"],["obp","出塁"],["slg","長打"],["ops","OPS"],
+    ["games","試合"],["pa","打席"],["ab","打数"],["hits","安打"],
+    ["doubles","二塁打"],["triples","三塁打"],["hr","本"],["rbi","点"],
+    ["bb","四球"],["hbp","死球"],["sb","盗"],["errors","失策"],
+    ["avg","打率"],["obp","出塁"],["slg","長打"],["ops","OPS"],
     ["iso","ISO"],["babip","BABIP"]
   ];
   var PL_COLS_PIT = [
@@ -2317,9 +2319,14 @@
       case "pa": return b.pa||0;
       case "ab": return b.ab||0;
       case "hits": return b.hits||0;
+      case "doubles": return b.doubles||0;
+      case "triples": return b.triples||0;
       case "hr": return b.hr||0;
       case "rbi": return b.rbi||0;
+      case "bb": return plKind==="pitcher" ? (q.bb||0) : (b.bb||0);
+      case "hbp": return b.hbp||0;
       case "sb": return b.sb||0;
+      case "errors": return b.errors||0;
       case "avg": return b.avg;
       case "obp": return b.obp;
       case "slg": return b.slg;
@@ -2332,7 +2339,6 @@
       case "whip": return q.whip;
       case "k9": return q.k9;
       case "so": return q.so||0;
-      case "bb": return q.bb||0;
       case "wins": return q.wins||0;
       case "losses": return q.losses||0;
       case "win_pct": return ((q.wins||0)+(q.losses||0))>=1 ? q.win_pct : null;
@@ -2618,9 +2624,14 @@
            '<td class="num">'+(b.pa||0)+'</td>'+
            '<td class="num">'+(b.ab||0)+'</td>'+
            '<td class="num'+((b.hits||0)>0?' hi':'')+'">'+(b.hits||0)+'</td>'+
+           '<td class="num">'+(b.doubles||0)+'</td>'+
+           '<td class="num">'+(b.triples||0)+'</td>'+
            '<td class="num'+((b.hr||0)>0?' hi':'')+'">'+(b.hr||0)+'</td>'+
            '<td class="num">'+(b.rbi||0)+'</td>'+
+           '<td class="num">'+(b.bb||0)+'</td>'+
+           '<td class="num">'+(b.hbp||0)+'</td>'+
            '<td class="num">'+(b.sb||0)+'</td>'+
+           '<td class="num">'+(b.errors||0)+'</td>'+
            '<td class="num hi">'+fmtAvg(b.avg)+'</td>'+
            '<td class="num">'+fmtAvg(b.obp)+'</td>'+
            '<td class="num">'+fmtAvg(b.slg)+'</td>'+
