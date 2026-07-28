@@ -1,5 +1,5 @@
 {
-  "scoreVersion": "1.0.0",
+  "scoreVersion": "1.1.0",
   "_note": "MVP・ベストメンバーの配点。値を変えて再集計すれば結果に反映されます。available_max は取得できるデータだけで到達しうる上限で、換算スコアの分母に使います。",
   "daily_batter": {
     "categories": {
@@ -18,7 +18,7 @@
       "baserunning": {
         "max": 10,
         "available_max": 8,
-        "note": "盗塁・余分な進塁（好走塁）・一塁から長打で生還は算出可能。盗塁失敗と一部の走塁死は結果詳細にあるが、現行の表彰採点には未反映"
+        "note": "盗塁・余分な進塁（好走塁）・一塁から長打で生還を加点。共通走塁イベントの盗塁失敗・高確度の走塁死を減点"
       },
       "defense": {
         "max": 10,
@@ -79,7 +79,9 @@
       "risp_so_each": -1,
       "gidp": -3,
       "bases_loaded_gidp": -5,
-      "error": -3
+      "error": -3,
+      "caught_stealing": -2,
+      "baserunning_out": -2
     },
     "pa_multiplier": {
       "1": 0.8,
@@ -286,7 +288,7 @@
       "defenseBaser": {
         "max": 10,
         "available_max": 3,
-        "note": "盗塁のみ算出可能。守備機会・特別な守備貢献はデータなし"
+        "note": "盗塁を加点し、共通走塁イベントの盗塁失敗・高確度の走塁死を減点。守備機会・特別な守備貢献はデータなし"
       },
       "teamWin": {
         "max": 5,
@@ -330,6 +332,8 @@
       "so_rate_max": -3,
       "gidp_each": -1.5,
       "sb_out_each": -1,
+      "caught_stealing_each": -1,
+      "baserunning_out_each": -1,
       "error_each": -1.5
     },
     "min_pa_multiplier": 0.85,

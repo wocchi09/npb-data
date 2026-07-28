@@ -8,10 +8,15 @@ estimated.
 from __future__ import annotations
 
 import math
-import re
 from collections import defaultdict
 
-from .normalize import normalize_team, team_info
+from .baserunning import (
+    BASERUNNING_OUT_VALUE,
+    CS_RUN_VALUE,
+    SB_RUN_VALUE,
+    aggregate_runner_events,
+)
+from .normalize import team_info
 
 
 FIELD_POSITIONS = ("捕", "一", "二", "三", "遊", "左", "中", "右", "指")
@@ -41,11 +46,6 @@ PITCHER_WEIGHTS = {
     "role": 0.15,
     "availability": 0.05,
 }
-SB_RUN_VALUE = 0.20
-CS_RUN_VALUE = -0.40
-BASERUNNING_OUT_VALUE = -0.40
-
-
 def number(value, default=0.0):
     try:
         return float(value)
@@ -99,66 +99,6 @@ def _weighted_z(z):
 def _league(player):
     lg = team_info(player.get("team")).get("league")
     return lg if lg in ("セ", "パ") else None
-
-
-def _norm_name(value):
-    variants = str.maketrans({
-        "髙": "高", "﨑": "崎", "濵": "浜", "濱": "浜",
-        "邉": "辺", "邊": "辺", "齋": "斎", "澤": "沢",
-    })
-    return re.sub(r"[\s\u3000]", "", str(value or "")).translate(variants)
-
-
-def collect_runner_penalties(players, runner_details):
-    """Extract only high-confidence running outs recorded in result_detail."""
-    by_team = defaultdict(list)
-    for player in players:
-        if player.get("key") and player.get("name") and player.get("team"):
-            by_team[normalize_team(player["team"])].append(player)
-
-    def resolve(team, token):
-        token = _norm_name(token)
-        candidates = []
-        for player in by_team.get(normalize_team(team), []):
-            full = _norm_name(player.get("name"))
-            if full == token or full.startswith(token):
-                candidates.append(player)
-        return candidates[0].get("key") if len(candidates) == 1 else None
-
-    penalties = defaultdict(lambda: {"caught_stealing": 0, "baserunning_outs": 0})
-    diag = {
-        "details_scanned": 0, "caught_stealing": 0, "baserunning_outs": 0,
-        "unresolved": 0, "overturned_skipped": 0,
-    }
-    out_pattern = re.compile(
-        r"(?:暴走|ボーンヘッド|オーバーラン|けん制飛び出し|飛び出し|"
-        r"挟まれる|打球判断を誤る|慌てて戻る|走路をはみ出る|"
-        r"ベースコーチャーと接触)[（(]([^）)]+)[）)]"
-    )
-    cs_pattern = re.compile(r"盗塁失敗[（(]([^）)]+)[）)]")
-
-    for row in runner_details or []:
-        detail = str(row.get("result_detail") or "")
-        if not detail:
-            continue
-        diag["details_scanned"] += 1
-        if "判定覆る" in detail:
-            diag["overturned_skipped"] += 1
-            continue
-        caught_names = set(cs_pattern.findall(detail))
-        out_names = set(out_pattern.findall(detail)) - caught_names
-        for field, names in (
-            ("caught_stealing", caught_names),
-            ("baserunning_outs", out_names),
-        ):
-            for name in names:
-                key = resolve(row.get("batting_team"), name)
-                if not key:
-                    diag["unresolved"] += 1
-                    continue
-                penalties[key][field] += 1
-                diag[field] += 1
-    return penalties, diag
 
 
 def collect_batter_roles(batting_lines):
@@ -261,23 +201,40 @@ def _pitcher_role(pitching, role):
 
 
 def calculate(players, teams, batting_lines, pitching_lines, atbats,
-              runner_details=None):
+              runner_events=None):
     team_games = {t.get("team"): int(number(t.get("games"))) for t in teams}
     batter_roles = collect_batter_roles(batting_lines)
     pitcher_roles = collect_pitcher_roles(pitching_lines)
     clutch = collect_clutch(atbats)
-    runner_penalties, runner_diag = collect_runner_penalties(players, runner_details)
+    event_agg = aggregate_runner_events(runner_events)
+    runner_diag = {
+        "source": "runner_events" if runner_events else "players/stats.json",
+        "events": len(runner_events or []),
+    }
+
+    def runner_stats(player):
+        batting = player.get("batting") or {}
+        shared = event_agg.get(player.get("key"))
+        if shared:
+            return shared
+        sb = int(number(batting.get("sb")))
+        cs = int(number(batting.get("caught_stealing")))
+        outs = int(number(batting.get("baserunning_outs")))
+        return {
+            "sb": sb,
+            "caught_stealing": cs,
+            "baserunning_outs": outs,
+            "baserunning_runs": round(
+                SB_RUN_VALUE * sb + CS_RUN_VALUE * cs
+                + BASERUNNING_OUT_VALUE * outs, 2
+            ),
+        }
 
     league_bat = {}
     for lg in ("セ", "パ"):
         rows = [p for p in players if _league(p) == lg and number((p.get("batting") or {}).get("pa")) > 0]
         total_pa = sum(number((p.get("batting") or {}).get("pa")) for p in rows)
-        total_baserunning = sum(
-            SB_RUN_VALUE * number((p.get("batting") or {}).get("sb"))
-            + CS_RUN_VALUE * runner_penalties[p.get("key")]["caught_stealing"]
-            + BASERUNNING_OUT_VALUE * runner_penalties[p.get("key")]["baserunning_outs"]
-            for p in rows
-        )
+        total_baserunning = sum(runner_stats(p)["baserunning_runs"] for p in rows)
         league_bat[lg] = {
             "ops": sum(number((p.get("batting") or {}).get("ops")) *
                        number((p.get("batting") or {}).get("pa")) for p in rows) / total_pa
@@ -306,12 +263,8 @@ def calculate(players, teams, batting_lines, pitching_lines, atbats,
                         if c["late_pa"] else 0)
         clutch_raw = shrink(0.6 * risp_quality + 0.4 * late_quality, 0.25,
                             c["risp_pa"] + c["late_pa"], 25)
-        runner = runner_penalties[p.get("key")]
-        baserunning_net = (
-            SB_RUN_VALUE * number(batting.get("sb"))
-            + CS_RUN_VALUE * runner["caught_stealing"]
-            + BASERUNNING_OUT_VALUE * runner["baserunning_outs"]
-        )
+        runner = runner_stats(p)
+        baserunning_net = runner["baserunning_runs"]
         baserunning_rate = baserunning_net * 100 / max(pa, 1)
         # 走塁機会が少ない選手の率をリーグ平均へ戻し、上限張り付きを抑える。
         baserunning_raw = shrink(

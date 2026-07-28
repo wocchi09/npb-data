@@ -183,7 +183,10 @@ def build_daily(date, base="data", cfg=None):
         "date": date,
         "scoreVersion": cfg.get("scoreVersion"),
         "generated_at": datetime.now(JST).isoformat(),
-        "note": "利用可能データのみで算出（走塁・守備の細目は取得できないため対象外）",
+        "note": (
+            "利用可能データのみで算出。盗塁成功・盗塁失敗・高確度の走塁死を反映し、"
+            "取得できない守備の細目は対象外"
+        ),
         "games": len(games),
         "leagues": {},
     }

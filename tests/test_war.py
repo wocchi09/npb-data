@@ -25,7 +25,8 @@ class WarTest(unittest.TestCase):
                 "positions": [{"pos": "遊", "games": 40}],
                 "batting": {
                     "games": 40, "pa": 150, "ops": 0.850,
-                    "runs": 25, "sb": 5,
+                    "runs": 25, "sb": 5, "caught_stealing": 2,
+                    "baserunning_outs": 1, "baserunning_runs": 0.2,
                 },
             },
             {
@@ -61,6 +62,8 @@ class WarTest(unittest.TestCase):
         self.assertTrue(result["qualified"])
         self.assertGreater(result["components"]["r_bat"], 0)
         self.assertGreater(result["components"]["r_pos"], 0)
+        self.assertEqual(result["components"]["r_baser"], 0.2)
+        self.assertEqual(result["components"]["caught_stealing"], 2)
 
     def test_pitcher_war_uses_fip_and_real_innings(self):
         env = {"セ": {"rpw": 10.0}}

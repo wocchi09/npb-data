@@ -4,8 +4,9 @@ MVP・ベストメンバーのスコア計算
 仕様書「NPB 日刊・週間 MVP／ベストメンバー 選出基準」に基づく採点。
 
 ★取得できないデータは推測で補完しない★（仕様書14章）
-走塁の細目（三盗・本盗・盗塁死・好走塁・タッチアップ・走塁死・牽制死）と
-守備の加点項目（好守備・補殺・併殺貢献・盗塁阻止・捕逸）は取得できないため
+盗塁成功は公式記録、盗塁失敗と走塁死は結果詳細で選手と根拠を
+一意に確認できるものだけを採点する。守備の加点項目
+（好守備・補殺・併殺貢献・盗塁阻止・捕逸）は取得できないため
 採点対象外とし、換算スコアで正規化して比較する。
 
     換算スコア = 獲得点 ÷ 利用可能な最大点 × 100
@@ -14,6 +15,9 @@ MVP・ベストメンバーのスコア計算
 import json
 import os
 import re
+
+from .baserunning import aggregate_runner_events, collect_game_runner_events
+from .normalize import player_key
 
 _CONFIG = None
 
@@ -147,6 +151,9 @@ def build_context(game, classify):
 
     ctx = {"atbats": out, "home": home, "away": away, "winner": winner,
            "home_score": hs, "away_score": as_}
+    runner_events, runner_diag = collect_game_runner_events(game)
+    ctx["runner_events"] = aggregate_runner_events(runner_events)
+    ctx["runner_event_diagnostics"] = runner_diag
     track_baserunning(ctx)
     return ctx
 
@@ -440,12 +447,21 @@ def score_daily_batter(row, ctx, cfg=None):
             penalty += P["bases_loaded_gidp"] if a["bases_loaded"] else P["gidp"]
     err = row.get("errors") or 0
     penalty += err * P["error"]
+    runner = (ctx.get("runner_events") or {}).get(player_key(pid, name)) or {}
+    cs = runner.get("caught_stealing", 0)
+    running_outs = runner.get("baserunning_outs", 0)
+    penalty += cs * P.get("caught_stealing", 0)
+    penalty += running_outs * P.get("baserunning_out", 0)
     if so:
         minus_reasons.append(f"三振{so}")
     if gidp:
         minus_reasons.append(f"併殺打{gidp}")
     if err:
         minus_reasons.append(f"失策{err}")
+    if cs:
+        minus_reasons.append(f"盗塁失敗{cs}")
+    if running_outs:
+        minus_reasons.append(f"走塁死{running_outs}")
 
     total = basic + prod + clutch + baser + defense + win + penalty
 
@@ -472,7 +488,8 @@ def score_daily_batter(row, ctx, cfg=None):
         "stat_line": _batter_line(row, hits),
         "reasons": reasons, "minus_reasons": minus_reasons,
         "keys": {"hits": hits, "hr": hrs, "rbi": rbi, "runs": runs,
-                 "risp_hit": risp_hit, "risp_ab": risp_ab, "so": so, "sb": sb},
+                 "risp_hit": risp_hit, "risp_ab": risp_ab, "so": so, "sb": sb,
+                 "caught_stealing": cs, "baserunning_outs": running_outs},
     }
 
 
@@ -861,6 +878,9 @@ def aggregate_batter_period(rows):
     rbi = sum(r.get("rbi") or 0 for r in rows)
     runs = sum(r.get("runs") or 0 for r in rows)
     sb = sum(r.get("sb") or 0 for r in rows)
+    caught_stealing = sum(r.get("caught_stealing") or 0 for r in rows)
+    baserunning_outs = sum(r.get("baserunning_outs") or 0 for r in rows)
+    baserunning_runs = sum(r.get("baserunning_runs") or 0 for r in rows)
     errors = sum(r.get("errors") or 0 for r in rows)
     starts = sum(1 for r in rows if r.get("is_starter"))
 
@@ -875,7 +895,10 @@ def aggregate_batter_period(rows):
         "games": g, "ab": ab, "hits": hits,
         "singles": singles, "doubles": doubles, "triples": triples, "hr": hr,
         "rbi": rbi, "runs": runs,
-        "sb": sb, "so": so, "errors": errors, "starts": starts, "pa": pa,
+        "sb": sb, "caught_stealing": caught_stealing,
+        "baserunning_outs": baserunning_outs,
+        "baserunning_runs": round(baserunning_runs, 2),
+        "so": so, "errors": errors, "starts": starts, "pa": pa,
         "extra_base_hits": doubles + triples + hr,
         "avg": avg, "obp": obp, "slg": slg, "ops": ops,
         "gidp": 0,  # batting_lines に併殺列がないため対象外（推測しない）
@@ -928,7 +951,7 @@ def score_weekly_batter(name, team, position, agg, league_pool, team_games, cfg=
         pt += min(agg["games"] / team_games, 1) * T["appearance_rate"]
     pt = _cap(pt, cats["playingTime"]["max"])
 
-    # --- 走塁・守備（盗塁のみ）---
+    # --- 走塁・守備 ---
     D = c["defenseBaser"]
     db = _cap(agg["sb"] * D["sb"], cats["defenseBaser"]["available_max"])
     if agg["sb"]:
@@ -947,6 +970,13 @@ def score_weekly_batter(name, team, position, agg, league_pool, team_games, cfg=
         so_rate = agg["so"] / agg["ab"]
         pen += max(-so_rate * 10, P["so_rate_max"])
     pen += agg["errors"] * P["error_each"]
+    pen += agg["caught_stealing"] * P.get("caught_stealing_each", 0)
+    pen += agg["baserunning_outs"] * P.get("baserunning_out_each", 0)
+    minus_reasons = []
+    if agg["caught_stealing"]:
+        minus_reasons.append(f"盗塁失敗{agg['caught_stealing']}")
+    if agg["baserunning_outs"]:
+        minus_reasons.append(f"走塁死{agg['baserunning_outs']}")
 
     total = content + prod + clutch + pt + db + team_win + pen
 
@@ -971,6 +1001,9 @@ def score_weekly_batter(name, team, position, agg, league_pool, team_games, cfg=
             "doubles": agg["doubles"], "triples": agg["triples"], "hr": agg["hr"],
             "rbi": agg["rbi"], "runs": agg["runs"], "bb": agg.get("bb", 0),
             "hbp": agg.get("hbp", 0), "so": agg["so"], "sb": agg["sb"],
+            "caught_stealing": agg["caught_stealing"],
+            "baserunning_outs": agg["baserunning_outs"],
+            "baserunning_runs": agg["baserunning_runs"],
             "avg": round(agg["avg"], 3) if agg["avg"] is not None else None,
             "obp": round(agg["obp"], 3) if agg["obp"] is not None else None,
             "slg": round(agg["slg"], 3) if agg["slg"] is not None else None,
@@ -980,7 +1013,7 @@ def score_weekly_batter(name, team, position, agg, league_pool, team_games, cfg=
                       f"打率{fmt_rate(agg['avg'])}" if agg['avg'] is not None else f"{agg['games']}試合") +
                      (f" OPS{fmt_rate(agg['ops'])}" if agg['ops'] is not None else "") +
                      f" {agg['hr']}本 {agg['rbi']}点",
-        "reasons": reasons, "minus_reasons": [],
+        "reasons": reasons, "minus_reasons": minus_reasons,
         "under_min_pa": need_pa and agg["pa"] < need_pa,
     }
 

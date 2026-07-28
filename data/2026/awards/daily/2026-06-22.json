@@ -1,9 +1,9 @@
 {
   "awardType": "daily",
   "date": "2026-06-22",
-  "scoreVersion": "1.0.0",
-  "generated_at": "2026-07-28T21:12:50.307935+09:00",
-  "note": "利用可能データのみで算出（走塁・守備の細目は取得できないため対象外）",
+  "scoreVersion": "1.1.0",
+  "generated_at": "2026-07-28T21:57:31.227021+09:00",
+  "note": "利用可能データのみで算出。盗塁成功・盗塁失敗・高確度の走塁死を反映し、取得できない守備の細目は対象外",
   "games": 1,
   "leagues": {
     "セ": {
@@ -25,8 +25,8 @@
         "player_id": "1950417",
         "position": "三",
         "order": 7,
-        "raw": 45.0,
-        "score": 54.22,
+        "raw": 43.0,
+        "score": 51.81,
         "available_max": 83,
         "pa": 5,
         "breakdown": {
@@ -36,7 +36,7 @@
           "baserunning": 0,
           "defense": 0,
           "teamWin": 0,
-          "penalty": -1
+          "penalty": -3
         },
         "stat_line": "5打数4安打、2本塁打、2打点、2得点",
         "reasons": [
@@ -45,7 +45,8 @@
           "2打点"
         ],
         "minus_reasons": [
-          "三振1"
+          "三振1",
+          "走塁死1"
         ],
         "keys": {
           "hits": 4,
@@ -55,14 +56,16 @@
           "risp_hit": 0,
           "risp_ab": 0,
           "so": 1,
-          "sb": 0
+          "sb": 0,
+          "caught_stealing": 0,
+          "baserunning_outs": 1
         },
         "game_id": "2021039035",
         "opponent": "楽天",
         "is_starter": true,
         "sub_type": null,
         "comment": "5打数4安打、2本塁打、2打点、2得点。4安打／本塁打2本／2打点を記録し、リーグ最高評価。",
-        "margin": 6.63
+        "margin": 4.22
       },
       "pitcher_mvp": {
         "name": "早川 隆久",
@@ -134,7 +137,9 @@
             "risp_hit": 0,
             "risp_ab": 0,
             "so": 0,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021039035",
           "opponent": "西武",
@@ -174,7 +179,9 @@
             "risp_hit": 1,
             "risp_ab": 1,
             "so": 0,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021039035",
           "opponent": "西武",
@@ -215,7 +222,9 @@
             "risp_hit": 1,
             "risp_ab": 3,
             "so": 2,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021039035",
           "opponent": "楽天",
@@ -228,8 +237,8 @@
           "player_id": "1950417",
           "position": "三",
           "order": 7,
-          "raw": 45.0,
-          "score": 54.22,
+          "raw": 43.0,
+          "score": 51.81,
           "available_max": 83,
           "pa": 5,
           "breakdown": {
@@ -239,7 +248,7 @@
             "baserunning": 0,
             "defense": 0,
             "teamWin": 0,
-            "penalty": -1
+            "penalty": -3
           },
           "stat_line": "5打数4安打、2本塁打、2打点、2得点",
           "reasons": [
@@ -248,7 +257,8 @@
             "2打点"
           ],
           "minus_reasons": [
-            "三振1"
+            "三振1",
+            "走塁死1"
           ],
           "keys": {
             "hits": 4,
@@ -258,7 +268,9 @@
             "risp_hit": 0,
             "risp_ab": 0,
             "so": 1,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 1
           },
           "game_id": "2021039035",
           "opponent": "楽天",
@@ -295,7 +307,9 @@
             "risp_hit": 0,
             "risp_ab": 0,
             "so": 0,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021039035",
           "opponent": "楽天",
@@ -338,7 +352,9 @@
             "risp_hit": 1,
             "risp_ab": 2,
             "so": 1,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021039035",
           "opponent": "西武",
@@ -382,7 +398,9 @@
             "risp_hit": 1,
             "risp_ab": 1,
             "so": 2,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021039035",
           "opponent": "楽天",
@@ -425,7 +443,9 @@
             "risp_hit": 2,
             "risp_ab": 4,
             "so": 2,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021039035",
           "opponent": "西武",
@@ -470,7 +490,9 @@
             "risp_hit": 0,
             "risp_ab": 4,
             "so": 1,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021039035",
           "opponent": "西武",
@@ -553,8 +575,8 @@
           "player_id": "1950417",
           "position": "三",
           "order": 7,
-          "raw": 45.0,
-          "score": 54.22,
+          "raw": 43.0,
+          "score": 51.81,
           "available_max": 83,
           "pa": 5,
           "breakdown": {
@@ -564,7 +586,7 @@
             "baserunning": 0,
             "defense": 0,
             "teamWin": 0,
-            "penalty": -1
+            "penalty": -3
           },
           "stat_line": "5打数4安打、2本塁打、2打点、2得点",
           "reasons": [
@@ -573,7 +595,8 @@
             "2打点"
           ],
           "minus_reasons": [
-            "三振1"
+            "三振1",
+            "走塁死1"
           ],
           "keys": {
             "hits": 4,
@@ -583,7 +606,9 @@
             "risp_hit": 0,
             "risp_ab": 0,
             "so": 1,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 1
           },
           "game_id": "2021039035",
           "opponent": "楽天",
@@ -627,7 +652,9 @@
             "risp_hit": 1,
             "risp_ab": 1,
             "so": 2,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021039035",
           "opponent": "楽天",
@@ -672,7 +699,9 @@
             "risp_hit": 0,
             "risp_ab": 4,
             "so": 1,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021039035",
           "opponent": "西武",
@@ -715,7 +744,9 @@
             "risp_hit": 2,
             "risp_ab": 4,
             "so": 2,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021039035",
           "opponent": "西武",
@@ -758,7 +789,9 @@
             "risp_hit": 1,
             "risp_ab": 2,
             "so": 1,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021039035",
           "opponent": "西武",
@@ -798,7 +831,9 @@
             "risp_hit": 1,
             "risp_ab": 1,
             "so": 0,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021039035",
           "opponent": "西武",
@@ -839,7 +874,9 @@
             "risp_hit": 1,
             "risp_ab": 3,
             "so": 2,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021039035",
           "opponent": "楽天",
@@ -876,46 +913,9 @@
             "risp_hit": 0,
             "risp_ab": 0,
             "so": 0,
-            "sb": 0
-          },
-          "game_id": "2021039035",
-          "opponent": "西武",
-          "is_starter": true,
-          "sub_type": null
-        },
-        {
-          "name": "平良 竜哉",
-          "team": "楽天",
-          "player_id": "2105283",
-          "position": "三",
-          "order": 7,
-          "raw": 10.5,
-          "score": 12.65,
-          "available_max": 83,
-          "pa": 6,
-          "breakdown": {
-            "basicBatting": 6.0,
-            "runProduction": 1.5,
-            "clutch": 2,
-            "baserunning": 1.0,
-            "defense": 0,
-            "teamWin": 0,
-            "penalty": 0
-          },
-          "stat_line": "6打数2安打、1得点",
-          "reasons": [
-            "単打で1塁から3塁へ"
-          ],
-          "minus_reasons": [],
-          "keys": {
-            "hits": 2,
-            "hr": 0,
-            "rbi": 0,
-            "runs": 1,
-            "risp_hit": 0,
-            "risp_ab": 0,
-            "so": 0,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021039035",
           "opponent": "西武",
@@ -954,7 +954,52 @@
             "risp_hit": 0,
             "risp_ab": 1,
             "so": 2,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
+          },
+          "game_id": "2021039035",
+          "opponent": "西武",
+          "is_starter": true,
+          "sub_type": null
+        },
+        {
+          "name": "平良 竜哉",
+          "team": "楽天",
+          "player_id": "2105283",
+          "position": "三",
+          "order": 7,
+          "raw": 8.5,
+          "score": 10.24,
+          "available_max": 83,
+          "pa": 6,
+          "breakdown": {
+            "basicBatting": 6.0,
+            "runProduction": 1.5,
+            "clutch": 2,
+            "baserunning": 1.0,
+            "defense": 0,
+            "teamWin": 0,
+            "penalty": -2
+          },
+          "stat_line": "6打数2安打、1得点",
+          "reasons": [
+            "単打で1塁から3塁へ"
+          ],
+          "minus_reasons": [
+            "走塁死1"
+          ],
+          "keys": {
+            "hits": 2,
+            "hr": 0,
+            "rbi": 0,
+            "runs": 1,
+            "risp_hit": 0,
+            "risp_ab": 0,
+            "so": 0,
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 1
           },
           "game_id": "2021039035",
           "opponent": "西武",
@@ -993,7 +1038,9 @@
             "risp_hit": 0,
             "risp_ab": 0,
             "so": 0,
-            "sb": 1
+            "sb": 1,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021039035",
           "opponent": "西武",
@@ -1032,7 +1079,9 @@
             "risp_hit": 0,
             "risp_ab": 0,
             "so": 2,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021039035",
           "opponent": "楽天",
@@ -1069,7 +1118,9 @@
             "risp_hit": 0,
             "risp_ab": 0,
             "so": 0,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021039035",
           "opponent": "楽天",
@@ -1108,7 +1159,9 @@
             "risp_hit": 0,
             "risp_ab": 1,
             "so": 2,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021039035",
           "opponent": "楽天",
@@ -1149,7 +1202,9 @@
             "risp_hit": 0,
             "risp_ab": 1,
             "so": 0,
-            "sb": 0
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0
           },
           "game_id": "2021039035",
           "opponent": "楽天",

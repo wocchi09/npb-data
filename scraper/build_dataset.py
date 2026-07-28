@@ -31,6 +31,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from lib.normalize import normalize_team, team_info, player_key, clean_name
 from lib.events import classify_result, classify_pitch, count_before
+from lib.baserunning import aggregate_runner_events, collect_game_runner_events
 
 
 # ---------- 入出力 ----------
@@ -169,7 +170,7 @@ BAT_LINE_COLS = [
     "player", "player_id", "player_key",
     "order", "position", "is_starter", "sub_type",
     "season_avg", "ab", "runs", "hits", "rbi", "so", "bb", "hbp",
-    "sac", "sb", "errors",
+    "sac", "sb", "caught_stealing", "baserunning_outs", "baserunning_runs", "errors",
     "singles", "doubles", "triples", "hr", "unclassified_hits",
 ]
 
@@ -185,7 +186,8 @@ SEASON_BAT_COLS = [
     "season", "player_key", "player_id", "player", "team", "league", "number",
     "hand", "position", "qualified",
     "games", "pa", "ab", "runs", "hits", "singles", "doubles", "triples", "hr",
-    "rbi", "bb", "ibb", "hbp", "so", "sb", "errors", "tb",
+    "rbi", "bb", "ibb", "hbp", "so", "sb", "caught_stealing",
+    "baserunning_outs", "baserunning_runs", "errors", "tb",
     "avg", "obp", "slg", "ops", "iso", "babip", "bb_pct", "k_pct",
 ]
 
@@ -208,6 +210,12 @@ GAME_COLS = [
     "date", "game_id", "home", "away", "stadium", "home_score", "away_score",
     "winner", "state", "win_pitcher", "lose_pitcher", "save_pitcher",
     "atbat_count", "pitch_count",
+]
+
+RUNNER_EVENT_COLS = [
+    "date", "game_id", "inning", "top_bottom", "batting_team",
+    "player", "player_id", "player_key", "event_type", "event_sequence",
+    "run_value", "result_detail", "source",
 ]
 
 
@@ -258,6 +266,9 @@ def season_tables(season, base="data"):
                     "rbi": b.get("rbi"), "bb": b.get("bb"),
                     "ibb": b.get("ibb"), "hbp": b.get("hbp"), "so": b.get("so"),
                     "sb": b.get("sb"), "errors": b.get("errors"), "tb": b.get("tb"),
+                    "caught_stealing": b.get("caught_stealing", 0),
+                    "baserunning_outs": b.get("baserunning_outs", 0),
+                    "baserunning_runs": b.get("baserunning_runs", 0),
                     "avg": b.get("avg"), "obp": b.get("obp"), "slg": b.get("slg"),
                     "ops": b.get("ops"), "iso": b.get("iso"), "babip": b.get("babip"),
                     "bb_pct": b.get("bb_pct"), "k_pct": b.get("k_pct"),
@@ -310,7 +321,12 @@ def build(season, base="data", fmt="both"):
     files = find_games(season, base)
     print(f"[INFO] {season}シーズン: {len(files)}試合を読み込み")
 
-    pitches, atbats, bat_lines, pit_lines, games = [], [], [], [], []
+    pitches, atbats, bat_lines, pit_lines, games, runner_events = [], [], [], [], [], []
+    player_stats_path = f"{base}/{season}/players/stats.json"
+    season_players = []
+    if os.path.exists(player_stats_path):
+        with open(player_stats_path, encoding="utf-8") as f:
+            season_players = json.load(f).get("players", [])
 
     for path in files:
         try:
@@ -325,6 +341,11 @@ def build(season, base="data", fmt="both"):
         home = normalize_team(g.get("home"))
         away = normalize_team(g.get("away"))
         res = g.get("result") or {}
+        game_runner_events = []
+        if (g.get("game_type") or "公式戦") not in ("オールスター", "CS", "日本シリーズ"):
+            game_runner_events, _ = collect_game_runner_events(g, season_players, date)
+            runner_events.extend(game_runner_events)
+        game_runner_by_player = aggregate_runner_events(game_runner_events)
 
         # ---- games ----
         hs, as_ = res.get("home_score"), res.get("away_score")
@@ -380,6 +401,7 @@ def build(season, base="data", fmt="both"):
                 )
                 unclassified_hits = max(0, official_hits - observed_hits)
                 singles = extra["singles"] + unclassified_hits
+                running = game_runner_by_player.get(key) or {}
                 bat_lines.append({
                     "date": date, "game_id": gid, "stadium": g.get("stadium"), "team": team,
                     "opponent": opp, "is_home": side == "home",
@@ -395,7 +417,13 @@ def build(season, base="data", fmt="both"):
                     "hits": row.get("hits"), "rbi": row.get("rbi"),
                     "so": row.get("so"), "bb": row.get("bb"),
                     "hbp": row.get("hbp"), "sac": row.get("sac"),
-                    "sb": row.get("sb"), "errors": row.get("errors"),
+                    "sb": row.get("sb"),
+                    "caught_stealing": running.get("caught_stealing", 0),
+                    "baserunning_outs": running.get("baserunning_outs", 0),
+                    "baserunning_runs": running.get(
+                        "baserunning_runs", (row.get("sb") or 0) * 0.20
+                    ),
+                    "errors": row.get("errors"),
                     "singles": singles,
                     "doubles": extra["doubles"],
                     "triples": extra["triples"],
@@ -525,6 +553,7 @@ def build(season, base="data", fmt="both"):
         (bat_lines, BAT_LINE_COLS, "batting_lines"),
         (pit_lines, PIT_LINE_COLS, "pitching_lines"),
         (games, GAME_COLS, "games"),
+        (runner_events, RUNNER_EVENT_COLS, "runner_events"),
         (sb, SEASON_BAT_COLS, "season_batting"),
         (sp, SEASON_PIT_COLS, "season_pitching"),
         (st, SEASON_TEAM_COLS, "season_teams"),
@@ -533,7 +562,10 @@ def build(season, base="data", fmt="both"):
         paths = write_table(rows, cols, out_dir, name, fmt)
         print(f"[INFO] {name}: {len(rows):,}行 → {', '.join(os.path.basename(p) for p in paths)}")
 
-    return {"pitches": len(pitches), "atbats": len(atbats), "games": len(games)}
+    return {
+        "pitches": len(pitches), "atbats": len(atbats), "games": len(games),
+        "runner_events": len(runner_events),
+    }
 
 
 def main():
