@@ -65,6 +65,13 @@ jobs:
           SEASON="${SEASON%%-*}"
           python scraper/build_war.py --season "$SEASON"
 
+      - name: Build W-Impact rating
+        run: |
+          SEASON="${{ github.event.inputs.season }}"
+          if [ -z "$SEASON" ]; then SEASON=$(date +%Y); fi
+          SEASON="${SEASON%%-*}"
+          python scraper/build_w_impact.py --season "$SEASON"
+
       - name: Validate data
         run: python scraper/validate_data.py
 

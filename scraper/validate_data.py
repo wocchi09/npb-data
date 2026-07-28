@@ -37,9 +37,17 @@ def find_game_files(base="data", season=None, date=None):
     else:
         pat = f"{base}/**/*.json"
     files = []
+    managed_files = {
+        "index.json", "calendar.json", "no_games.json", "exclude.json",
+        "standings.json", "npb_roster.json", "fip_constants.json",
+        "war.json", "w_impact.json",
+    }
+    managed_dirs = ("/players/", "/teams/", "/dataset/", "/masters/", "/awards/")
     for p in glob.glob(pat, recursive=True):
+        norm = p.replace("\\", "/")
         name = os.path.basename(p)
-        if name.startswith("_") or name == "index.json":
+        if (name.startswith("_") or name in managed_files
+                or any(d in norm for d in managed_dirs)):
             continue
         files.append(p)
     return sorted(files)
@@ -144,10 +152,11 @@ def main():
         game = load_json(path)
         issues = check_game(path, game, seen_game_ids)
         if issues:
-            print(f"\n■ {path}")
+            print(f"\n[FILE] {path}")
             for it in issues:
                 is_info = it.startswith("[情報]")
-                mark = "  ℹ" if is_info else "  ✗"
+                # Windows既定のcp932でも表示できるASCII記号を使う。
+                mark = "  [INFO]" if is_info else "  [ERROR]"
                 print(f"{mark} {it}")
                 total_issues += 1
                 if not is_info:

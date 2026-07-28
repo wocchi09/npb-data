@@ -63,6 +63,12 @@ jobs:
           python scraper/build_awards.py --season "${{ github.event.inputs.season }}"
           python scraper/build_period_awards.py --season "${{ github.event.inputs.season }}"
 
+      - name: Build player value metrics
+        if: ${{ github.event.inputs.apply == 'yes' }}
+        run: |
+          python scraper/build_war.py --season "${{ github.event.inputs.season }}"
+          python scraper/build_w_impact.py --season "${{ github.event.inputs.season }}"
+
       - name: Commit and push
         if: ${{ github.event.inputs.apply == 'yes' }}
         run: |
