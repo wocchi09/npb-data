@@ -253,6 +253,29 @@
     border-radius:8px;border:2px solid var(--line);background:var(--panel);
     color:var(--ink);}
 
+  /* ---- 選手比較 ---- */
+  .cmpbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+    background:var(--zone);border:1px solid var(--line2);border-radius:10px;
+    padding:8px 10px;margin-bottom:10px;}
+  .cmpchip{display:inline-flex;align-items:center;gap:5px;background:var(--panel);
+    border:1px solid var(--line);border-radius:20px;padding:4px 6px 4px 10px;
+    font-size:12.5px;font-weight:700;}
+  .cmpx{cursor:pointer;color:var(--muted);font-weight:400;padding:0 4px;}
+  .cmpx:hover{color:var(--out);}
+  input.cmpcheck{width:16px;height:16px;cursor:pointer;}
+  .cmpheads{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:6px;}
+  .cmphead{border:2px solid var(--line);border-radius:10px;padding:10px 12px;
+    text-align:center;}
+  .cmpname{font-size:16px;font-weight:700;margin-bottom:3px;}
+  table.cmptbl{width:100%;}
+  table.cmptbl td{padding:7px 8px;font-size:13px;border-bottom:1px solid var(--line);}
+  table.cmptbl td.cmplabel{text-align:center;font-size:11.5px;color:var(--muted);
+    font-weight:700;width:90px;}
+  table.cmptbl td.cmpval{text-align:center;font-family:'Roboto Mono',monospace;
+    font-weight:700;width:auto;}
+  table.cmptbl td.cmpval.win{color:var(--accent);background:var(--zone);
+    border-radius:6px;}
+
   /* ---- WAR ---- */
   .warwarn{background:rgba(232,89,12,.08);border:1px solid var(--accent2);
     border-radius:10px;padding:10px 12px;font-size:12.5px;line-height:1.7;
@@ -535,6 +558,7 @@
       <button class="vbtn" id="vb-games" onclick="setView('games')">試合</button>
       <button class="vbtn" id="vb-season" onclick="setView('season')">シーズン成績</button>
       <button class="vbtn" id="vb-players" onclick="setView('players')">選手一覧</button>
+      <button class="vbtn" id="vb-compare" onclick="setView('compare')">選手比較</button>
       <button class="vbtn" id="vb-daily" onclick="setView('daily')">日別分析</button>
       <button class="vbtn" id="vb-awards" onclick="setView('awards')">表彰</button>
       <button class="vbtn" id="vb-glossary" onclick="setView('glossary')">指標一覧</button>
@@ -560,6 +584,8 @@
     <div id="seasonView" style="display:none"></div>
 
     <div id="playersView" style="display:none"></div>
+
+    <div id="compareView" style="display:none"></div>
 
     <div id="dailyView" style="display:none"></div>
 
@@ -1055,18 +1081,6 @@
   function renderBatting(g){
     var box=g.boxscore;
     if(!box||!box.batting) return notReady("打撃成績");
-    // 二塁打・三塁打は公式ボックススコアに列がないため、
-    // 同じ試合JSONの打席結果を選手ID（なければ選手名）で集計する。
-    var extraHits={};
-    (g.atbats||[]).forEach(function(ab){
-      if(ab.valid===false) return;
-      var b=ab.batter||{}, key=b.player_id?("id:"+b.player_id):("name:"+(b.name||""));
-      if(!b.player_id&&!b.name) return;
-      var x=extraHits[key]||(extraHits[key]={doubles:0,triples:0});
-      var rs=ab.result_summary||"";
-      if(/[2２]塁打/.test(rs)) x.doubles++;
-      if(/[3３]塁打/.test(rs)) x.triples++;
-    });
     var h="";
     [["away",g.away],["home",g.home]].forEach(function(x){
       var side=x[0],team=x[1];
@@ -1075,25 +1089,18 @@
       h+='<div class="card2"><h3 class="thead" style="border-left-color:'+(tColor(team)||'var(--accent)')+'">'+
          teamBadge(team)+' '+esc(team||side)+'</h3><div class="tblwrap"><table class="stbl">'+
          '<thead><tr><th>位置</th><th class="nm">選手</th><th>打率</th><th>打数</th>'+
-         '<th>安</th><th>二塁打</th><th>三塁打</th><th>点</th><th>本</th><th>三振</th>'+
-         '<th>四球</th><th>死球</th><th>盗</th><th>失策</th></tr></thead><tbody>';
+         '<th>安</th><th>点</th><th>本</th><th>三振</th><th>四球</th><th>盗</th></tr></thead><tbody>';
       rows.forEach(function(p){
-        var key=p.player_id?("id:"+p.player_id):("name:"+(p.name||""));
-        var xb=extraHits[key]||{doubles:0,triples:0};
         h+='<tr><td>'+esc(p.position||"")+'</td>'+
            '<td class="nm">'+esc(p.name)+'</td>'+
            '<td class="num">'+fmtAvg(p.season_avg)+'</td>'+
            '<td class="num">'+p.ab+'</td>'+
            '<td class="num'+(p.hits>0?' hi':'')+'">'+p.hits+'</td>'+
-           '<td class="num'+(xb.doubles>0?' hi':'')+'">'+xb.doubles+'</td>'+
-           '<td class="num'+(xb.triples>0?' hi':'')+'">'+xb.triples+'</td>'+
            '<td class="num">'+p.rbi+'</td>'+
            '<td class="num'+(p.hr>0?' hi':'')+'">'+p.hr+'</td>'+
            '<td class="num">'+p.so+'</td>'+
            '<td class="num">'+p.bb+'</td>'+
-           '<td class="num">'+(p.hbp||0)+'</td>'+
-           '<td class="num">'+p.sb+'</td>'+
-           '<td class="num'+(p.errors>0?' hi':'')+'">'+(p.errors||0)+'</td></tr>';
+           '<td class="num">'+p.sb+'</td></tr>';
       });
       h+='</tbody></table></div></div>';
     });
@@ -1815,7 +1822,7 @@
   function setView(v){
     curView = v;
     var ids={dash:"dashView", games:"gameView", season:"seasonView",
-             players:"playersView", daily:"dailyView", awards:"awardsView",
+             players:"playersView", compare:"compareView", daily:"dailyView", awards:"awardsView",
              awardsGuide:"awardsGuideView", glossary:"glossaryView",
              war:"warView", warGuide:"warGuideView", export:"exportView"};
     for(var k in ids){
@@ -1827,6 +1834,7 @@
     if(v==="dash") loadDash();
     else if(v==="season") loadSeason();
     else if(v==="players") loadPlayers();
+    else if(v==="compare") loadCompare();
     else if(v==="daily") loadDaily();
     else if(v==="awards") loadAwards();
     else if(v==="awardsGuide"){
@@ -2273,13 +2281,29 @@
   var plName="", plTeam="all", plKind="batter", plPos="all", plHand="all",
       plNum="", plQual="all", plPlayed="all", plSort="team", plSortDir="desc";
 
+  /* 選手比較で選んでいる2人（key配列） */
+  var cmpSelected=[];
+  function toggleCompare(key, ev){
+    if(ev) ev.stopPropagation();
+    var i=cmpSelected.indexOf(key);
+    if(i>=0){
+      cmpSelected.splice(i,1);
+    }else{
+      if(cmpSelected.length>=2) cmpSelected.shift();   // 3人目を選んだら最初の人を外す
+      cmpSelected.push(key);
+    }
+    renderPlayers();
+  }
+  function goCompare(){
+    if(cmpSelected.length!==2) return;
+    setView("compare");
+  }
+
   /* 選手一覧の列定義（打者・投手で別々） */
   var PL_COLS_BAT = [
     ["number","背番号"],["name","選手"],["team","球団"],["position","位置"],["hand","投打"],
-    ["games","試合"],["pa","打席"],["ab","打数"],["hits","安打"],
-    ["doubles","二塁打"],["triples","三塁打"],["hr","本"],["rbi","点"],
-    ["bb","四球"],["hbp","死球"],["sb","盗"],["errors","失策"],
-    ["avg","打率"],["obp","出塁"],["slg","長打"],["ops","OPS"],
+    ["games","試合"],["pa","打席"],["ab","打数"],["hits","安打"],["hr","本"],["rbi","点"],
+    ["sb","盗"],["avg","打率"],["obp","出塁"],["slg","長打"],["ops","OPS"],
     ["iso","ISO"],["babip","BABIP"]
   ];
   var PL_COLS_PIT = [
@@ -2319,14 +2343,9 @@
       case "pa": return b.pa||0;
       case "ab": return b.ab||0;
       case "hits": return b.hits||0;
-      case "doubles": return b.doubles||0;
-      case "triples": return b.triples||0;
       case "hr": return b.hr||0;
       case "rbi": return b.rbi||0;
-      case "bb": return plKind==="pitcher" ? (q.bb||0) : (b.bb||0);
-      case "hbp": return b.hbp||0;
       case "sb": return b.sb||0;
-      case "errors": return b.errors||0;
       case "avg": return b.avg;
       case "obp": return b.obp;
       case "slg": return b.slg;
@@ -2339,6 +2358,7 @@
       case "whip": return q.whip;
       case "k9": return q.k9;
       case "so": return q.so||0;
+      case "bb": return q.bb||0;
       case "wins": return q.wins||0;
       case "losses": return q.losses||0;
       case "win_pct": return ((q.wins||0)+(q.losses||0))>=1 ? q.win_pct : null;
@@ -2582,8 +2602,21 @@
     var isPitTab = (plKind==="pitcher");
     var cols = isPitTab ? PL_COLS_PIT : PL_COLS_BAT;
 
+    if(cmpSelected.length){
+      h+='<div class="cmpbar">比較に選択中: '+
+        cmpSelected.map(function(k){
+          var pp=list.concat(all).find(function(x){return x.key===k;});
+          return pp?'<span class="cmpchip">'+esc(pp.name)+
+            '<span class="cmpx" onclick="toggleCompare(\''+esc(k)+'\',event)">×</span></span>':'';
+        }).join("")+
+        (cmpSelected.length===2
+          ?'<button class="btn primary" onclick="goCompare()">この2人を比較する ▶</button>'
+          :'<span class="sub" style="font-size:11px">あと1人選んでください</span>')+
+        '</div>';
+    }
+
     // 見出し（クリックで並び替え。矢印で現在の方向を示す）
-    h+='<div class="tblwrap"><table class="stbl"><thead><tr>';
+    h+='<div class="tblwrap"><table class="stbl"><thead><tr><th>比較</th>';
     cols.forEach(function(c){
       var on=(plSort===c[0]);
       var arrow = on ? (plSortDir==="asc" ? ' ▲' : ' ▼') : '';
@@ -2597,7 +2630,10 @@
       var b=p.batting||{}, q=p.pitching||{};
       var qmark = isPitTab ? (isQualifiedPitcher(p)?'<span class="qmark">規</span>':'')
                            : (isQualifiedBatter(p)?'<span class="qmark">規</span>':'');
+      var checked = cmpSelected.indexOf(p.key)>=0;
       h+='<tr onclick="showPlayerDetail(\''+esc(p.key)+'\')">';
+      h+='<td onclick="event.stopPropagation()"><input type="checkbox" class="cmpcheck" '+
+         (checked?"checked":"")+' onchange="toggleCompare(\''+esc(p.key)+'\')"></td>';
       h+='<td class="num unumcell">'+(p.number?esc(p.number):"-")+'</td>'+
          '<td class="nm lnk">'+esc(p.name)+qmark+'</td>'+
          '<td>'+teamBadge(p.team)+'</td>';
@@ -2624,14 +2660,9 @@
            '<td class="num">'+(b.pa||0)+'</td>'+
            '<td class="num">'+(b.ab||0)+'</td>'+
            '<td class="num'+((b.hits||0)>0?' hi':'')+'">'+(b.hits||0)+'</td>'+
-           '<td class="num">'+(b.doubles||0)+'</td>'+
-           '<td class="num">'+(b.triples||0)+'</td>'+
            '<td class="num'+((b.hr||0)>0?' hi':'')+'">'+(b.hr||0)+'</td>'+
            '<td class="num">'+(b.rbi||0)+'</td>'+
-           '<td class="num">'+(b.bb||0)+'</td>'+
-           '<td class="num">'+(b.hbp||0)+'</td>'+
            '<td class="num">'+(b.sb||0)+'</td>'+
-           '<td class="num">'+(b.errors||0)+'</td>'+
            '<td class="num hi">'+fmtAvg(b.avg)+'</td>'+
            '<td class="num">'+fmtAvg(b.obp)+'</td>'+
            '<td class="num">'+fmtAvg(b.slg)+'</td>'+
@@ -2653,6 +2684,125 @@
          : '')+'</div>';
     h+='</div><div id="plDetail"></div>';
     pv.innerHTML=h;
+  }
+
+  /* ===== 選手比較 ===== */
+  async function loadCompare(){
+    var cv=document.getElementById("compareView");
+    if(!seasonData){
+      cv.innerHTML='<div class="msg">読み込み中…</div>';
+      await loadSeason();
+    }
+    if(cmpSelected.length!==2){
+      cv.innerHTML='<div class="msg">[選手一覧] で比較したい2人にチェックを入れてください<br>'+
+        '<span style="font-size:12px">現在の選択: '+cmpSelected.length+'人</span></div>'+
+        '<div class="expbtns" style="margin-top:10px">'+
+        '<button class="btn" onclick="setView(\'players\')">選手一覧へ ▶</button></div>';
+      return;
+    }
+    renderCompare();
+  }
+
+  function findPlayer(key){
+    if(!seasonData) return null;
+    for(var i=0;i<seasonData.length;i++){
+      if(seasonData[i].key===key) return seasonData[i];
+    }
+    return null;
+  }
+
+  function cmpBetter(a,b,lowerIsBetter){
+    if(a==null||b==null) return 0;
+    if(a===b) return 0;
+    if(lowerIsBetter) return a<b?1:-1;
+    return a>b?1:-1;
+  }
+
+  function cmpRow(label, a, b, fmtFn, lowerIsBetter){
+    var av=a, bv=b;
+    var winner=cmpBetter(av,bv,lowerIsBetter);
+    var at=fmtFn?fmtFn(av):(av==null?"-":av);
+    var bt=fmtFn?fmtFn(bv):(bv==null?"-":bv);
+    return '<tr><td class="num cmpval'+(winner===1?' win':'')+'">'+at+'</td>'+
+      '<td class="nm cmplabel">'+esc(label)+'</td>'+
+      '<td class="num cmpval'+(winner===-1?' win':'')+'">'+bt+'</td></tr>';
+  }
+
+  function renderCompare(){
+    var cv=document.getElementById("compareView");
+    var pA=findPlayer(cmpSelected[0]), pB=findPlayer(cmpSelected[1]);
+    if(!pA||!pB){
+      cv.innerHTML='<div class="msg">選手データが見つかりません</div>';
+      return;
+    }
+    var bothPitcher = isPitcherP(pA) && isPitcherP(pB);
+    var bothBatter = isBatterP(pA) && isBatterP(pB);
+
+    var h='<div class="dash-sec"><div class="dash-h"><span class="dot"></span>選手比較</div>';
+
+    // ヘッダー：2人のプロフィール
+    h+='<div class="cmpheads">';
+    [pA,pB].forEach(function(p){
+      h+='<div class="cmphead" style="border-color:'+(tColor(p.team)||'var(--line)')+'">'+
+        '<div class="cmpname">'+esc(p.name)+
+        (p.number?' <span class="unum">#'+esc(p.number)+'</span>':'')+'</div>'+
+        '<div>'+teamBadge(p.team)+' '+esc(p.team||"")+' <span class="sub2">'+esc(p.hand||"")+'</span></div>'+
+        '</div>';
+    });
+    h+='</div>';
+
+    h+='<div class="expbtns" style="margin:10px 0">'+
+       '<button class="btn" onclick="setView(\'players\')">◀ 選手を変更する</button></div>';
+
+    if(bothBatter){
+      var a=pA.batting, b=pB.batting;
+      h+='<div class="subsec"><div class="subttl">打撃成績</div>'+
+        '<table class="stbl cmptbl"><tbody>'+
+        cmpRow("試合", a.games, b.games)+
+        cmpRow("打席", a.pa, b.pa)+
+        cmpRow("打数", a.ab, b.ab)+
+        cmpRow("安打", a.hits, b.hits)+
+        cmpRow("本塁打", a.hr, b.hr)+
+        cmpRow("打点", a.rbi, b.rbi)+
+        cmpRow("盗塁", a.sb, b.sb)+
+        cmpRow("打率", a.avg, b.avg, fmtAvg)+
+        cmpRow("出塁率", a.obp, b.obp, fmtAvg)+
+        cmpRow("長打率", a.slg, b.slg, fmtAvg)+
+        cmpRow("OPS", a.ops, b.ops, fmtAvg)+
+        cmpRow("ISO", a.iso, b.iso, fmtAvg)+
+        cmpRow("BABIP", a.babip, b.babip, fmtAvg)+
+        cmpRow("三振", a.so, b.so, null, true)+
+        '</tbody></table></div>';
+    }
+
+    if(bothPitcher){
+      var qa=pA.pitching, qb=pB.pitching;
+      h+='<div class="subsec"><div class="subttl">投手成績</div>'+
+        '<table class="stbl cmptbl"><tbody>'+
+        cmpRow("登板", qa.games, qb.games)+
+        cmpRow("投球回", qa.innings, qb.innings, function(v){return v||"0";})+
+        cmpRow("防御率", qa.era, qb.era, null, true)+
+        cmpRow("FIP", qa.fip, qb.fip, null, true)+
+        cmpRow("WHIP", qa.whip, qb.whip, function(v){return v==null?"-":v.toFixed(2);}, true)+
+        cmpRow("奪三振", qa.so, qb.so)+
+        cmpRow("与四球", qa.bb, qb.bb, null, true)+
+        cmpRow("K/9", qa.k9, qb.k9, function(v){return v==null?"-":v.toFixed(1);})+
+        cmpRow("勝利", qa.wins, qb.wins)+
+        cmpRow("敗戦", qa.losses, qb.losses, null, true)+
+        cmpRow("勝率", qa.win_pct, qb.win_pct, fmtAvg)+
+        cmpRow("セーブ", qa.saves, qb.saves)+
+        cmpRow("ホールド", holdsOf(qa), holdsOf(qb))+
+        '</tbody></table></div>';
+    }
+
+    if(!bothBatter && !bothPitcher){
+      h+='<div class="msg">野手と投手の組み合わせは比較表を出せません（成績の種類が違うため）。'+
+         '各自の成績は上のプロフィールから選手詳細をご覧ください。</div>';
+    }
+
+    h+='<div class="sub" style="font-size:11px;margin-top:8px">色が付いている方が、その項目で上回っています</div>';
+    h+='</div>';
+    cv.innerHTML=h;
   }
 
   /* 選手詳細（選手一覧から開く） */
