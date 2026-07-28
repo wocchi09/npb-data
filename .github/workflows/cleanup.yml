@@ -1,0 +1,102 @@
+name: Cleanup Junk Files
+
+# 過去のバグで保存された「中身のない試合ファイル」（打席0件）や、
+# 同じ試合が別の日にも重複保存されているファイルを掃除する。
+#
+# 既定は確認のみ（何も削除しない）。
+# 実際に削除するときだけ apply を "yes" にして実行する。
+
+on:
+  workflow_dispatch:
+    inputs:
+      season:
+        description: "対象シーズン"
+        required: false
+        default: "2026"
+      apply:
+        description: "実際に削除する場合は yes（既定は確認のみ）"
+        required: false
+        default: "no"
+
+permissions:
+  contents: write
+
+concurrency:
+  # データを書き込むワークフロー同士が同時に走らないようにする
+  group: npb-data-write
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+
+      - name: Scan (dry run)
+        if: ${{ github.event.inputs.apply != 'yes' }}
+        run: |
+          python scraper/cleanup.py --season "${{ github.event.inputs.season }}"
+          echo ""
+          echo "::notice::これは確認のみの実行です。実際に削除するには apply を yes にして再実行してください。"
+
+      - name: Delete junk files
+        if: ${{ github.event.inputs.apply == 'yes' }}
+        run: |
+          python scraper/cleanup.py --season "${{ github.event.inputs.season }}" --apply
+
+      - name: Rebuild season stats
+        if: ${{ github.event.inputs.apply == 'yes' }}
+        run: python scraper/rebuild_stats.py --season "${{ github.event.inputs.season }}"
+
+      - name: Build analysis dataset
+        if: ${{ github.event.inputs.apply == 'yes' }}
+        run: python scraper/build_dataset.py --season "${{ github.event.inputs.season }}" --format both
+
+      - name: Build awards
+        if: ${{ github.event.inputs.apply == 'yes' }}
+        run: |
+          python scraper/build_awards.py --season "${{ github.event.inputs.season }}" || echo "表彰の算出をスキップ"
+          python scraper/build_period_awards.py --season "${{ github.event.inputs.season }}" || echo "週間・月間表彰の算出をスキップ"
+
+      - name: Commit and push
+        if: ${{ github.event.inputs.apply == 'yes' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          find . -name "__pycache__" -type d -prune -exec rm -rf {} + 2>/dev/null || true
+          git add -A
+          if git diff --cached --quiet; then
+            echo "変更なし。pushをスキップします。"
+            exit 0
+          fi
+          git commit -m "cleanup: 不要な試合ファイルを削除 $(date +'%Y-%m-%d %H:%M')"
+
+          for i in 1 2 3; do
+            git fetch origin main
+            if git rebase -X theirs origin/main; then
+              python scraper/fix_index.py || true
+              if ! git diff --quiet; then
+                git add -A
+                git commit --amend --no-edit
+              fi
+              if git push origin HEAD:main; then
+                echo "push成功"
+                exit 0
+              fi
+              echo "pushが弾かれました。取り込み直します。"
+            else
+              echo "自動で解決できない競合です。中断して再試行します。"
+              git rebase --abort || true
+            fi
+            echo "リトライ $i 回目"
+            sleep $((5 * i))
+          done
+
+          echo "pushに3回失敗しました。"
+          exit 1
