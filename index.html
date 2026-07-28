@@ -2225,16 +2225,17 @@
   var PL_COLS_BAT = [
     ["number","背番号"],["name","選手"],["team","球団"],["position","位置"],["hand","投打"],
     ["games","試合"],["pa","打席"],["ab","打数"],["hits","安打"],["hr","本"],["rbi","点"],
-    ["sb","盗"],["avg","打率"],["obp","出塁"],["slg","長打"],["ops","OPS"]
+    ["sb","盗"],["avg","打率"],["obp","出塁"],["slg","長打"],["ops","OPS"],
+    ["iso","ISO"],["babip","BABIP"]
   ];
   var PL_COLS_PIT = [
     ["number","背番号"],["name","選手"],["team","球団"],["hand","投打"],
-    ["games","登板"],["outs","回"],["era","防御率"],["whip","WHIP"],["k9","K/9"],
+    ["games","登板"],["outs","回"],["era","防御率"],["fip","FIP"],["whip","WHIP"],["k9","K/9"],
     ["so","奪三"],["bb","四球"],["wins","勝"],["losses","敗"],["win_pct","勝率"],
     ["saves","S"],["holds","H"],["hp","HP"]
   ];
   /* 小さいほど良い項目は、最初のクリックで昇順にする */
-  var PL_ASC_FIRST = {era:1, whip:1, losses:1, name:1, team:1, position:1, hand:1, number:1};
+  var PL_ASC_FIRST = {era:1, fip:1, whip:1, losses:1, name:1, team:1, position:1, hand:1, number:1};
 
   function setPlSort(k){
     if(plSort===k){
@@ -2271,8 +2272,11 @@
       case "obp": return b.obp;
       case "slg": return b.slg;
       case "ops": return b.ops;
+      case "iso": return b.iso;
+      case "babip": return b.babip;
       case "outs": return q.outs||0;
       case "era": return q.era;
+      case "fip": return q.fip;
       case "whip": return q.whip;
       case "k9": return q.k9;
       case "so": return q.so||0;
@@ -2544,6 +2548,7 @@
            '<td class="num">'+(q.games||0)+'</td>'+
            '<td class="num">'+esc(q.innings||"0")+'</td>'+
            '<td class="num hi">'+(q.era==null?"-":q.era.toFixed(2))+'</td>'+
+           '<td class="num">'+(q.fip==null?"-":q.fip.toFixed(2))+'</td>'+
            '<td class="num">'+(q.whip==null?"-":q.whip.toFixed(2))+'</td>'+
            '<td class="num">'+(q.k9==null?"-":q.k9.toFixed(1))+'</td>'+
            '<td class="num">'+(q.so||0)+'</td>'+
@@ -2567,7 +2572,9 @@
            '<td class="num hi">'+fmtAvg(b.avg)+'</td>'+
            '<td class="num">'+fmtAvg(b.obp)+'</td>'+
            '<td class="num">'+fmtAvg(b.slg)+'</td>'+
-           '<td class="num">'+(b.ops==null?"-":b.ops.toFixed(3).replace(/^0\./,"."))+'</td>';
+           '<td class="num">'+(b.ops==null?"-":b.ops.toFixed(3).replace(/^0\./,"."))+'</td>'+
+           '<td class="num">'+fmtAvg(b.iso)+'</td>'+
+           '<td class="num">'+fmtAvg(b.babip)+'</td>';
       }
       h+='</tr>';
     });
@@ -2643,12 +2650,19 @@
         '<div class="stat"><div class="sv">'+(b.bb||0)+'</div><div class="sl">四球'+
           ((b.ibb||0)>0?'<br><span style="font-size:9px">うち敬遠'+b.ibb+'</span>':'')+'</div></div>'+
         '<div class="stat"><div class="sv">'+(b.sb||0)+'</div><div class="sl">盗塁</div></div>'+
+        '</div><div class="statrow" style="margin-top:8px">'+
+        '<div class="stat"><div class="sv">'+fmtAvg(b.iso)+'</div><div class="sl">ISO'+
+          '<br><span style="font-size:9px">純長打力</span></div></div>'+
+        '<div class="stat"><div class="sv">'+fmtAvg(b.babip)+'</div><div class="sl">BABIP'+
+          '<br><span style="font-size:9px">インプレー打率</span></div></div>'+
         '</div></div>';
     }
     if(isPitcherP(p)){
       h+='<div class="subsec"><div class="subttl">投手成績'+
          (isQualifiedPitcher(p)?' <span class="qmark">規定到達</span>':'')+'</div><div class="statrow">'+
         '<div class="stat"><div class="sv">'+(q.era==null?"-":q.era.toFixed(2))+'</div><div class="sl">防御率</div></div>'+
+        '<div class="stat"><div class="sv">'+(q.fip==null?"-":q.fip.toFixed(2))+'</div><div class="sl">FIP'+
+          (q.fip_constant!=null?'<br><span style="font-size:9px">定数'+q.fip_constant+'</span>':'')+'</div></div>'+
         '<div class="stat"><div class="sv">'+(q.games||0)+'</div><div class="sl">登板</div></div>'+
         '<div class="stat"><div class="sv">'+esc(q.innings||"0")+'</div><div class="sl">投球回</div></div>'+
         '<div class="stat"><div class="sv">'+(q.so||0)+'</div><div class="sl">奪三振</div></div>'+
