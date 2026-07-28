@@ -1,5 +1,6 @@
 {
   "scoreVersion": "1.1.0",
+  "periodScoreVersion": "1.2.0",
   "_note": "MVP・ベストメンバーの配点。値を変えて再集計すれば結果に反映されます。available_max は取得できるデータだけで到達しうる上限で、換算スコアの分母に使います。",
   "daily_batter": {
     "categories": {
@@ -337,6 +338,7 @@
       "error_each": -1.5
     },
     "min_pa_multiplier": 0.85,
+    "sample_multiplier_floor": 0.65,
     "min_pa_games_factor": 2.5,
     "full_pa_games_factor": 3.0
   },
@@ -367,7 +369,10 @@
         "available_max": 10
       }
     },
-    "min_starts": 1
+    "min_starts": 1,
+    "team_games_per_start": 6,
+    "target_ip_per_start": 6,
+    "workload_multiplier_floor": 0.5
   },
   "weekly_reliever": {
     "categories": {
@@ -399,7 +404,9 @@
     },
     "min_appearances": 2,
     "single_appearance_multiplier": 0.85,
-    "two_appearance_multiplier": 0.95
+    "two_appearance_multiplier": 0.95,
+    "appearance_rate_per_team_game": 0.5,
+    "workload_multiplier_floor": 0.55
   },
   "weekly_closer": {
     "categories": {
@@ -432,6 +439,8 @@
         "available_max": 5
       }
     },
-    "min_saves": 1
+    "min_saves": 1,
+    "appearance_rate_per_team_game": 0.45,
+    "workload_multiplier_floor": 0.55
   }
 }

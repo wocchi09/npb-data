@@ -874,6 +874,7 @@ def aggregate_batter_period(rows):
     hr = sum(r.get("hr") or 0 for r in rows)
     bb = sum(r.get("bb") or 0 for r in rows)
     hbp = sum(r.get("hbp") or 0 for r in rows)
+    sac = sum(r.get("sac") or 0 for r in rows)
     so = sum(r.get("so") or 0 for r in rows)
     rbi = sum(r.get("rbi") or 0 for r in rows)
     runs = sum(r.get("runs") or 0 for r in rows)
@@ -884,7 +885,7 @@ def aggregate_batter_period(rows):
     errors = sum(r.get("errors") or 0 for r in rows)
     starts = sum(1 for r in rows if r.get("is_starter"))
 
-    pa = ab + bb + hbp  # 犠打・犠飛はここでは持たないため簡易PA
+    pa = ab + bb + hbp + sac
     tb = singles + doubles * 2 + triples * 3 + hr * 4
     avg = hits / ab if ab else None
     obp = (hits + bb + hbp) / pa if pa else None
@@ -898,7 +899,7 @@ def aggregate_batter_period(rows):
         "sb": sb, "caught_stealing": caught_stealing,
         "baserunning_outs": baserunning_outs,
         "baserunning_runs": round(baserunning_runs, 2),
-        "so": so, "errors": errors, "starts": starts, "pa": pa,
+        "so": so, "errors": errors, "starts": starts, "pa": pa, "sac": sac,
         "extra_base_hits": doubles + triples + hr,
         "avg": avg, "obp": obp, "slg": slg, "ops": ops,
         "gidp": 0,  # batting_lines に併殺列がないため対象外（推測しない）
@@ -980,9 +981,12 @@ def score_weekly_batter(name, team, position, agg, league_pool, team_games, cfg=
 
     total = content + prod + clutch + pt + db + team_win + pen
 
-    mult = 1.0
-    if need_pa and agg["pa"] < need_pa:
-        mult = c["min_pa_multiplier"]
+    full_pa = (team_games or 0) * c["full_pa_games_factor"]
+    pa_coverage = min(agg["pa"] / full_pa, 1) if full_pa else 1
+    game_coverage = min(agg["games"] / team_games, 1) if team_games else 1
+    sample_coverage = pa_coverage * 0.7 + game_coverage * 0.3
+    floor = c.get("sample_multiplier_floor", c["min_pa_multiplier"])
+    mult = floor + (1 - floor) * sample_coverage
 
     avail = sum(v["available_max"] for v in cats.values())
     raw = total * mult
@@ -991,6 +995,9 @@ def score_weekly_batter(name, team, position, agg, league_pool, team_games, cfg=
         "raw": round(raw, 2),
         "score": round(raw / avail * 100, 2) if avail else 0,
         "available_max": avail,
+        "team_games": team_games or 0,
+        "sample_coverage": round(sample_coverage, 3),
+        "sample_multiplier": round(mult, 3),
         "breakdown": {"battingContent": round(content, 2), "runProduction": round(prod, 2),
                       "clutch": clutch, "playingTime": round(pt, 2),
                       "defenseBaser": round(db, 2), "teamWin": team_win,
@@ -1009,7 +1016,7 @@ def score_weekly_batter(name, team, position, agg, league_pool, team_games, cfg=
             "slg": round(agg["slg"], 3) if agg["slg"] is not None else None,
             "ops": round(agg["ops"], 3) if agg["ops"] is not None else None,
         },
-        "stat_line": (f"{agg['games']}試合 {agg['ab']}打数{agg['hits']}安打 "
+        "stat_line": (f"{agg['games']}試合 {agg['pa']}打席 {agg['ab']}打数{agg['hits']}安打 "
                       f"打率{fmt_rate(agg['avg'])}" if agg['avg'] is not None else f"{agg['games']}試合") +
                      (f" OPS{fmt_rate(agg['ops'])}" if agg['ops'] is not None else "") +
                      f" {agg['hr']}本 {agg['rbi']}点",
@@ -1043,20 +1050,29 @@ def aggregate_pitcher_period(rows):
     }
 
 
-def score_weekly_starter(name, team, agg, league_pool, cfg=None):
+def score_weekly_starter(name, team, agg, league_pool, cfg=None, team_games=None):
     cfg = cfg or load_config()
     c = cfg["weekly_starter"]
     cats = c["categories"]
     reasons = []
     era = _percentile_score([p["era"] for p in league_pool], agg["era"],
                              cats["era"]["max"], higher_is_better=False)
-    innings = min(agg["ip"] / 6, 1) * cats["innings"]["max"] if agg["games"] else 0
+    expected_starts = max(1.0, (team_games or 0) / c.get("team_games_per_start", 6))
+    target_ip = expected_starts * c.get("target_ip_per_start", 6)
+    start_coverage = min(agg["games"] / expected_starts, 1)
+    ip_coverage = min(agg["ip"] / target_ip, 1) if target_ip else 0
+    workload_coverage = start_coverage * 0.6 + ip_coverage * 0.4
+    workload_multiplier = (
+        c.get("workload_multiplier_floor", 0.5)
+        + (1 - c.get("workload_multiplier_floor", 0.5)) * workload_coverage
+    )
+    innings = ip_coverage * cats["innings"]["max"] if agg["games"] else 0
     whip = _percentile_score([p["whip"] for p in league_pool], agg["whip"],
                               cats["whip"]["max"], higher_is_better=False)
     k = _percentile_score([p["so"] for p in league_pool], agg["so"], cats["strikeout"]["max"])
     qs = min((agg["hqs"] * 1.5 + agg["qs"]) / max(agg["games"], 1), 1) * cats["qs"]["max"]
     wc = min(agg["wins"] / max(agg["games"], 1), 1) * cats["winContrib"]["max"]
-    total = era + innings + whip + k + qs + wc
+    total = (era + innings + whip + k + qs + wc) * workload_multiplier
     if agg["wins"]:
         reasons.append(f"{agg['wins']}勝{agg['losses']}敗")
     if agg["hqs"]:
@@ -1068,6 +1084,10 @@ def score_weekly_starter(name, team, agg, league_pool, cfg=None):
         "name": name, "team": team, "role": "先発",
         "raw": round(total, 2), "score": round(total / avail * 100, 2) if avail else 0,
         "available_max": avail,
+        "team_games": team_games or 0,
+        "expected_appearances": round(expected_starts, 2),
+        "workload_coverage": round(workload_coverage, 3),
+        "workload_multiplier": round(workload_multiplier, 3),
         "breakdown": {"era": round(era, 2), "innings": round(innings, 2),
                       "whip": round(whip, 2), "strikeout": round(k, 2),
                       "qs": round(qs, 2), "winContrib": round(wc, 2)},
@@ -1078,7 +1098,7 @@ def score_weekly_starter(name, team, agg, league_pool, cfg=None):
     }
 
 
-def score_weekly_reliever(name, team, agg, league_pool, cfg=None):
+def score_weekly_reliever(name, team, agg, league_pool, cfg=None, team_games=None):
     cfg = cfg or load_config()
     c = cfg["weekly_reliever"]
     cats = c["categories"]
@@ -1088,13 +1108,16 @@ def score_weekly_reliever(name, team, agg, league_pool, cfg=None):
     holds = min(agg["holds"] / 3, 1) * cats["holds"]["max"]
     content = _percentile_score([p["whip"] for p in league_pool], agg["whip"],
                                  cats["content"]["max"], higher_is_better=False)
-    appear = min(agg["games"] / 4, 1) * cats["appearances"]["max"]
+    target_apps = max(
+        2.0, (team_games or 0) * c.get("appearance_rate_per_team_game", 0.5)
+    )
+    app_coverage = min(agg["games"] / target_apps, 1)
+    ip_coverage = min(agg["ip"] / target_apps, 1)
+    workload_coverage = app_coverage * 0.7 + ip_coverage * 0.3
+    appear = app_coverage * cats["appearances"]["max"]
     total = sr + holds + content + appear
-    mult = 1.0
-    if agg["games"] == 1:
-        mult = c["single_appearance_multiplier"]
-    elif agg["games"] == 2:
-        mult = c["two_appearance_multiplier"]
+    floor = c.get("workload_multiplier_floor", 0.55)
+    mult = floor + (1 - floor) * workload_coverage
     if agg["holds"]:
         reasons.append(f"ホールド{agg['holds']}")
     avail = sum(v["available_max"] for v in cats.values())
@@ -1103,6 +1126,10 @@ def score_weekly_reliever(name, team, agg, league_pool, cfg=None):
         "name": name, "team": team, "role": "中継ぎ",
         "raw": round(raw, 2), "score": round(raw / avail * 100, 2) if avail else 0,
         "available_max": avail,
+        "team_games": team_games or 0,
+        "expected_appearances": round(target_apps, 2),
+        "workload_coverage": round(workload_coverage, 3),
+        "workload_multiplier": round(mult, 3),
         "breakdown": {"scorelessRate": round(sr, 2), "holds": round(holds, 2),
                       "content": round(content, 2), "appearances": round(appear, 2)},
         "stat_line": f"{agg['games']}試合 {agg['ip']:.1f}回 自責{agg['er']} {agg['so']}奪三振",
@@ -1110,7 +1137,7 @@ def score_weekly_reliever(name, team, agg, league_pool, cfg=None):
     }
 
 
-def score_weekly_closer(name, team, agg, league_pool, cfg=None):
+def score_weekly_closer(name, team, agg, league_pool, cfg=None, team_games=None):
     cfg = cfg or load_config()
     c = cfg["weekly_closer"]
     cats = c["categories"]
@@ -1121,8 +1148,16 @@ def score_weekly_closer(name, team, agg, league_pool, cfg=None):
     whip = _percentile_score([p["whip"] for p in league_pool], agg["whip"],
                               cats["whip"]["max"], higher_is_better=False)
     k = _percentile_score([p["so"] for p in league_pool], agg["so"], cats["strikeout"]["max"])
-    appear = min(agg["games"] / 3, 1) * cats["appearances"]["max"]
-    total = saves + save_rate + scoreless + whip + k + appear
+    target_apps = max(
+        2.0, (team_games or 0) * c.get("appearance_rate_per_team_game", 0.45)
+    )
+    app_coverage = min(agg["games"] / target_apps, 1)
+    ip_coverage = min(agg["ip"] / target_apps, 1)
+    workload_coverage = app_coverage * 0.7 + ip_coverage * 0.3
+    appear = app_coverage * cats["appearances"]["max"]
+    floor = c.get("workload_multiplier_floor", 0.55)
+    workload_multiplier = floor + (1 - floor) * workload_coverage
+    total = (saves + save_rate + scoreless + whip + k + appear) * workload_multiplier
     if agg["saves"]:
         reasons.append(f"セーブ{agg['saves']}")
     avail = sum(v["available_max"] for v in cats.values())
@@ -1130,6 +1165,10 @@ def score_weekly_closer(name, team, agg, league_pool, cfg=None):
         "name": name, "team": team, "role": "抑え",
         "raw": round(total, 2), "score": round(total / avail * 100, 2) if avail else 0,
         "available_max": avail,
+        "team_games": team_games or 0,
+        "expected_appearances": round(target_apps, 2),
+        "workload_coverage": round(workload_coverage, 3),
+        "workload_multiplier": round(workload_multiplier, 3),
         "breakdown": {"saves": round(saves, 2), "saveRate": round(save_rate, 2),
                       "scorelessRate": round(scoreless, 2), "whip": round(whip, 2),
                       "strikeout": round(k, 2), "appearances": round(appear, 2)},
