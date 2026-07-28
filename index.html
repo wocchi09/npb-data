@@ -253,6 +253,10 @@
     border-radius:8px;border:2px solid var(--line);background:var(--panel);
     color:var(--ink);}
 
+  /* ---- 配球タブ：投手ロール ---- */
+  .rolebadge{display:inline-block;font-size:10.5px;font-weight:700;color:#fff;
+    padding:2px 7px;border-radius:20px;vertical-align:middle;line-height:1.4;}
+
   /* ---- 選手比較 ---- */
   .cmpbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;
     background:var(--zone);border:1px solid var(--line2);border-radius:10px;
@@ -4701,14 +4705,66 @@
   /* ===== 配球分析タブ ===== */
   var pitchFilter = {team:"all", pitcher:"all", type:"all"};
 
+  /* 投手ロール（先発・中継ぎ・抑え）を判定する。
+     scraper/lib/awards.py の _role_of と同じ考え方をJS側でも使う。
+       ・その試合の1人目 → 先発
+       ・決着に「Ｓ」がつく → 抑え
+       ・最後に登板し、その試合の最終回まで投げている → 抑え扱い
+       ・それ以外 → 中継ぎ
+     判定できない（出場成績が無い）場合はnullを返す。 */
+  function getPitcherRoles(g){
+    var box=g.boxscore;
+    var roles={};   // 選手名 -> "先発"|"中継ぎ"|"抑え"
+    if(!box||!box.pitching) return roles;
+    var lastInning=0;
+    (g.atbats||[]).forEach(function(a){ if(a.inning>lastInning) lastInning=a.inning; });
+
+    ["away","home"].forEach(function(side){
+      var rows=(box.pitching&&box.pitching[side])||[];
+      rows.forEach(function(row,i){
+        var name=row.name;
+        if(!name) return;
+        var role;
+        if(i===0){
+          role="先発";
+        }else{
+          var dec=row.decision||"";
+          if(dec.indexOf("Ｓ")>=0 || /(^|[^A-Za-z])S([^A-Za-z]|$)/.test(dec)){
+            role="抑え";
+          }else if(i===rows.length-1){
+            // 最後の登板投手が、その試合の最終回まで投げていれば抑え扱い
+            var mine=(g.atbats||[]).filter(function(a){
+              return (a.pitcher&&a.pitcher.player_id)===row.player_id ||
+                     (a.pitcher&&a.pitcher.name)===name;
+            });
+            var reachedLast = mine.some(function(a){ return a.inning>=lastInning; });
+            role = reachedLast ? "抑え" : "中継ぎ";
+          }else{
+            role="中継ぎ";
+          }
+        }
+        roles[name]=role;
+      });
+    });
+    return roles;
+  }
+  var ROLE_COLOR={"先発":"var(--accent)","中継ぎ":"#1C7ED6","抑え":"#E03131"};
+  function roleBadge(role){
+    if(!role) return "";
+    return '<span class="rolebadge" style="background:'+(ROLE_COLOR[role]||"var(--muted)")+
+           '">'+esc(role)+'</span>';
+  }
+
   function collectPitches(g){
     // 全投球をフラットな配列にする（投手・打者・状況つき）
+    var roles=getPitcherRoles(g);
     var out=[];
     (g.atbats||[]).forEach(function(ab){
       var p=ab.pitcher||{}, b=ab.batter||{};
       (ab.pitches||[]).forEach(function(pt){
         out.push({
           pitcher: p.name||"-", pitcher_id: p.player_id,
+          pitcherRole: roles[p.name]||null,
           batter: b.name||"-", bhand: b.hand||"",
           // 投げている側＝守備側のチーム
           team: ab.fielding_team||"", batTeam: ab.batting_team||"",
@@ -4777,8 +4833,12 @@
       '<span class="lb">投手</span><select id="fp" onchange="onAnalysisFilter()">'+
       '<option value="all">全投手</option>'+
       pitchers.map(function(n){
+        var r=pool.length ? (function(){
+          for(var i=0;i<pool.length;i++){ if(pool[i].pitcher===n) return pool[i].pitcherRole; }
+          return null;
+        })() : null;
         return '<option value="'+esc(n)+'"'+(pitchFilter.pitcher===n?" selected":"")+'>'+
-               esc(n)+' ('+byPitcher[n]+')</option>';
+               esc(n)+(r?'（'+r+'）':'')+' ('+byPitcher[n]+')</option>';
       }).join("")+
       '</select>'+
       '<span class="lb">球種</span><select id="ft" onchange="onAnalysisFilter()">'+
@@ -4788,6 +4848,17 @@
                esc(t)+'</option>';
       }).join("")+
       '</select></div>';
+
+    // 選択中の投手の役割バッジ（先発・中継ぎ・抑え）
+    if(pitchFilter.pitcher!=="all"){
+      var curRole=null;
+      for(var ri=0;ri<pool.length;ri++){
+        if(pool[ri].pitcher===pitchFilter.pitcher){ curRole=pool[ri].pitcherRole; break; }
+      }
+      if(curRole){
+        h+='<div style="margin:-4px 0 10px">'+esc(pitchFilter.pitcher)+' '+roleBadge(curRole)+'</div>';
+      }
+    }
 
     if(!ps.length) return h+'<div class="msg">該当する投球がありません</div>';
 
