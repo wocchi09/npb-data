@@ -74,6 +74,8 @@ class WImpactTest(unittest.TestCase):
         self.assertEqual(batter_a["stats"]["required_pa"], 31.0)
         self.assertEqual(batter_a["stats"]["caught_stealing"], 1)
         self.assertEqual(batter_a["stats"]["baserunning_outs"], 1)
+        self.assertEqual(batter_a["stats"]["primary_position"], "遊")
+        self.assertEqual(batter_a["stats"]["position_apps"], {"遊": 1})
         pitcher_a = next(x for x in result["pitchers"] if x["player_key"] == "p1")
         pitcher_b = next(x for x in result["pitchers"] if x["player_key"] == "p2")
         self.assertGreater(pitcher_a["w_rating"], pitcher_b["w_rating"])
@@ -82,6 +84,25 @@ class WImpactTest(unittest.TestCase):
         overall_pitcher = next(x for x in result["overall"] if x["player_key"] == "p1")
         self.assertTrue(overall_batter["qualified_pa"])
         self.assertTrue(overall_pitcher["qualified_ip"])
+
+    def test_primary_position_uses_most_appearances_and_roster_tiebreak(self):
+        players = [{
+            "key": "b1", "name": "複数守備", "team": "阪神", "position": "三",
+            "batting": {"games": 4, "pa": 12, "ops": .700},
+        }]
+        batting_lines = [
+            {"player_key": "b1", "position": "一"},
+            {"player_key": "b1", "position": "三"},
+            {"player_key": "b1", "position": "三"},
+            {"player_key": "b1", "position": "一"},
+        ]
+        result = calculate(
+            players, [{"team": "阪神", "games": 4}],
+            batting_lines, [], [], [],
+        )
+        stats = result["batters"][0]["stats"]
+        self.assertEqual(stats["position_apps"], {"一": 2, "三": 2})
+        self.assertEqual(stats["primary_position"], "三")
 
 
 if __name__ == "__main__":
