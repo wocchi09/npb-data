@@ -29,7 +29,8 @@ def find_game_files(season, base="data"):
         name = os.path.basename(norm)
         if name.startswith("_") or name == "index.json":
             continue
-        if any(x in norm for x in ("/players/", "/teams/", "/dataset/", "/masters/")):
+        if any(x in norm for x in (
+                "/players/", "/teams/", "/dataset/", "/masters/", "/awards/")):
             continue
         out.append(norm)
     return sorted(out)
