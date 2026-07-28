@@ -65,9 +65,16 @@ class WImpactTest(unittest.TestCase):
         batter_a = next(x for x in result["batters"] if x["player_key"] == "b1")
         batter_b = next(x for x in result["batters"] if x["player_key"] == "b2")
         self.assertGreater(batter_a["w_rating"], batter_b["w_rating"])
+        self.assertTrue(batter_a["stats"]["qualified_pa"])
+        self.assertEqual(batter_a["stats"]["required_pa"], 31.0)
         pitcher_a = next(x for x in result["pitchers"] if x["player_key"] == "p1")
         pitcher_b = next(x for x in result["pitchers"] if x["player_key"] == "p2")
         self.assertGreater(pitcher_a["w_rating"], pitcher_b["w_rating"])
+        self.assertTrue(pitcher_a["stats"]["qualified_ip"])
+        overall_batter = next(x for x in result["overall"] if x["player_key"] == "b1")
+        overall_pitcher = next(x for x in result["overall"] if x["player_key"] == "p1")
+        self.assertTrue(overall_batter["qualified_pa"])
+        self.assertTrue(overall_pitcher["qualified_ip"])
 
 
 if __name__ == "__main__":

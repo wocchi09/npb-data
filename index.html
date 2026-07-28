@@ -4336,7 +4336,8 @@
   }
 
   /* ===== サイト独自指標 W-Impact ===== */
-  var impactData=null, impactLg="パ", impactKind="overall";
+  var impactData=null, impactLg="パ", impactKind="overall",
+      impactQual="all", impactSort="w_value", impactSortDir="desc";
 
   async function loadImpact(){
     var iv=document.getElementById("impactView");
@@ -4346,11 +4347,51 @@
       var r=await fetch("data/"+year+"/w_impact.json?t="+Date.now());
       impactData = r.ok ? await r.json() : null;
     }catch(e){ impactData=null; }
+    // 「位置」は選手一覧と同じ公式名鑑の守備区分を使う。
+    await loadRoster();
     renderImpact();
   }
   function setImpactLg(l){ impactLg=l; renderImpact(); }
-  function setImpactKind(k){ impactKind=k; renderImpact(); }
+  function setImpactKind(k){
+    impactKind=k;
+    if((k==="batter" && impactQual==="ip") ||
+       (k==="pitcher" && impactQual==="pa")) impactQual="all";
+    if((k==="overall" && (impactSort.indexOf("components.")===0 || impactSort.indexOf("stats.")===0)) ||
+       (k==="batter" && impactSort==="stats.innings") ||
+       (k==="pitcher" && impactSort==="stats.pa")) impactSort="w_value";
+    renderImpact();
+  }
+  function setImpactQual(k){ impactQual=k; renderImpact(); }
+  function setImpactSort(k){ impactSort=k; renderImpact(); }
+  function toggleImpactSortDir(){
+    impactSortDir=impactSortDir==="desc"?"asc":"desc";
+    renderImpact();
+  }
   function impactNum(v){ return v==null?"-":Number(v).toFixed(1); }
+  function impactPosition(x){
+    var players=npbRoster&&npbRoster.players;
+    if(players){
+      var nn=normName(x.name);
+      for(var i=0;i<players.length;i++){
+        if(players[i].team===x.team && normName(players[i].name)===nn){
+          return players[i].position_group||"-";
+        }
+      }
+    }
+    return x.position||"-";
+  }
+  function impactSortValue(x,key){
+    if(key==="name") return x.name||"";
+    if(key==="team") return x.team||"";
+    if(key==="position") return impactPosition(x);
+    if(key.indexOf("components.")===0){
+      return Number((x.components||{})[key.slice(11)]||0);
+    }
+    if(key.indexOf("stats.")===0){
+      return Number((x.stats||{})[key.slice(6)]||0);
+    }
+    return Number(x[key]||0);
+  }
 
   function renderImpact(){
     var iv=document.getElementById("impactView");
@@ -4381,8 +4422,50 @@
     var list=(source||[]).filter(function(x){
       return (x.league||tLeague(x.team))===impactLg;
     });
+    list=list.filter(function(x){
+      var s=x.stats||{};
+      if(impactQual==="pa") return impactKind==="overall"?x.qualified_pa:s.qualified_pa;
+      if(impactQual==="ip") return impactKind==="overall"?x.qualified_ip:s.qualified_ip;
+      return true;
+    });
+    list.sort(function(a,b){
+      var av=impactSortValue(a,impactSort), bv=impactSortValue(b,impactSort);
+      var cmp=(typeof av==="string"||typeof bv==="string")
+        ? String(av).localeCompare(String(bv),"ja")
+        : av-bv;
+      if(cmp===0) cmp=Number(a.w_value||0)-Number(b.w_value||0);
+      return impactSortDir==="asc"?cmp:-cmp;
+    });
+    var sortOptions=[
+      ["w_value","W-Value"],["w_rating","W-Rating"],["name","選手名"],["team","球団"]
+    ];
+    if(impactKind==="batter"){
+      sortOptions=sortOptions.concat([
+        ["stats.pa","打席"],["components.batting","打撃"],
+        ["components.clutch","勝負"],["components.defense","守備"],
+        ["components.role","役割"],["components.versatility","複数"]
+      ]);
+    }else if(impactKind==="pitcher"){
+      sortOptions=sortOptions.concat([
+        ["stats.innings","投球回"],["components.pitching","投球"],
+        ["components.dominance","奪三振"],["components.run_prevention","失点抑止"],
+        ["components.role","役割"]
+      ]);
+    }
+    h+='<div class="expform" style="margin:8px 0 10px">'+
+       '<label class="ef"><span>規定条件</span><select onchange="setImpactQual(this.value)">'+
+       '<option value="all"'+(impactQual==="all"?" selected":"")+'>全選手</option>'+
+       (impactKind!=="pitcher"?'<option value="pa"'+(impactQual==="pa"?" selected":"")+'>規定打席到達</option>':'')+
+       (impactKind!=="batter"?'<option value="ip"'+(impactQual==="ip"?" selected":"")+'>規定投球回到達</option>':'')+
+       '</select></label>'+
+       '<label class="ef"><span>並び順</span><select onchange="setImpactSort(this.value)">'+
+       sortOptions.map(function(x){
+         return '<option value="'+x[0]+'"'+(impactSort===x[0]?" selected":"")+'>'+x[1]+'</option>';
+       }).join("")+'</select></label>'+
+       '<label class="ef"><span>順序</span><button class="btn" onclick="toggleImpactSortDir()">'+
+       (impactSortDir==="desc"?"降順 ↓":"昇順 ↑")+'</button></label></div>';
     if(!list.length){
-      h+='<div class="msg">データがありません</div></div>'; iv.innerHTML=h; return;
+      h+='<div class="msg">条件に該当する選手がいません</div></div>'; iv.innerHTML=h; return;
     }
     h+='<div class="tblwrap"><table class="stbl"><thead><tr>'+
        '<th>#</th><th class="nm">選手</th><th>球団</th>'+
@@ -4394,15 +4477,9 @@
     h+='</tr></thead><tbody>';
     list.forEach(function(x,i){
       var c=x.components||{}, s=x.stats||{};
-      var roleTags="";
-      if(impactKind==="batter"){
-        if(s.pinch_hit_apps) roleTags+='<span class="subtag">代打'+s.pinch_hit_apps+'</span>';
-        if(s.pinch_run_apps) roleTags+='<span class="subtag">代走'+s.pinch_run_apps+'</span>';
-        if(s.def_sub_apps) roleTags+='<span class="subtag">守備'+s.def_sub_apps+'</span>';
-      }
       h+='<tr><td class="num">'+(i+1)+'</td>'+
-         '<td class="nm">'+esc(x.name)+roleTags+'</td><td>'+teamBadge(x.team)+'</td>'+
-         (impactKind==="batter"?'<td class="pos">'+esc(x.position||"-")+'</td>':
+         '<td class="nm">'+esc(x.name)+'</td><td>'+teamBadge(x.team)+'</td>'+
+         (impactKind==="batter"?'<td class="pos">'+esc(impactPosition(x))+'</td>':
           impactKind==="pitcher"?'<td>'+esc(x.role||"-")+'</td>':'')+
          '<td class="num hi">'+Number(x.w_value).toFixed(2)+'</td>'+
          '<td class="num hi">'+impactNum(x.w_rating)+'</td>';
