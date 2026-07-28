@@ -290,17 +290,17 @@
   .impact-stage{position:relative;}
   .impact-main{min-width:0;}
   .impact-sideboard{display:none;}
-  .impact-top5-inline{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+  .impact-top5-inline{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
     gap:8px;margin:10px 0 12px;}
   .impact-top-card{background:var(--panel2);border:1px solid var(--line);
-    border-radius:10px;padding:9px 10px;box-shadow:var(--shadow);}
+    border-radius:10px;padding:6px 8px;box-shadow:var(--shadow);line-height:1.35;}
   .impact-top-title{display:flex;align-items:center;justify-content:space-between;
     gap:6px;color:var(--accent);font-size:12px;font-weight:700;
-    border-bottom:2px solid var(--line);padding-bottom:4px;margin-bottom:3px;}
+    border-bottom:2px solid var(--line);padding-bottom:3px;margin-bottom:2px;}
   .impact-top-title span{font-family:'Roboto Mono',monospace;font-size:9px;
     color:var(--muted);}
   .impact-top-row{display:grid;grid-template-columns:18px minmax(0,1fr) auto auto;
-    gap:5px;align-items:center;padding:3px 0;font-size:11px;
+    gap:4px;align-items:center;padding:1px 0;font-size:10.5px;
     border-bottom:1px dashed var(--line);}
   .impact-top-row:last-child{border-bottom:none;}
   .impact-top-rank{font-family:'Roboto Mono',monospace;color:var(--muted);
@@ -313,12 +313,15 @@
     .impact-main{max-width:1120px;margin:0 auto;}
     .impact-top5-inline{display:none;}
     .impact-sideboard{display:flex;position:absolute;top:16px;width:220px;
-      flex-direction:column;gap:10px;}
+      flex-direction:column;gap:6px;}
     .impact-side-left{left:0;}
     .impact-side-right{right:0;}
   }
   @media(max-width:680px){
     .impact-top5-inline{grid-template-columns:1fr;}
+  }
+  @media(min-width:681px) and (max-width:980px){
+    .impact-top5-inline{grid-template-columns:repeat(2,minmax(0,1fr));}
   }
 
   /* ---- 指標一覧 ---- */
@@ -4427,19 +4430,41 @@
     }
     return Number(x[key]||0);
   }
+  function impactCompositeRows(rows){
+    rows=(rows||[]).slice();
+    function percentileMap(key){
+      var values=rows.map(function(x){return Number(x[key]||0);})
+        .sort(function(a,b){return b-a;});
+      var out={};
+      rows.forEach(function(x){
+        var v=Number(x[key]||0), first=values.indexOf(v), last=values.lastIndexOf(v);
+        var rank=(first+last)/2;
+        out[x.player_key]=values.length<=1?100:
+          100*(values.length-1-rank)/(values.length-1);
+      });
+      return out;
+    }
+    var valuePct=percentileMap("w_value"), ratingPct=percentileMap("w_rating");
+    return rows.map(function(x){
+      return {player:x,score:0.7*valuePct[x.player_key]+0.3*ratingPct[x.player_key]};
+    }).sort(function(a,b){
+      return b.score-a.score ||
+             Number(b.player.w_value||0)-Number(a.player.w_value||0) ||
+             Number(b.player.w_rating||0)-Number(a.player.w_rating||0);
+    });
+  }
   function impactTop5Card(title, rows){
-    var top=(rows||[]).slice().sort(function(a,b){
-      return Number(b.w_value||0)-Number(a.w_value||0) ||
-             Number(b.w_rating||0)-Number(a.w_rating||0);
-    }).slice(0,5);
+    var top=impactCompositeRows(rows).slice(0,5);
     var h='<div class="impact-top-card"><div class="impact-top-title">'+
-      esc(title)+'<span>TOP 5</span></div>';
-    top.forEach(function(x,i){
+      esc(title)+'<span>総合 TOP 5</span></div>';
+    top.forEach(function(item,i){
+      var x=item.player;
       h+='<div class="impact-top-row">'+
          '<span class="impact-top-rank">'+(i+1)+'</span>'+
          '<span class="impact-top-name" title="'+esc(x.name)+'">'+esc(x.name)+'</span>'+
          teamBadge(x.team)+
-         '<span class="impact-top-value">'+Number(x.w_value||0).toFixed(2)+'</span></div>';
+         '<span class="impact-top-value" title="W-Value '+Number(x.w_value||0).toFixed(2)+
+         ' / W-Rating '+impactNum(x.w_rating)+'">'+item.score.toFixed(1)+'</span></div>';
     });
     return h+(top.length?'':'<div class="sub">該当なし</div>')+'</div>';
   }
@@ -4451,13 +4476,26 @@
       return (x.league||tLeague(x.team))===impactLg;
     });
     function posRows(pos){
-      return batters.filter(function(x){ return impactPosition(x)===pos; });
+      return batters.filter(function(x){
+        return ((x.stats||{}).qualified_positions||[]).indexOf(pos)>=0;
+      });
+    }
+    function roleRows(role){
+      return pitchers.filter(function(x){ return x.role===role; });
     }
     return {
-      left:impactTop5Card("捕手",posRows("捕"))+
-           impactTop5Card("内野手",posRows("内")),
-      right:impactTop5Card("外野手",posRows("外"))+
-            impactTop5Card("投手",pitchers)
+      left:impactTop5Card("先発",roleRows("先発"))+
+           impactTop5Card("中継ぎ",roleRows("中継ぎ"))+
+           impactTop5Card("抑え",roleRows("抑え"))+
+           impactTop5Card("捕手",posRows("捕"))+
+           impactTop5Card("一塁手",posRows("一"))+
+           impactTop5Card("二塁手",posRows("二")),
+      right:impactTop5Card("三塁手",posRows("三"))+
+            impactTop5Card("遊撃手",posRows("遊"))+
+            impactTop5Card("左翼手",posRows("左"))+
+            impactTop5Card("中堅手",posRows("中"))+
+            impactTop5Card("右翼手",posRows("右"))+
+            (impactLg==="パ"?impactTop5Card("指名打者",posRows("指")):"")
     };
   }
 
