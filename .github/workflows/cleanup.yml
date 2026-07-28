@@ -60,8 +60,8 @@ jobs:
       - name: Build awards
         if: ${{ github.event.inputs.apply == 'yes' }}
         run: |
-          python scraper/build_awards.py --season "${{ github.event.inputs.season }}" || echo "表彰の算出をスキップ"
-          python scraper/build_period_awards.py --season "${{ github.event.inputs.season }}" || echo "週間・月間表彰の算出をスキップ"
+          python scraper/build_awards.py --season "${{ github.event.inputs.season }}"
+          python scraper/build_period_awards.py --season "${{ github.event.inputs.season }}"
 
       - name: Commit and push
         if: ${{ github.event.inputs.apply == 'yes' }}

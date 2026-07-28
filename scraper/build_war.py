@@ -110,8 +110,9 @@ def main():
     ap.add_argument("--season", required=True)
     ap.add_argument("--base", default="data")
     args = ap.parse_args()
-    build(args.season, args.base)
-    return 0
+    result = build(args.season, args.base)
+    # 入力不足を「成功」として扱うと、Actionsが緑のままWARだけ更新されない。
+    return 0 if result is not None else 1
 
 
 if __name__ == "__main__":

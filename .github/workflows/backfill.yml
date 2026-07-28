@@ -70,7 +70,7 @@ jobs:
             SEASON="${SEASON%%-*}"
           fi
           if [ -z "$SEASON" ]; then SEASON=$(date +%Y); fi
-          python scraper/rebuild_stats.py --season "$SEASON" || echo "再集計をスキップ"
+          python scraper/rebuild_stats.py --season "$SEASON"
 
       - name: Build analysis dataset
         run: |
@@ -80,28 +80,28 @@ jobs:
             SEASON="${SEASON%%-*}"
           fi
           if [ -z "$SEASON" ]; then SEASON=$(date +%Y); fi
-          python scraper/build_dataset.py --season "$SEASON" --format both || echo "データセット生成をスキップ"
+          python scraper/build_dataset.py --season "$SEASON" --format both
 
       - name: Build awards
         run: |
           SEASON="${{ github.event.inputs.season }}"
           if [ -z "$SEASON" ]; then SEASON=$(date +%Y); fi
           SEASON="${SEASON%%-*}"
-          python scraper/build_awards.py --season "$SEASON" || echo "表彰の算出をスキップ"
+          python scraper/build_awards.py --season "$SEASON"
 
       - name: Build weekly and monthly awards
         run: |
           SEASON="${{ github.event.inputs.season }}"
           if [ -z "$SEASON" ]; then SEASON=$(date +%Y); fi
           SEASON="${SEASON%%-*}"
-          python scraper/build_period_awards.py --season "$SEASON" || echo "週間・月間表彰の算出をスキップ"
+          python scraper/build_period_awards.py --season "$SEASON"
 
       - name: Build simplified WAR
         run: |
           SEASON="${{ github.event.inputs.season }}"
           if [ -z "$SEASON" ]; then SEASON=$(date +%Y); fi
           SEASON="${SEASON%%-*}"
-          python scraper/build_war.py --season "$SEASON" || echo "WARの算出をスキップ"
+          python scraper/build_war.py --season "$SEASON"
 
       - name: Commit and push
         run: |
