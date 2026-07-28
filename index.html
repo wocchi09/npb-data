@@ -4586,9 +4586,29 @@
     }
     return Number(x[key]||0);
   }
+  function impactUniqueRows(rows){
+    var best={},order=[];
+    (rows||[]).forEach(function(x){
+      var key=x.player_key||((x.team||"")+"|"+normName(x.name||""));
+      var current=best[key];
+      var games=Number(((x.stats||{}).games)||0);
+      var currentGames=current?Number(((current.stats||{}).games)||0):0;
+      if(!current){
+        best[key]=x;order.push(key);
+      }else if(
+        Number(x.w_value||0)>Number(current.w_value||0) ||
+        (Number(x.w_value||0)===Number(current.w_value||0) && games>currentGames) ||
+        (Number(x.w_value||0)===Number(current.w_value||0) && games===currentGames &&
+         Number(x.w_rating||0)>Number(current.w_rating||0))
+      ){
+        best[key]=x;
+      }
+    });
+    return order.map(function(key){return best[key];});
+  }
   function impactCompositeRows(rows,referenceRows){
-    rows=(rows||[]).slice();
-    referenceRows=(referenceRows||rows).slice();
+    rows=impactUniqueRows(rows);
+    referenceRows=impactUniqueRows(referenceRows||rows);
     function percentileMap(key){
       var values=referenceRows.map(function(x){return Number(x[key]||0);})
         .sort(function(a,b){return b-a;});
@@ -4612,10 +4632,10 @@
     });
   }
   function impactDepartments(){
-    var batters=(impactData.batters||[]).filter(function(x){
+    var batters=impactUniqueRows(impactData.batters||[]).filter(function(x){
       return (x.league||tLeague(x.team))===impactLg;
     });
-    var pitchers=(impactData.pitchers||[]).filter(function(x){
+    var pitchers=impactUniqueRows(impactData.pitchers||[]).filter(function(x){
       return (x.league||tLeague(x.team))===impactLg;
     });
     function posRows(pos){
@@ -4656,6 +4676,7 @@
            esc(x.name)+'</b>'+teamBadge(x.team)+'</div>'+
            '<div class="impact-dept-score"><strong>'+item.score.toFixed(1)+'</strong>'+
            '<span>V '+Number(x.w_value||0).toFixed(2)+' / R '+impactNum(x.w_rating)+
+           ' / '+Number((x.stats||{}).games||0)+(gi<3?'登板':'試合')+
            '</span></div></td>';
       }
       h+='</tr>';
@@ -4690,7 +4711,7 @@
     h+=impactDepartmentTable();
     var source=impactKind==="overall"?impactData.overall:
                impactKind==="batter"?impactData.batters:impactData.pitchers;
-    var list=(source||[]).filter(function(x){
+    var list=impactUniqueRows(source||[]).filter(function(x){
       return (x.league||tLeague(x.team))===impactLg;
     });
     list=list.filter(function(x){
@@ -4723,6 +4744,10 @@
         ["components.dominance","奪三振"],["components.run_prevention","失点抑止"],
         ["components.role","役割"]
       ]);
+    }else{
+      sortOptions=sortOptions.concat([
+        ["batting_games","試合"],["pitching_games","登板"]
+      ]);
     }
     h+='<div class="expform" style="margin:8px 0 10px">'+
        '<label class="ef"><span>規定条件</span><select onchange="setImpactQual(this.value)">'+
@@ -4743,7 +4768,8 @@
        '<th>#</th><th class="nm">選手</th><th>球団</th>'+
        (impactKind!=="pitcher"?'<th>位置</th>':'<th>役割</th>')+
        (impactKind==="batter"?'<th>試合</th><th>打席</th>':
-        impactKind==="pitcher"?'<th>登板</th><th>投球回</th>':'')+
+        impactKind==="pitcher"?'<th>登板</th><th>投球回</th>':
+        '<th>試合</th><th>登板</th>')+
        '<th>W-Value</th><th>W-Rating</th>';
     if(impactKind==="overall") h+='<th>野手値</th><th>投手値</th>';
     if(impactKind==="batter") h+='<th>打撃</th><th>勝負</th><th>走塁</th><th>守備</th><th>役割</th><th>複数</th>';
@@ -4758,7 +4784,9 @@
          (impactKind==="batter"?'<td class="num">'+(s.games||0)+'</td>'+
           '<td class="num">'+(s.pa||0)+'</td>':
           impactKind==="pitcher"?'<td class="num">'+(s.games||0)+'</td>'+
-          '<td class="num">'+(s.innings||0)+'</td>':'')+
+          '<td class="num">'+(s.innings||0)+'</td>':
+          '<td class="num">'+(x.batting_games||0)+'</td>'+
+          '<td class="num">'+(x.pitching_games||0)+'</td>')+
          '<td class="num hi">'+Number(x.w_value).toFixed(2)+'</td>'+
          '<td class="num hi">'+impactNum(x.w_rating)+'</td>';
       if(impactKind==="overall"){

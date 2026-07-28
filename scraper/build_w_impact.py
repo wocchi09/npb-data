@@ -54,7 +54,7 @@ def build(season, base="data"):
     output = {
         "season": str(season),
         "metric": "W-Impact",
-        "version": "1.4.0",
+        "version": "1.5.0",
         "generated_at": datetime.now(JST).isoformat(),
         "note": (
             "サイト独自の総合貢献指数。WAR・UZRではありません。"
