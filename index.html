@@ -4337,7 +4337,8 @@
 
   /* ===== サイト独自指標 W-Impact ===== */
   var impactData=null, impactLg="パ", impactKind="overall",
-      impactQual="all", impactSort="w_value", impactSortDir="desc";
+      impactQual="all", impactPos="all",
+      impactSort="w_value", impactSortDir="desc";
 
   async function loadImpact(){
     var iv=document.getElementById("impactView");
@@ -4356,12 +4357,14 @@
     impactKind=k;
     if((k==="batter" && impactQual==="ip") ||
        (k==="pitcher" && impactQual==="pa")) impactQual="all";
+    if(k==="pitcher") impactPos="all";
     if((k==="overall" && (impactSort.indexOf("components.")===0 || impactSort.indexOf("stats.")===0)) ||
        (k==="batter" && impactSort==="stats.innings") ||
        (k==="pitcher" && impactSort==="stats.pa")) impactSort="w_value";
     renderImpact();
   }
   function setImpactQual(k){ impactQual=k; renderImpact(); }
+  function setImpactPos(k){ impactPos=k; renderImpact(); }
   function setImpactSort(k){ impactSort=k; renderImpact(); }
   function toggleImpactSortDir(){
     impactSortDir=impactSortDir==="desc"?"asc":"desc";
@@ -4422,6 +4425,16 @@
     var list=(source||[]).filter(function(x){
       return (x.league||tLeague(x.team))===impactLg;
     });
+    var positionSet={};
+    if(impactKind!=="pitcher"){
+      list.forEach(function(x){
+        var p=impactPosition(x);
+        if(p && p!=="-") positionSet[p]=1;
+      });
+      if(impactPos!=="all"){
+        list=list.filter(function(x){ return impactPosition(x)===impactPos; });
+      }
+    }
     list=list.filter(function(x){
       var s=x.stats||{};
       if(impactQual==="pa") return impactKind==="overall"?x.qualified_pa:s.qualified_pa;
@@ -4442,7 +4455,8 @@
     if(impactKind==="batter"){
       sortOptions=sortOptions.concat([
         ["stats.pa","打席"],["components.batting","打撃"],
-        ["components.clutch","勝負"],["components.defense","守備"],
+        ["components.clutch","勝負"],["components.baserunning","走塁"],
+        ["components.defense","守備"],
         ["components.role","役割"],["components.versatility","複数"]
       ]);
     }else if(impactKind==="pitcher"){
@@ -4457,8 +4471,16 @@
        '<option value="all"'+(impactQual==="all"?" selected":"")+'>全選手</option>'+
        (impactKind!=="pitcher"?'<option value="pa"'+(impactQual==="pa"?" selected":"")+'>規定打席到達</option>':'')+
        (impactKind!=="batter"?'<option value="ip"'+(impactQual==="ip"?" selected":"")+'>規定投球回到達</option>':'')+
-       '</select></label>'+
-       '<label class="ef"><span>並び順</span><select onchange="setImpactSort(this.value)">'+
+       '</select></label>';
+    if(impactKind!=="pitcher"){
+      var posLabels={"投":"投手","捕":"捕手","内":"内野手","外":"外野手"};
+      h+='<label class="ef"><span>ポジション</span><select onchange="setImpactPos(this.value)">'+
+         '<option value="all"'+(impactPos==="all"?" selected":"")+'>全ポジション</option>'+
+         ["投","捕","内","外"].filter(function(p){return positionSet[p];}).map(function(p){
+           return '<option value="'+p+'"'+(impactPos===p?" selected":"")+'>'+posLabels[p]+'</option>';
+         }).join("")+'</select></label>';
+    }
+    h+='<label class="ef"><span>並び順</span><select onchange="setImpactSort(this.value)">'+
        sortOptions.map(function(x){
          return '<option value="'+x[0]+'"'+(impactSort===x[0]?" selected":"")+'>'+x[1]+'</option>';
        }).join("")+'</select></label>'+
@@ -4469,18 +4491,18 @@
     }
     h+='<div class="tblwrap"><table class="stbl"><thead><tr>'+
        '<th>#</th><th class="nm">選手</th><th>球団</th>'+
-       (impactKind==="batter"?'<th>位置</th>':impactKind==="pitcher"?'<th>役割</th>':'')+
+       (impactKind!=="pitcher"?'<th>位置</th>':'<th>役割</th>')+
        '<th>W-Value</th><th>W-Rating</th>';
     if(impactKind==="overall") h+='<th>野手値</th><th>投手値</th>';
-    if(impactKind==="batter") h+='<th>打撃</th><th>勝負</th><th>守備</th><th>役割</th><th>複数</th>';
+    if(impactKind==="batter") h+='<th>打撃</th><th>勝負</th><th>走塁</th><th>守備</th><th>役割</th><th>複数</th>';
     if(impactKind==="pitcher") h+='<th>投球</th><th>奪三振</th><th>失点抑止</th><th>役割</th>';
     h+='</tr></thead><tbody>';
     list.forEach(function(x,i){
       var c=x.components||{}, s=x.stats||{};
       h+='<tr><td class="num">'+(i+1)+'</td>'+
          '<td class="nm">'+esc(x.name)+'</td><td>'+teamBadge(x.team)+'</td>'+
-         (impactKind==="batter"?'<td class="pos">'+esc(impactPosition(x))+'</td>':
-          impactKind==="pitcher"?'<td>'+esc(x.role||"-")+'</td>':'')+
+         (impactKind!=="pitcher"?'<td class="pos">'+esc(impactPosition(x))+'</td>':
+          '<td>'+esc(x.role||"-")+'</td>')+
          '<td class="num hi">'+Number(x.w_value).toFixed(2)+'</td>'+
          '<td class="num hi">'+impactNum(x.w_rating)+'</td>';
       if(impactKind==="overall"){
@@ -4489,6 +4511,7 @@
       }else if(impactKind==="batter"){
         h+='<td class="num">'+impactNum(c.batting)+'</td>'+
            '<td class="num">'+impactNum(c.clutch)+'</td>'+
+           '<td class="num">'+impactNum(c.baserunning)+'</td>'+
            '<td class="num">'+impactNum(c.defense)+'</td>'+
            '<td class="num">'+impactNum(c.role)+'</td>'+
            '<td class="num">'+impactNum(c.versatility)+'</td>';
