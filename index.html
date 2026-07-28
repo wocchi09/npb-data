@@ -1030,6 +1030,18 @@
   function renderBatting(g){
     var box=g.boxscore;
     if(!box||!box.batting) return notReady("打撃成績");
+    // 二塁打・三塁打は公式ボックススコアに列がないため、
+    // 同じ試合JSONの打席結果を選手ID（なければ選手名）で集計する。
+    var extraHits={};
+    (g.atbats||[]).forEach(function(ab){
+      if(ab.valid===false) return;
+      var b=ab.batter||{}, key=b.player_id?("id:"+b.player_id):("name:"+(b.name||""));
+      if(!b.player_id&&!b.name) return;
+      var x=extraHits[key]||(extraHits[key]={doubles:0,triples:0});
+      var rs=ab.result_summary||"";
+      if(/[2２]塁打/.test(rs)) x.doubles++;
+      if(/[3３]塁打/.test(rs)) x.triples++;
+    });
     var h="";
     [["away",g.away],["home",g.home]].forEach(function(x){
       var side=x[0],team=x[1];
@@ -1038,18 +1050,25 @@
       h+='<div class="card2"><h3 class="thead" style="border-left-color:'+(tColor(team)||'var(--accent)')+'">'+
          teamBadge(team)+' '+esc(team||side)+'</h3><div class="tblwrap"><table class="stbl">'+
          '<thead><tr><th>位置</th><th class="nm">選手</th><th>打率</th><th>打数</th>'+
-         '<th>安</th><th>点</th><th>本</th><th>三振</th><th>四球</th><th>盗</th></tr></thead><tbody>';
+         '<th>安</th><th>二</th><th>三</th><th>点</th><th>本</th><th>三振</th>'+
+         '<th>四球</th><th>死球</th><th>盗</th><th>失策</th></tr></thead><tbody>';
       rows.forEach(function(p){
+        var key=p.player_id?("id:"+p.player_id):("name:"+(p.name||""));
+        var xb=extraHits[key]||{doubles:0,triples:0};
         h+='<tr><td>'+esc(p.position||"")+'</td>'+
            '<td class="nm">'+esc(p.name)+'</td>'+
            '<td class="num">'+fmtAvg(p.season_avg)+'</td>'+
            '<td class="num">'+p.ab+'</td>'+
            '<td class="num'+(p.hits>0?' hi':'')+'">'+p.hits+'</td>'+
+           '<td class="num'+(xb.doubles>0?' hi':'')+'">'+xb.doubles+'</td>'+
+           '<td class="num'+(xb.triples>0?' hi':'')+'">'+xb.triples+'</td>'+
            '<td class="num">'+p.rbi+'</td>'+
            '<td class="num'+(p.hr>0?' hi':'')+'">'+p.hr+'</td>'+
            '<td class="num">'+p.so+'</td>'+
            '<td class="num">'+p.bb+'</td>'+
-           '<td class="num">'+p.sb+'</td></tr>';
+           '<td class="num">'+(p.hbp||0)+'</td>'+
+           '<td class="num">'+p.sb+'</td>'+
+           '<td class="num'+(p.errors>0?' hi':'')+'">'+(p.errors||0)+'</td></tr>';
       });
       h+='</tbody></table></div></div>';
     });
