@@ -286,42 +286,26 @@
     margin-bottom:12px;}
   .warwarn a{color:var(--accent);font-weight:700;}
 
-  /* ---- W-Impact ポジション別TOP5 ---- */
-  .impact-stage{position:relative;}
-  .impact-main{min-width:0;}
-  .impact-sideboard{display:none;}
-  .impact-top5-inline{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
-    gap:8px;margin:10px 0 12px;}
-  .impact-top-card{background:var(--panel2);border:1px solid var(--line);
-    border-radius:10px;padding:6px 8px;box-shadow:var(--shadow);line-height:1.35;}
-  .impact-top-title{display:flex;align-items:center;justify-content:space-between;
-    gap:6px;color:var(--accent);font-size:12px;font-weight:700;
-    border-bottom:2px solid var(--line);padding-bottom:3px;margin-bottom:2px;}
-  .impact-top-title span{font-family:'Roboto Mono',monospace;font-size:9px;
-    color:var(--muted);}
-  .impact-top-row{display:grid;grid-template-columns:18px minmax(0,1fr) auto auto;
-    gap:4px;align-items:center;padding:1px 0;font-size:10.5px;
-    border-bottom:1px dashed var(--line);}
-  .impact-top-row:last-child{border-bottom:none;}
-  .impact-top-rank{font-family:'Roboto Mono',monospace;color:var(--muted);
-    text-align:center;font-weight:700;}
-  .impact-top-name{font-weight:700;white-space:nowrap;overflow:hidden;
-    text-overflow:ellipsis;}
-  .impact-top-value{font-family:'Roboto Mono',monospace;color:var(--accent);
-    font-weight:700;}
-  @media(min-width:1700px){
-    .impact-main{max-width:1120px;margin:0 auto;}
-    .impact-top5-inline{display:none;}
-    .impact-sideboard{display:flex;position:absolute;top:16px;width:220px;
-      flex-direction:column;gap:6px;}
-    .impact-side-left{left:0;}
-    .impact-side-right{right:0;}
-  }
+  /* ---- W-Impact 部門別TOP5 ---- */
+  .impact-dept{margin:10px 0 12px;}
+  .impact-dept-head{display:flex;align-items:flex-end;justify-content:space-between;
+    gap:10px;margin-bottom:6px;}
+  .impact-dept-title{font-size:13px;font-weight:700;color:var(--accent);}
+  .impact-dept-note{font-size:10.5px;color:var(--muted);}
+  table.impact-dept-table{min-width:1120px;table-layout:fixed;font-size:11px;}
+  table.impact-dept-table th:first-child{width:78px;}
+  table.impact-dept-table td{padding:5px 6px;white-space:normal;vertical-align:middle;}
+  table.impact-dept-table td.dept-name{font-weight:700;color:var(--accent);
+    background:var(--panel2);white-space:nowrap;}
+  table.impact-dept-table tr.dept-break td{border-top:3px solid var(--line2);}
+  .impact-dept-player{display:flex;align-items:center;gap:5px;min-width:0;}
+  .impact-dept-player b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .impact-dept-score{display:flex;align-items:baseline;gap:6px;margin-top:1px;
+    font-family:'Roboto Mono',monospace;}
+  .impact-dept-score strong{color:var(--accent);font-size:12px;}
+  .impact-dept-score span{font-size:9px;color:var(--muted);white-space:nowrap;}
   @media(max-width:680px){
-    .impact-top5-inline{grid-template-columns:1fr;}
-  }
-  @media(min-width:681px) and (max-width:980px){
-    .impact-top5-inline{grid-template-columns:repeat(2,minmax(0,1fr));}
+    .impact-dept-head{align-items:flex-start;flex-direction:column;gap:2px;}
   }
 
   /* ---- 指標一覧 ---- */
@@ -3999,7 +3983,7 @@
        '<p style="font-size:13px;line-height:1.7">日刊はその試合で最も長く守った位置、週間・月間は期間中最も多く守った位置を採用します。外野は左翼・中堅・右翼を別々に扱い、まとめて「外野手」にはしません。同じ選手を複数の位置で重複選出することはありません。代打のみの出場はMVP候補には入りますが、ベストメンバーの対象からは外れます。</p></div>';
 
     h+='<div class="subsec"><div class="subttl">データが取れない項目について</div>'+
-       '<p style="font-size:13px;line-height:1.7">三盗・本盗・タッチアップ・牽制死・好守備（補殺やダイビングキャッチ等）・盗塁阻止は、取得元のデータに記録が無いため<b>採点していません</b>。推測で数字を作ることはせず、算出できた項目だけを100点満点に換算し直しています。画面にも「利用可能データのみで算出」と明記しています。</p>'+
+       '<p style="font-size:13px;line-height:1.7">三盗・本盗・タッチアップ・牽制死・好守備（補殺やダイビングキャッチ等）・盗塁阻止は、現行の表彰集計では<b>採点していません</b>。盗塁失敗や一部の走塁死は結果詳細に存在しますが、表彰ロジックへの反映は別途必要です。推測で数字を作ることはせず、算出できた項目だけを100点満点に換算し直しています。</p>'+
        '<p style="font-size:13px;line-height:1.7">一方で、走者が1人だけの場面に限り、公式の塁の記録から「単打で一塁から三塁まで進んだ」のような余分な進塁（好走塁）を検出して加点しています。走者が2人以上いる場面は誰が進んだか特定できないため対象外です。</p></div>';
 
     h+='<div class="subsec"><div class="subttl">配点の変更について</div>'+
@@ -4351,7 +4335,7 @@
        '<div class="glossformula" style="display:block">WAR = (R_bat + R_baser + R_dp + R_pos) ÷ RPW</div>'+
        '<div class="tblwrap" style="margin-top:8px"><table class="stbl"><thead><tr><th class="nm">要素</th><th class="nm">内容</th></tr></thead><tbody>'+
        gRow2("R_bat（打撃貢献）","(自分のOPS－リプレイスメントOPS)×打席×0.2 で近似。正式なwOBAベースの線形加重ではなく簡易的な比例配分です。")+
-       gRow2("R_baser（走塁貢献）","盗塁成功×0.2点。盗塁死のデータが無いため成功分のみで、過大評価しないよう小さめの係数にしています。")+
+       gRow2("R_baser（走塁貢献）","現行の簡易WARは盗塁成功×0.2点。盗塁失敗・走塁死は元データの結果詳細にありますが、簡易WAR集計にはまだ反映していません。")+
        gRow2("R_dp（併殺回避）","現在のデータには併殺打の集計が無いため、0固定です。")+
        gRow2("R_pos（守備位置補正）","提供いただいた資料の162試合換算値を、実際の出場試合数（÷143）に按分しています。")+
        gRow2("R_field（守備貢献）","<b>算出していません。</b>")+
@@ -4453,22 +4437,7 @@
              Number(b.player.w_rating||0)-Number(a.player.w_rating||0);
     });
   }
-  function impactTop5Card(title, rows){
-    var top=impactCompositeRows(rows).slice(0,5);
-    var h='<div class="impact-top-card"><div class="impact-top-title">'+
-      esc(title)+'<span>総合 TOP 5</span></div>';
-    top.forEach(function(item,i){
-      var x=item.player;
-      h+='<div class="impact-top-row">'+
-         '<span class="impact-top-rank">'+(i+1)+'</span>'+
-         '<span class="impact-top-name" title="'+esc(x.name)+'">'+esc(x.name)+'</span>'+
-         teamBadge(x.team)+
-         '<span class="impact-top-value" title="W-Value '+Number(x.w_value||0).toFixed(2)+
-         ' / W-Rating '+impactNum(x.w_rating)+'">'+item.score.toFixed(1)+'</span></div>';
-    });
-    return h+(top.length?'':'<div class="sub">該当なし</div>')+'</div>';
-  }
-  function impactPositionTop5(){
+  function impactDepartments(){
     var batters=(impactData.batters||[]).filter(function(x){
       return (x.league||tLeague(x.team))===impactLg;
     });
@@ -4483,20 +4452,40 @@
     function roleRows(role){
       return pitchers.filter(function(x){ return x.role===role; });
     }
-    return {
-      left:impactTop5Card("先発",roleRows("先発"))+
-           impactTop5Card("中継ぎ",roleRows("中継ぎ"))+
-           impactTop5Card("抑え",roleRows("抑え"))+
-           impactTop5Card("捕手",posRows("捕"))+
-           impactTop5Card("一塁手",posRows("一"))+
-           impactTop5Card("二塁手",posRows("二")),
-      right:impactTop5Card("三塁手",posRows("三"))+
-            impactTop5Card("遊撃手",posRows("遊"))+
-            impactTop5Card("左翼手",posRows("左"))+
-            impactTop5Card("中堅手",posRows("中"))+
-            impactTop5Card("右翼手",posRows("右"))+
-            (impactLg==="パ"?impactTop5Card("指名打者",posRows("指")):"")
-    };
+    var groups=[
+      ["先発",roleRows("先発")],["中継ぎ",roleRows("中継ぎ")],["抑え",roleRows("抑え")],
+      ["捕手",posRows("捕")],["一塁手",posRows("一")],["二塁手",posRows("二")],
+      ["三塁手",posRows("三")],["遊撃手",posRows("遊")],["左翼手",posRows("左")],
+      ["中堅手",posRows("中")],["右翼手",posRows("右")]
+    ];
+    if(impactLg==="パ") groups.push(["指名打者",posRows("指")]);
+    return groups.map(function(group){
+      return {title:group[0],top:impactCompositeRows(group[1]).slice(0,5)};
+    });
+  }
+  function impactDepartmentTable(){
+    var groups=impactDepartments();
+    var h='<div class="impact-dept"><div class="impact-dept-head">'+
+      '<div class="impact-dept-title">部門別 総合TOP5</div>'+
+      '<div class="impact-dept-note">総合点 = W-Value順位 70% + W-Rating順位 30%</div>'+
+      '</div><div class="tblwrap"><table class="stbl impact-dept-table"><thead><tr>'+
+      '<th>部門</th><th>1位</th><th>2位</th><th>3位</th><th>4位</th><th>5位</th>'+
+      '</tr></thead><tbody>';
+    groups.forEach(function(group,gi){
+      h+='<tr'+(gi===3?' class="dept-break"':'')+'><td class="dept-name">'+
+         esc(group.title)+'</td>';
+      for(var i=0;i<5;i++){
+        var item=group.top[i], x=item&&item.player;
+        if(!x){ h+='<td>-</td>'; continue; }
+        h+='<td><div class="impact-dept-player"><b title="'+esc(x.name)+'">'+
+           esc(x.name)+'</b>'+teamBadge(x.team)+'</div>'+
+           '<div class="impact-dept-score"><strong>'+item.score.toFixed(1)+'</strong>'+
+           '<span>V '+Number(x.w_value||0).toFixed(2)+' / R '+impactNum(x.w_rating)+
+           '</span></div></td>';
+      }
+      h+='</tr>';
+    });
+    return h+'</tbody></table></div></div>';
   }
 
   function renderImpact(){
@@ -4523,8 +4512,7 @@
          'onclick="setImpactKind(\''+x[0]+'\')">'+x[1]+'</button>';
     });
     h+='</div>';
-    var top5=impactPositionTop5();
-    h+='<div class="impact-top5-inline">'+top5.left+top5.right+'</div>';
+    h+=impactDepartmentTable();
     var source=impactKind==="overall"?impactData.overall:
                impactKind==="batter"?impactData.batters:impactData.pitchers;
     var list=(source||[]).filter(function(x){
@@ -4549,14 +4537,14 @@
     ];
     if(impactKind==="batter"){
       sortOptions=sortOptions.concat([
-        ["stats.pa","打席"],["components.batting","打撃"],
+        ["stats.games","試合"],["stats.pa","打席"],["components.batting","打撃"],
         ["components.clutch","勝負"],["components.baserunning","走塁"],
         ["components.defense","守備"],
         ["components.role","役割"],["components.versatility","複数"]
       ]);
     }else if(impactKind==="pitcher"){
       sortOptions=sortOptions.concat([
-        ["stats.innings","投球回"],["components.pitching","投球"],
+        ["stats.games","登板"],["stats.innings","投球回"],["components.pitching","投球"],
         ["components.dominance","奪三振"],["components.run_prevention","失点抑止"],
         ["components.role","役割"]
       ]);
@@ -4579,6 +4567,8 @@
     h+='<div class="tblwrap"><table class="stbl"><thead><tr>'+
        '<th>#</th><th class="nm">選手</th><th>球団</th>'+
        (impactKind!=="pitcher"?'<th>位置</th>':'<th>役割</th>')+
+       (impactKind==="batter"?'<th>試合</th><th>打席</th>':
+        impactKind==="pitcher"?'<th>登板</th><th>投球回</th>':'')+
        '<th>W-Value</th><th>W-Rating</th>';
     if(impactKind==="overall") h+='<th>野手値</th><th>投手値</th>';
     if(impactKind==="batter") h+='<th>打撃</th><th>勝負</th><th>走塁</th><th>守備</th><th>役割</th><th>複数</th>';
@@ -4590,6 +4580,10 @@
          '<td class="nm">'+esc(x.name)+'</td><td>'+teamBadge(x.team)+'</td>'+
          (impactKind!=="pitcher"?'<td class="pos">'+esc(impactPosition(x))+'</td>':
           '<td>'+esc(x.role||"-")+'</td>')+
+         (impactKind==="batter"?'<td class="num">'+(s.games||0)+'</td>'+
+          '<td class="num">'+(s.pa||0)+'</td>':
+          impactKind==="pitcher"?'<td class="num">'+(s.games||0)+'</td>'+
+          '<td class="num">'+(s.innings||0)+'</td>':'')+
          '<td class="num hi">'+Number(x.w_value).toFixed(2)+'</td>'+
          '<td class="num hi">'+impactNum(x.w_rating)+'</td>';
       if(impactKind==="overall"){
@@ -4598,7 +4592,9 @@
       }else if(impactKind==="batter"){
         h+='<td class="num">'+impactNum(c.batting)+'</td>'+
            '<td class="num">'+impactNum(c.clutch)+'</td>'+
-           '<td class="num">'+impactNum(c.baserunning)+'</td>'+
+           '<td class="num" title="盗塁 '+(s.sb||0)+' / 盗塁失敗 '+(s.caught_stealing||0)+
+           ' / 明示的走塁死 '+(s.baserunning_outs||0)+' / 80打席縮小補正">'+
+           impactNum(c.baserunning)+'</td>'+
            '<td class="num">'+impactNum(c.defense)+'</td>'+
            '<td class="num">'+impactNum(c.role)+'</td>'+
            '<td class="num">'+impactNum(c.versatility)+'</td>';
@@ -4613,11 +4609,7 @@
     h+='</tbody></table></div>'+
        '<div class="sub" style="font-size:11px;margin-top:8px">'+esc(impactData.note||"")+
        '／v'+esc(impactData.version||"")+'</div></div>';
-    iv.innerHTML='<div class="impact-stage">'+
-      '<aside class="impact-sideboard impact-side-left">'+top5.left+'</aside>'+
-      '<div class="impact-main">'+h+'</div>'+
-      '<aside class="impact-sideboard impact-side-right">'+top5.right+'</aside>'+
-      '</div>';
+    iv.innerHTML=h;
   }
 
   function renderImpactGuide(){
@@ -4632,7 +4624,8 @@
     h+='<div class="subsec"><div class="subttl">野手の構成</div>'+
        '<div class="glossformula" style="display:block">打撃45% + 勝負強さ15% + 走塁8% + 守備参考12% + 役割10% + 複数守備5% + 出場量5%</div>'+
        '<p style="font-size:13px;line-height:1.7;margin-top:8px">代打は出塁と打点、代走は得点と盗塁、守備交代は出場回数を評価します。'+
-       '複数守備はチーム試合数の5%（最低3試合）以上守った位置だけを数え、少数出場による過大評価を防ぎます。</p></div>';
+       '複数守備はチーム試合数の5%（最低3試合）以上守った位置だけを数え、少数出場による過大評価を防ぎます。'+
+       '走塁は盗塁成功を加点し、盗塁失敗と明示された高確度の走塁死を減点します。少打席の極端な率は80打席相当でリーグ平均へ縮小補正します。</p></div>';
     h+='<div class="subsec"><div class="subttl">投手の構成</div>'+
        '<div class="glossformula" style="display:block">投球内容50% + 支配力15% + 失点抑止15% + 役割15% + 出場量5%</div>'+
        '<p style="font-size:13px;line-height:1.7;margin-top:8px">先発・中継ぎ・抑えを別々に標準化します。先発はQS、中継ぎは無失点登板とホールド、抑えはセーブを役割遂行として評価します。</p></div>';

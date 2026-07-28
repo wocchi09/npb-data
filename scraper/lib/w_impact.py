@@ -8,9 +8,10 @@ estimated.
 from __future__ import annotations
 
 import math
+import re
 from collections import defaultdict
 
-from .normalize import team_info
+from .normalize import normalize_team, team_info
 
 
 FIELD_POSITIONS = ("捕", "一", "二", "三", "遊", "左", "中", "右", "指")
@@ -40,6 +41,9 @@ PITCHER_WEIGHTS = {
     "role": 0.15,
     "availability": 0.05,
 }
+SB_RUN_VALUE = 0.20
+CS_RUN_VALUE = -0.40
+BASERUNNING_OUT_VALUE = -0.40
 
 
 def number(value, default=0.0):
@@ -72,7 +76,7 @@ def _z_values(rows, key):
     variance = sum((v - mean) ** 2 for v in values) / len(values)
     sd = math.sqrt(variance)
     return {
-        r["player_key"]: max(-3.0, min(3.0, (number(r["raw"].get(key)) - mean) / sd))
+        r["player_key"]: (number(r["raw"].get(key)) - mean) / sd
         if sd > 1e-9 else 0.0
         for r in rows
     }
@@ -83,12 +87,78 @@ def _rating(weighted_z):
 
 
 def _component_rating(z):
-    return round(max(40.0, min(160.0, 100 + 15 * z)), 1)
+    # tanhで上下限へ滑らかに近づけ、複数選手の上限張り付きを防ぐ。
+    return round(100 + 60 * math.tanh(z / 4), 1)
+
+
+def _weighted_z(z):
+    """Prevent one extreme component from dominating the total rating."""
+    return max(-4.0, min(4.0, z))
 
 
 def _league(player):
     lg = team_info(player.get("team")).get("league")
     return lg if lg in ("セ", "パ") else None
+
+
+def _norm_name(value):
+    variants = str.maketrans({
+        "髙": "高", "﨑": "崎", "濵": "浜", "濱": "浜",
+        "邉": "辺", "邊": "辺", "齋": "斎", "澤": "沢",
+    })
+    return re.sub(r"[\s\u3000]", "", str(value or "")).translate(variants)
+
+
+def collect_runner_penalties(players, runner_details):
+    """Extract only high-confidence running outs recorded in result_detail."""
+    by_team = defaultdict(list)
+    for player in players:
+        if player.get("key") and player.get("name") and player.get("team"):
+            by_team[normalize_team(player["team"])].append(player)
+
+    def resolve(team, token):
+        token = _norm_name(token)
+        candidates = []
+        for player in by_team.get(normalize_team(team), []):
+            full = _norm_name(player.get("name"))
+            if full == token or full.startswith(token):
+                candidates.append(player)
+        return candidates[0].get("key") if len(candidates) == 1 else None
+
+    penalties = defaultdict(lambda: {"caught_stealing": 0, "baserunning_outs": 0})
+    diag = {
+        "details_scanned": 0, "caught_stealing": 0, "baserunning_outs": 0,
+        "unresolved": 0, "overturned_skipped": 0,
+    }
+    out_pattern = re.compile(
+        r"(?:暴走|ボーンヘッド|オーバーラン|けん制飛び出し|飛び出し|"
+        r"挟まれる|打球判断を誤る|慌てて戻る|走路をはみ出る|"
+        r"ベースコーチャーと接触)[（(]([^）)]+)[）)]"
+    )
+    cs_pattern = re.compile(r"盗塁失敗[（(]([^）)]+)[）)]")
+
+    for row in runner_details or []:
+        detail = str(row.get("result_detail") or "")
+        if not detail:
+            continue
+        diag["details_scanned"] += 1
+        if "判定覆る" in detail:
+            diag["overturned_skipped"] += 1
+            continue
+        caught_names = set(cs_pattern.findall(detail))
+        out_names = set(out_pattern.findall(detail)) - caught_names
+        for field, names in (
+            ("caught_stealing", caught_names),
+            ("baserunning_outs", out_names),
+        ):
+            for name in names:
+                key = resolve(row.get("batting_team"), name)
+                if not key:
+                    diag["unresolved"] += 1
+                    continue
+                penalties[key][field] += 1
+                diag[field] += 1
+    return penalties, diag
 
 
 def collect_batter_roles(batting_lines):
@@ -190,20 +260,29 @@ def _pitcher_role(pitching, role):
     return "中継ぎ"
 
 
-def calculate(players, teams, batting_lines, pitching_lines, atbats):
+def calculate(players, teams, batting_lines, pitching_lines, atbats,
+              runner_details=None):
     team_games = {t.get("team"): int(number(t.get("games"))) for t in teams}
     batter_roles = collect_batter_roles(batting_lines)
     pitcher_roles = collect_pitcher_roles(pitching_lines)
     clutch = collect_clutch(atbats)
+    runner_penalties, runner_diag = collect_runner_penalties(players, runner_details)
 
     league_bat = {}
     for lg in ("セ", "パ"):
         rows = [p for p in players if _league(p) == lg and number((p.get("batting") or {}).get("pa")) > 0]
         total_pa = sum(number((p.get("batting") or {}).get("pa")) for p in rows)
+        total_baserunning = sum(
+            SB_RUN_VALUE * number((p.get("batting") or {}).get("sb"))
+            + CS_RUN_VALUE * runner_penalties[p.get("key")]["caught_stealing"]
+            + BASERUNNING_OUT_VALUE * runner_penalties[p.get("key")]["baserunning_outs"]
+            for p in rows
+        )
         league_bat[lg] = {
             "ops": sum(number((p.get("batting") or {}).get("ops")) *
                        number((p.get("batting") or {}).get("pa")) for p in rows) / total_pa
             if total_pa else 0,
+            "baserunning": total_baserunning * 100 / total_pa if total_pa else 0,
         }
 
     batters = []
@@ -227,7 +306,17 @@ def calculate(players, teams, batting_lines, pitching_lines, atbats):
                         if c["late_pa"] else 0)
         clutch_raw = shrink(0.6 * risp_quality + 0.4 * late_quality, 0.25,
                             c["risp_pa"] + c["late_pa"], 25)
-        baserunning_raw = number(batting.get("sb")) * 100 / max(pa, 1)
+        runner = runner_penalties[p.get("key")]
+        baserunning_net = (
+            SB_RUN_VALUE * number(batting.get("sb"))
+            + CS_RUN_VALUE * runner["caught_stealing"]
+            + BASERUNNING_OUT_VALUE * runner["baserunning_outs"]
+        )
+        baserunning_rate = baserunning_net * 100 / max(pa, 1)
+        # 走塁機会が少ない選手の率をリーグ平均へ戻し、上限張り付きを抑える。
+        baserunning_raw = shrink(
+            baserunning_rate, league_bat[lg]["baserunning"], pa, 80
+        )
 
         position_apps = dict(role["position_apps"])
         total_pos_apps = sum(position_apps.values())
@@ -267,6 +356,9 @@ def calculate(players, teams, batting_lines, pitching_lines, atbats):
                 "games": int(games), "pa": int(pa), "ops": batting.get("ops"),
                 "qualified_pa": bool(required_pa and pa >= required_pa),
                 "required_pa": round(required_pa, 1),
+                "caught_stealing": runner["caught_stealing"],
+                "baserunning_outs": runner["baserunning_outs"],
+                "baserunning_net_runs": round(baserunning_net, 2),
                 "hr": int(number(batting.get("hr"))), "rbi": int(number(batting.get("rbi"))),
                 "sb": int(number(batting.get("sb"))), "errors": int(number(batting.get("errors"))),
                 "starts": role["starts"], "pinch_hit_apps": role["pinch_hit_apps"],
@@ -335,7 +427,7 @@ def calculate(players, teams, batting_lines, pitching_lines, atbats):
             key = row["player_key"]
             components = {name: _component_rating(z_by_component[name][key])
                           for name in BATTER_WEIGHTS}
-            weighted = sum(z_by_component[name][key] * weight
+            weighted = sum(_weighted_z(z_by_component[name][key]) * weight
                            for name, weight in BATTER_WEIGHTS.items())
             row["components"] = components
             row["w_rating"] = _rating(weighted)
@@ -354,7 +446,7 @@ def calculate(players, teams, batting_lines, pitching_lines, atbats):
                     name: _component_rating(z_by_component[name][key])
                     for name in PITCHER_WEIGHTS
                 }
-                weighted = sum(z_by_component[name][key] * weight
+                weighted = sum(_weighted_z(z_by_component[name][key]) * weight
                                for name, weight in PITCHER_WEIGHTS.items())
                 row["w_rating"] = _rating(weighted)
                 opportunity = row["stats"]["innings"] / 30 + row["stats"]["games"] / 25
@@ -395,4 +487,7 @@ def calculate(players, teams, batting_lines, pitching_lines, atbats):
         )
     overall.sort(key=lambda x: (-x["w_value"], -(x["w_rating"] or 0)))
 
-    return {"batters": batters, "pitchers": pitchers, "overall": overall}
+    return {
+        "batters": batters, "pitchers": pitchers, "overall": overall,
+        "runner_event_diagnostics": runner_diag,
+    }
