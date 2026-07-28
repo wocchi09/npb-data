@@ -57,6 +57,31 @@ def truthy(value):
     return str(value).lower() in ("1", "true", "yes")
 
 
+def _dedupe_players(players):
+    """Keep the most complete row when a collected player key is duplicated."""
+    unique = {}
+    without_key = []
+
+    def volume(player):
+        batting = player.get("batting") or {}
+        pitching = player.get("pitching") or {}
+        return (
+            number(batting.get("games")) + number(pitching.get("games")),
+            number(batting.get("pa")) + number(pitching.get("outs")) / 3,
+            number(batting.get("ab")) + number(pitching.get("games")),
+        )
+
+    for player in players:
+        key = player.get("key")
+        if not key:
+            without_key.append(player)
+            continue
+        current = unique.get(key)
+        if current is None or volume(player) > volume(current):
+            unique[key] = player
+    return list(unique.values()) + without_key
+
+
 def positions_from_text(value):
     """Return actual fielding positions from strings such as '打一' or '一三'."""
     text = str(value or "")
@@ -202,6 +227,7 @@ def _pitcher_role(pitching, role):
 
 def calculate(players, teams, batting_lines, pitching_lines, atbats,
               runner_events=None):
+    players = _dedupe_players(players)
     team_games = {t.get("team"): int(number(t.get("games"))) for t in teams}
     batter_roles = collect_batter_roles(batting_lines)
     pitcher_roles = collect_pitcher_roles(pitching_lines)
@@ -427,13 +453,16 @@ def calculate(players, teams, batting_lines, pitching_lines, atbats,
                 "name": row["name"], "team": row["team"], "league": row["league"],
                 "batter_w_value": 0.0, "pitcher_w_value": 0.0,
                 "batter_w_rating": None, "pitcher_w_rating": None,
+                "batting_games": 0, "pitching_games": 0,
                 "qualified_pa": False, "qualified_ip": False,
             })
             item[f"{kind}_w_value"] = row["w_value"]
             item[f"{kind}_w_rating"] = row["w_rating"]
             if kind == "batter":
+                item["batting_games"] = row["stats"]["games"]
                 item["qualified_pa"] = row["stats"]["qualified_pa"]
             else:
+                item["pitching_games"] = row["stats"]["games"]
                 item["qualified_ip"] = row["stats"]["qualified_ip"]
     overall = list(combined.values())
     for row in overall:

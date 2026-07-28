@@ -84,6 +84,30 @@ class WImpactTest(unittest.TestCase):
         overall_pitcher = next(x for x in result["overall"] if x["player_key"] == "p1")
         self.assertTrue(overall_batter["qualified_pa"])
         self.assertTrue(overall_pitcher["qualified_ip"])
+        self.assertEqual(overall_batter["batting_games"], 10)
+        self.assertEqual(overall_batter["pitching_games"], 0)
+        self.assertEqual(overall_pitcher["batting_games"], 0)
+        self.assertEqual(overall_pitcher["pitching_games"], 2)
+
+    def test_duplicate_player_keys_keep_the_most_complete_row(self):
+        players = [
+            {
+                "key": "b1", "name": "重複選手", "team": "阪神", "position": "一",
+                "batting": {"games": 3, "pa": 10, "ops": .500},
+            },
+            {
+                "key": "b1", "name": "重複選手", "team": "阪神", "position": "一",
+                "batting": {"games": 8, "pa": 30, "ops": .800},
+            },
+        ]
+        result = calculate(
+            players, [{"team": "阪神", "games": 8}],
+            [{"player_key": "b1", "position": "一"}], [], [], [],
+        )
+        self.assertEqual(len(result["batters"]), 1)
+        self.assertEqual(len(result["overall"]), 1)
+        self.assertEqual(result["batters"][0]["stats"]["games"], 8)
+        self.assertEqual(result["overall"][0]["batting_games"], 8)
 
     def test_primary_position_uses_most_appearances_and_roster_tiebreak(self):
         players = [{
