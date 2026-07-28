@@ -872,7 +872,9 @@ def aggregate_batter_period(rows):
     ops = (obp + slg) if (obp is not None and slg is not None) else None
 
     return {
-        "games": g, "ab": ab, "hits": hits, "hr": hr, "rbi": rbi, "runs": runs,
+        "games": g, "ab": ab, "hits": hits,
+        "singles": singles, "doubles": doubles, "triples": triples, "hr": hr,
+        "rbi": rbi, "runs": runs,
         "sb": sb, "so": so, "errors": errors, "starts": starts, "pa": pa,
         "extra_base_hits": doubles + triples + hr,
         "avg": avg, "obp": obp, "slg": slg, "ops": ops,
@@ -963,6 +965,17 @@ def score_weekly_batter(name, team, position, agg, league_pool, team_games, cfg=
                       "clutch": clutch, "playingTime": round(pt, 2),
                       "defenseBaser": round(db, 2), "teamWin": team_win,
                       "penalty": round(pen, 2)},
+        "stats": {
+            "games": agg["games"], "pa": agg["pa"], "ab": agg["ab"],
+            "hits": agg["hits"], "singles": agg["singles"],
+            "doubles": agg["doubles"], "triples": agg["triples"], "hr": agg["hr"],
+            "rbi": agg["rbi"], "runs": agg["runs"], "bb": agg.get("bb", 0),
+            "hbp": agg.get("hbp", 0), "so": agg["so"], "sb": agg["sb"],
+            "avg": round(agg["avg"], 3) if agg["avg"] is not None else None,
+            "obp": round(agg["obp"], 3) if agg["obp"] is not None else None,
+            "slg": round(agg["slg"], 3) if agg["slg"] is not None else None,
+            "ops": round(agg["ops"], 3) if agg["ops"] is not None else None,
+        },
         "stat_line": (f"{agg['games']}試合 {agg['ab']}打数{agg['hits']}安打 "
                       f"打率{fmt_rate(agg['avg'])}" if agg['avg'] is not None else f"{agg['games']}試合") +
                      (f" OPS{fmt_rate(agg['ops'])}" if agg['ops'] is not None else "") +

@@ -9,7 +9,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "scraper"))
 
 import build_dataset
-from lib.awards import aggregate_batter_period
+from lib.awards import aggregate_batter_period, score_weekly_batter
 
 
 class PeriodHitTypesTest(unittest.TestCase):
@@ -69,6 +69,21 @@ class PeriodHitTypesTest(unittest.TestCase):
         }])
         self.assertEqual(agg["slg"], 2.5)
         self.assertEqual(agg["ops"], 3.5)
+        self.assertEqual(agg["singles"], 1)
+        self.assertEqual(agg["doubles"], 1)
+        self.assertEqual(agg["triples"], 1)
+
+    def test_period_award_output_contains_hit_type_counts(self):
+        agg = aggregate_batter_period([{
+            "ab": 4, "hits": 4, "singles": 1, "doubles": 1,
+            "triples": 1, "hr": 1, "bb": 0, "hbp": 0,
+        }])
+        scored = score_weekly_batter(
+            "テスト 選手", "巨人", "一", agg, [agg], 1,
+        )
+        self.assertEqual(scored["stats"]["singles"], 1)
+        self.assertEqual(scored["stats"]["doubles"], 1)
+        self.assertEqual(scored["stats"]["triples"], 1)
 
 
 if __name__ == "__main__":

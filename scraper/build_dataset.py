@@ -38,9 +38,9 @@ from lib.events import classify_result, classify_pitch, count_before
 # 試合データではない管理ファイル（集計結果や設定）
 MANAGED_FILES = {
     "index.json", "calendar.json", "no_games.json", "exclude.json",
-    "standings.json", "npb_roster.json",
+    "standings.json", "npb_roster.json", "fip_constants.json",
 }
-MANAGED_DIRS = ("/players/", "/teams/", "/dataset/", "/masters/")
+MANAGED_DIRS = ("/players/", "/teams/", "/dataset/", "/masters/", "/awards/")
 
 
 def _is_game_file(path: str) -> bool:
@@ -168,7 +168,8 @@ BAT_LINE_COLS = [
     "player", "player_id", "player_key",
     "order", "position", "is_starter", "sub_type",
     "season_avg", "ab", "runs", "hits", "rbi", "so", "bb", "hbp",
-    "sac", "sb", "errors", "hr",
+    "sac", "sb", "errors",
+    "singles", "doubles", "triples", "hr", "unclassified_hits",
 ]
 
 PIT_LINE_COLS = [
@@ -341,6 +342,23 @@ def build(season, base="data", fmt="both"):
             "pitch_count": g.get("pitch_count"),
         })
 
+        # boxscoreには二塁打・三塁打の列がないため、打席結果から選手別に補う。
+        hit_types = {}
+        for ab in g.get("atbats", []):
+            if not ab.get("valid", True):
+                continue
+            batter = ab.get("batter") or {}
+            key = player_key(batter.get("player_id"), batter.get("name"))
+            if not key:
+                continue
+            ev = classify_result(ab.get("result_summary"))
+            counts = hit_types.setdefault(
+                key, {"singles": 0, "doubles": 0, "triples": 0}
+            )
+            counts["singles"] += ev.get("single") or 0
+            counts["doubles"] += ev.get("double") or 0
+            counts["triples"] += ev.get("triple") or 0
+
         # ---- 公式ボックススコア ----
         box = g.get("boxscore") or {}
         side_team = {"away": away, "home": home}
@@ -349,12 +367,24 @@ def build(season, base="data", fmt="both"):
             opp = side_team["home" if side == "away" else "away"]
 
             for row in (box.get("batting", {}) or {}).get(side, []) or []:
+                key = player_key(row.get("player_id"), row.get("name"))
+                extra = hit_types.get(
+                    key, {"singles": 0, "doubles": 0, "triples": 0}
+                )
+                # 公式安打数を正とし、分類できなかった安打は単打へ保守的に寄せる。
+                official_hits = row.get("hits") or 0
+                official_hr = row.get("hr") or 0
+                observed_hits = (
+                    extra["singles"] + extra["doubles"] + extra["triples"] + official_hr
+                )
+                unclassified_hits = max(0, official_hits - observed_hits)
+                singles = extra["singles"] + unclassified_hits
                 bat_lines.append({
                     "date": date, "game_id": gid, "stadium": g.get("stadium"), "team": team,
                     "opponent": opp, "is_home": side == "home",
                     "player": clean_name(row.get("name")),
                     "player_id": row.get("player_id"),
-                    "player_key": player_key(row.get("player_id"), row.get("name")),
+                    "player_key": key,
                     "order": row.get("order"),
                     "position": row.get("position"),
                     "is_starter": row.get("is_starter"),
@@ -365,7 +395,11 @@ def build(season, base="data", fmt="both"):
                     "so": row.get("so"), "bb": row.get("bb"),
                     "hbp": row.get("hbp"), "sac": row.get("sac"),
                     "sb": row.get("sb"), "errors": row.get("errors"),
-                    "hr": row.get("hr"),
+                    "singles": singles,
+                    "doubles": extra["doubles"],
+                    "triples": extra["triples"],
+                    "hr": official_hr,
+                    "unclassified_hits": unclassified_hits,
                 })
 
             plist = (box.get("pitching", {}) or {}).get(side, []) or []
