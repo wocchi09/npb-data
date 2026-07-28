@@ -40,7 +40,7 @@ MANAGED_FILES = {
     "index.json", "calendar.json", "no_games.json", "exclude.json",
     "standings.json", "npb_roster.json",
 }
-MANAGED_DIRS = ("/players/", "/teams/", "/dataset/", "/masters/", "/awards/")
+MANAGED_DIRS = ("/players/", "/teams/", "/dataset/", "/masters/")
 
 
 def _is_game_file(path: str) -> bool:
@@ -168,8 +168,7 @@ BAT_LINE_COLS = [
     "player", "player_id", "player_key",
     "order", "position", "is_starter", "sub_type",
     "season_avg", "ab", "runs", "hits", "rbi", "so", "bb", "hbp",
-    "sac", "sb", "errors",
-    "singles", "doubles", "triples", "hr", "unclassified_hits",
+    "sac", "sb", "errors", "hr",
 ]
 
 PIT_LINE_COLS = [
@@ -185,7 +184,7 @@ SEASON_BAT_COLS = [
     "hand", "position", "qualified",
     "games", "pa", "ab", "runs", "hits", "singles", "doubles", "triples", "hr",
     "rbi", "bb", "ibb", "so", "sb", "errors", "tb",
-    "avg", "obp", "slg", "ops", "bb_pct", "k_pct",
+    "avg", "obp", "slg", "ops", "iso", "babip", "bb_pct", "k_pct",
 ]
 
 SEASON_PIT_COLS = [
@@ -195,7 +194,7 @@ SEASON_PIT_COLS = [
     "hits_allowed", "hr_allowed", "so", "bb", "hbp",
     "runs_allowed", "earned_runs", "wins", "losses", "saves",
     "holds_official", "holds_est", "relief_wins", "hp",
-    "era", "whip", "k9", "bb9", "k_bb", "win_pct",
+    "era", "fip", "whip", "k9", "bb9", "k_bb", "win_pct",
 ]
 
 SEASON_TEAM_COLS = [
@@ -258,8 +257,8 @@ def season_tables(season, base="data"):
                     "ibb": b.get("ibb"), "so": b.get("so"),
                     "sb": b.get("sb"), "errors": b.get("errors"), "tb": b.get("tb"),
                     "avg": b.get("avg"), "obp": b.get("obp"), "slg": b.get("slg"),
-                    "ops": b.get("ops"), "bb_pct": b.get("bb_pct"),
-                    "k_pct": b.get("k_pct"),
+                    "ops": b.get("ops"), "iso": b.get("iso"), "babip": b.get("babip"),
+                    "bb_pct": b.get("bb_pct"), "k_pct": b.get("k_pct"),
                 })
 
             q = p.get("pitching")
@@ -284,7 +283,7 @@ def season_tables(season, base="data"):
                     "holds_official": q.get("holds"),
                     "holds_est": q.get("holds_est"),
                     "relief_wins": q.get("relief_wins"), "hp": q.get("hp"),
-                    "era": q.get("era"), "whip": q.get("whip"),
+                    "era": q.get("era"), "fip": q.get("fip"), "whip": q.get("whip"),
                     "k9": q.get("k9"), "bb9": q.get("bb9"),
                     "k_bb": q.get("k_bb"), "win_pct": q.get("win_pct"),
                 })
@@ -342,24 +341,6 @@ def build(season, base="data", fmt="both"):
             "pitch_count": g.get("pitch_count"),
         })
 
-        # boxscoreには二塁打・三塁打の列がないため、打席結果から選手別に補う。
-        # player_keyを使い、同姓選手や表記ゆれによる混同を避ける。
-        hit_types = {}
-        for ab in g.get("atbats", []):
-            if not ab.get("valid", True):
-                continue
-            batter = ab.get("batter") or {}
-            key = player_key(batter.get("player_id"), batter.get("name"))
-            if not key:
-                continue
-            ev = classify_result(ab.get("result_summary"))
-            counts = hit_types.setdefault(
-                key, {"singles": 0, "doubles": 0, "triples": 0}
-            )
-            counts["singles"] += ev.get("single") or 0
-            counts["doubles"] += ev.get("double") or 0
-            counts["triples"] += ev.get("triple") or 0
-
         # ---- 公式ボックススコア ----
         box = g.get("boxscore") or {}
         side_team = {"away": away, "home": home}
@@ -368,25 +349,12 @@ def build(season, base="data", fmt="both"):
             opp = side_team["home" if side == "away" else "away"]
 
             for row in (box.get("batting", {}) or {}).get(side, []) or []:
-                key = player_key(row.get("player_id"), row.get("name"))
-                extra = hit_types.get(
-                    key, {"singles": 0, "doubles": 0, "triples": 0}
-                )
-                # 公式安打数を正とする。打席巡回から拾えなかった安打は
-                # 最小塁打となる単打へ保守的に寄せ、件数も別列で公開する。
-                official_hits = row.get("hits") or 0
-                official_hr = row.get("hr") or 0
-                observed_hits = (
-                    extra["singles"] + extra["doubles"] + extra["triples"] + official_hr
-                )
-                unclassified_hits = max(0, official_hits - observed_hits)
-                singles = extra["singles"] + unclassified_hits
                 bat_lines.append({
                     "date": date, "game_id": gid, "stadium": g.get("stadium"), "team": team,
                     "opponent": opp, "is_home": side == "home",
                     "player": clean_name(row.get("name")),
                     "player_id": row.get("player_id"),
-                    "player_key": key,
+                    "player_key": player_key(row.get("player_id"), row.get("name")),
                     "order": row.get("order"),
                     "position": row.get("position"),
                     "is_starter": row.get("is_starter"),
@@ -397,11 +365,7 @@ def build(season, base="data", fmt="both"):
                     "so": row.get("so"), "bb": row.get("bb"),
                     "hbp": row.get("hbp"), "sac": row.get("sac"),
                     "sb": row.get("sb"), "errors": row.get("errors"),
-                    "singles": singles,
-                    "doubles": extra["doubles"],
-                    "triples": extra["triples"],
-                    "hr": official_hr,
-                    "unclassified_hits": unclassified_hits,
+                    "hr": row.get("hr"),
                 })
 
             plist = (box.get("pitching", {}) or {}).get(side, []) or []
