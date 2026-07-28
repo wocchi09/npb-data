@@ -253,6 +253,26 @@
     border-radius:8px;border:2px solid var(--line);background:var(--panel);
     color:var(--ink);}
 
+  /* ---- WAR ---- */
+  .warwarn{background:rgba(232,89,12,.08);border:1px solid var(--accent2);
+    border-radius:10px;padding:10px 12px;font-size:12.5px;line-height:1.7;
+    margin-bottom:12px;}
+  .warwarn a{color:var(--accent);font-weight:700;}
+
+  /* ---- 指標一覧 ---- */
+  .glossitem{border:1px solid var(--line);border-radius:10px;padding:10px 12px;
+    margin-bottom:8px;background:var(--panel2);}
+  .glosshead{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;}
+  .glossabbr{font-family:'Roboto Mono',monospace;font-size:15px;font-weight:700;
+    color:var(--accent);min-width:52px;}
+  .glossname{font-size:13.5px;font-weight:700;}
+  .glossformula{font-family:'Roboto Mono',monospace;font-size:11.5px;color:var(--ink2);
+    background:var(--panel);border-radius:6px;padding:5px 8px;margin-bottom:6px;
+    display:inline-block;}
+  .glossdesc{font-size:12.5px;line-height:1.7;}
+  .glossnote{font-size:11px;color:var(--muted);line-height:1.6;margin-top:5px;
+    padding-top:5px;border-top:1px dashed var(--line);}
+
   /* ---- 表彰 ---- */
   .mvpgrid{display:grid;grid-template-columns:1fr;gap:12px;}
   @media(min-width:900px){ .mvpgrid{grid-template-columns:1fr 1fr;} }
@@ -517,6 +537,8 @@
       <button class="vbtn" id="vb-players" onclick="setView('players')">選手一覧</button>
       <button class="vbtn" id="vb-daily" onclick="setView('daily')">日別分析</button>
       <button class="vbtn" id="vb-awards" onclick="setView('awards')">表彰</button>
+      <button class="vbtn" id="vb-glossary" onclick="setView('glossary')">指標一覧</button>
+      <button class="vbtn" id="vb-war" onclick="setView('war')">WAR</button>
       <button class="vbtn" id="vb-export" onclick="setView('export')">データ出力</button>
     </div>
 
@@ -543,6 +565,9 @@
 
     <div id="awardsView" style="display:none"></div>
     <div id="awardsGuideView" style="display:none"></div>
+    <div id="glossaryView" style="display:none"></div>
+    <div id="warView" style="display:none"></div>
+    <div id="warGuideView" style="display:none"></div>
 
     <div id="exportView" style="display:none"></div>
 
@@ -1791,7 +1816,8 @@
     curView = v;
     var ids={dash:"dashView", games:"gameView", season:"seasonView",
              players:"playersView", daily:"dailyView", awards:"awardsView",
-             awardsGuide:"awardsGuideView", export:"exportView"};
+             awardsGuide:"awardsGuideView", glossary:"glossaryView",
+             war:"warView", warGuide:"warGuideView", export:"exportView"};
     for(var k in ids){
       var el=document.getElementById(ids[k]);
       if(el) el.style.display = (k===v ? "block" : "none");
@@ -1805,6 +1831,13 @@
     else if(v==="awards") loadAwards();
     else if(v==="awardsGuide"){
       document.getElementById("awardsGuideView").innerHTML=renderAwardsGuide();
+    }
+    else if(v==="glossary"){
+      document.getElementById("glossaryView").innerHTML=renderGlossary();
+    }
+    else if(v==="war") loadWar();
+    else if(v==="warGuide"){
+      document.getElementById("warGuideView").innerHTML=renderWarGuide();
     }
     else if(v==="export") loadExport();
   }
@@ -3846,7 +3879,147 @@
     return h;
   }
 
-  /* ===== データ出力（CSV） ===== */
+  /* ===== セイバーメトリクス指標一覧 ===== */
+  var STAT_GLOSSARY = [
+    {group:"打撃・基本", items:[
+      {abbr:"AVG", name:"打率", status:"impl",
+       formula:"安打 ÷ 打数",
+       desc:"最も基本的な打撃指標。ヒットの出やすさを表す。四球・死球・犠打・犠飛は分母に含めない。",
+       note:"打数の少ない選手は数値がぶれやすい（規定打席で足切りするのが一般的）。"},
+      {abbr:"OBP", name:"出塁率", status:"impl",
+       formula:"(安打＋四球＋死球) ÷ (打数＋四球＋死球＋犠飛)",
+       desc:"打率よりも「アウトにならない頻度」を正確に表す。四球を安打と同じ「出塁」として評価する。"},
+      {abbr:"SLG", name:"長打率", status:"impl",
+       formula:"塁打 ÷ 打数（塁打＝単打×1＋二塁打×2＋三塁打×3＋本塁打×4）",
+       desc:"1打数あたり平均して何塁分進んだかを表す。長打力の指標。"},
+      {abbr:"OPS", name:"OPS", status:"impl",
+       formula:"出塁率 ＋ 長打率",
+       desc:"出塁能力と長打力を1つにまとめた指標。計算が単純な割に選手の総合力とよく相関するとされる。"},
+    ]},
+    {group:"打撃・応用", items:[
+      {abbr:"ISO", name:"アイソレイテッド・パワー", status:"impl",
+       formula:"長打率 － 打率",
+       desc:"単打の影響を除いた「純粋な長打力」。打率が高くても単打ばかりだとISOは低くなる。",
+       note:"目安：.200以上で長打力あり、.250以上は際立った長打力とされる。"},
+      {abbr:"BABIP", name:"インプレー打率", status:"impl",
+       formula:"(安打－本塁打) ÷ (打数－三振－本塁打＋犠飛)",
+       desc:"本塁打を除く「バットに当たってグラウンドに飛んだ打球」がヒットになった割合。守備・運の影響を大きく受けるため、平均から極端に離れている選手は今後成績が近づく（回帰する）可能性がある目安になる。",
+       note:"リーグ平均はおおむね.290〜.300。極端に高い・低い値は運の要素も疑うとよい。"},
+      {abbr:"BB%", name:"四球率", status:"impl",
+       formula:"四球 ÷ 打席",
+       desc:"打席のうち四球を選んだ割合。選球眼の指標。"},
+      {abbr:"K%", name:"三振率", status:"impl",
+       formula:"三振 ÷ 打席",
+       desc:"打席のうち三振に終わった割合。低いほどコンタクト能力が高い。"},
+    ]},
+    {group:"打撃・発展（現状は未実装）", items:[
+      {abbr:"wOBA", name:"加重出塁率", status:"planned",
+       formula:"各打撃結果に「その結果が実際にどれだけ得点に貢献したか」の係数を掛けて合算し、打席数で割る",
+       desc:"単打・二塁打・本塁打・四球などを「同じ1」として扱わず、実際の得点価値に応じて重み付けする指標。OPSより得点との相関が高いとされる。",
+       note:"係数はリーグの得点環境から算出する必要があり、NPB向けの係数をまだ算出していません。複数シーズン分のデータが貯まってから、セ・パ別に算出することを検討しています。"},
+      {abbr:"wRC+", name:"加重得点創出率＋", status:"planned",
+       formula:"wOBAを基準にリーグ平均を100として指数化し、球場の影響（パークファクター）で補正する",
+       desc:"「リーグ平均と比べてどれだけ得点を生み出したか」を球場差まで補正して比較できる指標。",
+       note:"wOBAと同様、NPBの係数とパークファクターの算出が必要なため未実装です。"},
+      {abbr:"RC27", name:"27アウトあたり創出得点", status:"planned",
+       formula:"打撃成績から、その選手だけで打線を組んだ場合に27アウト（1試合分）で生み出す得点を推定する",
+       desc:"打撃成績を「1試合でどれだけ点を取れるか」に変換した指標。",
+       note:"推定式の係数調整が必要なため未実装です。"},
+    ]},
+    {group:"投手・基本", items:[
+      {abbr:"ERA", name:"防御率", status:"impl",
+       formula:"自責点 × 9 ÷ 投球回",
+       desc:"9イニングあたりの自責点。投手の失点抑制力を表す最も基本的な指標。"},
+      {abbr:"WHIP", name:"ワーインピー", status:"impl",
+       formula:"(被安打＋与四球) ÷ 投球回",
+       desc:"1イニングあたり何人の走者を出したか。防御率より守備の巧拙に左右されにくい。"},
+      {abbr:"K/9", name:"9イニングあたり奪三振", status:"impl",
+       formula:"奪三振 × 9 ÷ 投球回",
+       desc:"奪三振能力そのものの指標。守備や運に左右されにくい。"},
+      {abbr:"BB/9", name:"9イニングあたり与四球", status:"impl",
+       formula:"与四球 × 9 ÷ 投球回",
+       desc:"制球力の指標。低いほど四球を出していない。"},
+      {abbr:"K-BB", name:"奪三振と与四球の差", status:"impl",
+       formula:"奪三振 ÷ 与四球",
+       desc:"このサイトでは奪三振÷与四球（K/BB）として算出しています。奪三振能力と制球力を1つにまとめた指標。"},
+    ]},
+    {group:"投手・応用", items:[
+      {abbr:"FIP", name:"守備非依存防御率", status:"impl",
+       formula:"(13×被本塁打＋3×与四死球－2×奪三振) ÷ 投球回 ＋ リーグ定数",
+       desc:"投手自身がコントロールしやすい「奪三振・与四球・被本塁打」だけから算出する防御率。守備力や運の影響を取り除いた「その投手本来の実力」に近いとされる。防御率との差が大きい投手は、今後数字が近づいていく可能性がある目安になる。",
+       note:"NPBには公式のFIP定数が無いため、このサイトではその年・そのリーグの実測値から自動算出しています（セ・パ別）。シーズン序盤はサンプルが少なく不安定です。"},
+      {abbr:"QS", name:"クオリティスタート", status:"impl",
+       formula:"先発して6回以上・自責点3以下",
+       desc:"先発投手が試合を作れたかどうかの目安。"},
+      {abbr:"HQS", name:"ハイクオリティスタート", status:"impl",
+       formula:"先発して7回以上・自責点2以下",
+       desc:"QSよりも基準が厳しい、より優れた先発内容の目安。"},
+    ]},
+    {group:"投手・発展（現状は未実装）", items:[
+      {abbr:"xFIP", name:"被本塁打を調整したFIP", status:"planned",
+       formula:"被本塁打の代わりに「フライ打球数×リーグ平均本塁打率」を使ってFIPを計算する",
+       desc:"被本塁打は運の影響を受けやすいため、フライ打球の割合から期待される被本塁打数に置き換えて計算する指標。",
+       note:"フライ・ゴロなど打球方向の詳しい分類データが必要なため未実装です。"},
+      {abbr:"HR/9", name:"9イニングあたり被本塁打", status:"impl",
+       formula:"被本塁打 × 9 ÷ 投球回",
+       desc:"実は算出可能ですが、現在の画面にはまだ表示していません。"},
+    ]},
+    {group:"総合", items:[
+      {abbr:"WAR", name:"Wins Above Replacement", status:"partial",
+       formula:"打撃貢献＋走塁貢献＋ポジション補正－リプレイスメント基準　を得点換算し、1勝あたりの得点で割る",
+       desc:"控え選手と比較して何勝分チームに貢献したかを表す総合指標。野手・投手を同じ単位で比較できる。",
+       note:"★このサイトでは守備貢献を含んでいません★（打球の速度・到達地点のデータが取得元に無いため）。打撃・走塁・ポジション補正のみで算出した参考値です。詳しくはWARランキングページの解説をご覧ください。"},
+    ]},
+    {group:"総合・チーム", items:[
+      {abbr:"HP", name:"ホールドポイント", status:"impl",
+       formula:"ホールド ＋ 救援勝利",
+       desc:"中継ぎ投手の貢献度を1つの数字にまとめた指標。"},
+      {abbr:"勝率", name:"勝率", status:"impl",
+       formula:"勝利 ÷ (勝利＋敗戦)",
+       desc:"投手やチームの勝敗の割合。"},
+    ]},
+  ];
+
+  function renderGlossary(){
+    var implCount=0, plannedCount=0;
+    STAT_GLOSSARY.forEach(function(g){
+      g.items.forEach(function(it){ it.status==="impl" ? implCount++ : plannedCount++; });
+    });
+
+    var h='<div class="dash-sec"><div class="dash-h"><span class="dot"></span>セイバーメトリクス指標一覧'+
+      '<span class="dash-date">実装済み'+implCount+' ／ 未実装'+plannedCount+'</span></div>';
+
+    h+='<p style="line-height:1.8;font-size:13.5px">このサイトで使っている（または将来使う予定の）指標をまとめました。'+
+       '<span class="qmark">実装済</span> は実際に選手ページやシーズン成績に表示されている指標、'+
+       '<span class="subtag" style="background:var(--muted)">未実装</span> はまだ算出していない指標です。'+
+       '推測で数字を作ることはしていないので、算出に必要なデータが揃っていない指標は未実装のままにしてあります。</p>';
+
+    STAT_GLOSSARY.forEach(function(g){
+      h+='<div class="subsec"><div class="subttl">'+esc(g.group)+'</div>';
+      g.items.forEach(function(it){
+        var badge = it.status==="impl"
+          ? '<span class="qmark">実装済</span>'
+          : it.status==="partial"
+          ? '<span class="subtag" style="background:var(--accent2)">一部実装（守備抜き）</span>'
+          : '<span class="subtag" style="background:var(--muted)">未実装</span>';
+        h+='<div class="glossitem"><div class="glosshead">'+
+           '<span class="glossabbr">'+esc(it.abbr)+'</span>'+
+           '<span class="glossname">'+esc(it.name)+'</span>'+badge+'</div>'+
+           '<div class="glossformula">'+esc(it.formula)+'</div>'+
+           '<div class="glossdesc">'+esc(it.desc)+'</div>'+
+           (it.note?'<div class="glossnote">'+esc(it.note)+'</div>':'')+
+           '</div>';
+      });
+      h+='</div>';
+    });
+
+    h+='<div class="expbtns" style="margin-top:12px">'+
+       '<button class="btn" onclick="setView(\'war\')">WARランキングを見る ▶</button>'+
+       '<button class="btn" onclick="setView(\'awardsGuide\')">MVP選出基準の説明 ▶</button>'+
+       '</div>';
+    h+='</div>';
+    return h;
+  }
   var EXPORT_SETS = [
     ["pitches",        "一球データ",   "1行＝1球。球種・球速・コース・カウント・結果まで全部入り"],
     ["atbats",         "打席データ",   "1行＝1打席。結果・打球方向・走者状況"],
@@ -3858,6 +4031,130 @@
     ["season_teams",   "シーズンチーム","1行＝1球団。得失点・勝敗"]
   ];
   var expSet="pitches", expFrom="", expTo="", expTeam="all", expPlayer="";
+  /* ===== 簡易WAR（守備抜き） ===== */
+  var warData=null, warLg="パ", warKind="batter";
+
+  async function loadWar(){
+    var wv=document.getElementById("warView");
+    wv.innerHTML='<div class="msg">読み込み中…</div>';
+    var year=(dp.value||todayJST()).split("-")[0];
+    try{
+      var r=await fetch("data/"+year+"/war.json?t="+Date.now());
+      warData = r.ok ? await r.json() : null;
+    }catch(e){ warData=null; }
+    renderWar();
+  }
+  function setWarLg(l){ warLg=l; renderWar(); }
+  function setWarKind(k){ warKind=k; renderWar(); }
+
+  function renderWar(){
+    var wv=document.getElementById("warView");
+    var h='<div class="dash-sec"><div class="dash-h"><span class="dot"></span>簡易WAR'+
+      '<span class="dash-date">守備抜き・参考値</span></div>';
+
+    h+='<div class="warwarn">⚠ このWARには<b>守備貢献が含まれていません</b>。'+
+       '取得元のデータに打球の速度・到達地点が無く、守備範囲や失点抑止を算出できないためです。'+
+       '打撃・走塁・ポジション補正のみで算出した参考値としてご覧ください。'+
+       '　<a href="#" onclick="setView(\'warGuide\');return false;">算出方法の詳細 ▶</a></div>';
+
+    if(!warData){
+      h+='<div class="msg">WARデータがまだありません<br>'+
+         '<span style="font-size:12px">Actionsで再集計すると作られます</span></div></div>';
+      wv.innerHTML=h;
+      return;
+    }
+
+    h+='<div class="stabs">';
+    [["セ","セ・リーグ"],["パ","パ・リーグ"]].forEach(function(x){
+      h+='<button class="stab'+(warLg===x[0]?" on":"")+'" style="--sc:'+LEAGUE_COLOR[x[0]]+'" '+
+         'onclick="setWarLg(\''+x[0]+'\')">'+x[1]+'</button>';
+    });
+    h+='</div><div class="stabs gtabs">';
+    [["batter","野手"],["pitcher","投手"]].forEach(function(x){
+      h+='<button class="stab'+(warKind===x[0]?" on":"")+'" style="--sc:var(--accent)" '+
+         'onclick="setWarKind(\''+x[0]+'\')">'+x[1]+'</button>';
+    });
+    h+='</div>';
+
+    var list = (warKind==="batter" ? warData.batters : warData.pitchers)
+      .filter(function(x){ return tLeague(x.team)===warLg; });
+
+    if(!list.length){
+      h+='<div class="msg">データがありません</div></div>';
+      wv.innerHTML=h;
+      return;
+    }
+
+    h+='<div class="tblwrap"><table class="stbl"><thead><tr>'+
+       '<th>#</th><th class="nm">選手</th><th>球団</th>'+
+       (warKind==="batter"?'<th>位置</th>':'')+
+       '<th>WAR</th>'+
+       (warKind==="batter"
+         ?'<th>打撃</th><th>走塁</th><th>位置補正</th>'
+         :'<th>FIP</th><th>回</th>')+
+       '</tr></thead><tbody>';
+    list.forEach(function(x,i){
+      var c=x.components||{};
+      h+='<tr><td class="num">'+(i+1)+'</td>'+
+        '<td class="nm">'+esc(x.name)+
+          (warKind==="batter"&&!x.qualified?'<span class="subtag" style="background:var(--muted)">規定未満</span>':'')+
+        '</td><td>'+teamBadge(x.team)+'</td>'+
+        (warKind==="batter"?'<td class="pos">'+esc(x.position||"-")+'</td>':'')+
+        '<td class="num hi">'+x.war+'</td>'+
+        (warKind==="batter"
+          ?'<td class="num">'+(c.r_bat==null?"-":c.r_bat)+'</td>'+
+           '<td class="num">'+(c.r_baser==null?"-":c.r_baser)+'</td>'+
+           '<td class="num">'+(c.r_pos==null?"-":c.r_pos)+'</td>'
+          :'<td class="num">'+(c.fip==null?"-":c.fip)+'</td>'+
+           '<td class="num">'+(c.ip==null?"-":c.ip)+'</td>')+
+        '</tr>';
+    });
+    h+='</tbody></table></div>';
+    h+='<div class="sub" style="font-size:11px;margin-top:8px">'+esc(warData.note||"")+'</div>';
+    h+='</div>';
+    wv.innerHTML=h;
+  }
+
+  function renderWarGuide(){
+    var h='<div class="dash-sec"><div class="dash-h"><span class="dot"></span>簡易WARの算出方法</div>';
+
+    h+='<div class="warwarn">⚠ 守備貢献（R_field）は算出していません。取得元のデータに打球の速度・到達地点・滞空時間などが無く、守備範囲や失点抑止を測る元データが存在しないためです。「dakyu」という打球関連コードも調査しましたが、これは座標データではなく結果を表す分類コードに過ぎないと判明しました。</div>';
+
+    h+='<div class="subsec"><div class="subttl">評価の目安（1シーズン換算）</div>'+
+       '<div class="tblwrap"><table class="stbl"><thead><tr><th>WAR</th><th class="nm">評価</th></tr></thead><tbody>'+
+       [["6.0以上","MVP級"],["5.0〜6.0","スーパースター級"],["4.0〜5.0","オールスター級"],
+        ["3.0〜4.0","優秀なレギュラー"],["2.0〜3.0","平均的なレギュラー"],
+        ["1.0〜2.0","控え・準レギュラー"],["0.0〜1.0","ベンチ枠"],["0.0未満","代替可能未満"]
+       ].map(function(r){return '<tr><td class="num">'+r[0]+'</td><td class="nm" style="font-weight:400">'+r[1]+'</td></tr>';}).join("")+
+       '</tbody></table></div>'+
+       '<div class="sub" style="font-size:11px;margin-top:6px">この基準は一般的なセイバーメトリクスの目安であり、守備を含む本来のWARを前提にしています。このサイトの値は守備抜きのため、同じ基準をそのまま当てはめると相対的に低く出る傾向があります。</div></div>';
+
+    h+='<div class="subsec"><div class="subttl">野手の計算式</div>'+
+       '<div class="glossformula" style="display:block">WAR = (R_bat + R_baser + R_dp + R_pos) ÷ RPW</div>'+
+       '<div class="tblwrap" style="margin-top:8px"><table class="stbl"><thead><tr><th class="nm">要素</th><th class="nm">内容</th></tr></thead><tbody>'+
+       gRow2("R_bat（打撃貢献）","(自分のOPS－リプレイスメントOPS)×打席×0.2 で近似。正式なwOBAベースの線形加重ではなく簡易的な比例配分です。")+
+       gRow2("R_baser（走塁貢献）","盗塁成功×0.2点。盗塁死のデータが無いため成功分のみで、過大評価しないよう小さめの係数にしています。")+
+       gRow2("R_dp（併殺回避）","現在のデータには併殺打の集計が無いため、0固定です。")+
+       gRow2("R_pos（守備位置補正）","提供いただいた資料の162試合換算値を、実際の出場試合数（÷143）に按分しています。")+
+       gRow2("R_field（守備貢献）","<b>算出していません。</b>")+
+       gRow2("RPW","1勝に必要な得点。このシーズン・このリーグの実際の得点数から算出しています。")+
+       '</tbody></table></div></div>';
+
+    h+='<div class="subsec"><div class="subttl">投手の計算式（fWAR方式）</div>'+
+       '<div class="glossformula" style="display:block">WAR = (リプレイスメントFIP － 投手のFIP) × 投球回 ÷ 9 ÷ RPW</div>'+
+       '<p style="font-size:13px;line-height:1.7;margin-top:8px">FIPを基準にする方式（fWAR）は、守備の影響を最初から取り除いた指標をベースにするため、このサイトの「守備データが無い」という制約と相性が良いと考えて採用しました。'+
+       'リプレイスメントFIPは「リーグ平均防御率＋1.00」という、セイバーメトリクスで広く使われる簡易的な目安を採用しています（NPB独自に実証した値ではありません）。</p></div>';
+
+    h+='<div class="subsec"><div class="subttl">リプレイスメントレベルの決め方</div>'+
+       '<p style="font-size:13px;line-height:1.7">「控え選手の平均的な成績」を、規定打席（チーム試合数×3.1）に届いていない全野手の平均OPSから算出しています。MLBの公表値を借用せず、このシーズン・このリーグの実データから独自に算出している点が特徴です。</p></div>';
+
+    h+='<div class="expbtns" style="margin-top:12px">'+
+       '<button class="btn" onclick="setView(\'war\')">◀ WARランキングにもどる</button> '+
+       '<button class="btn" onclick="setView(\'glossary\')">指標一覧 ▶</button></div>';
+    h+='</div>';
+    return h;
+  }
+
   var expCache={};      // set -> {header:[], rows:[[...]]}
   var expLoading=false;
 
