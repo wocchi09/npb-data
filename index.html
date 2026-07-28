@@ -4423,17 +4423,19 @@
     }
     return Number(x[key]||0);
   }
-  function impactCompositeRows(rows){
+  function impactCompositeRows(rows,referenceRows){
     rows=(rows||[]).slice();
+    referenceRows=(referenceRows||rows).slice();
     function percentileMap(key){
-      var values=rows.map(function(x){return Number(x[key]||0);})
+      var values=referenceRows.map(function(x){return Number(x[key]||0);})
         .sort(function(a,b){return b-a;});
       var out={};
       rows.forEach(function(x){
         var v=Number(x[key]||0), first=values.indexOf(v), last=values.lastIndexOf(v);
         var rank=(first+last)/2;
-        out[x.player_key]=values.length<=1?100:
-          100*(values.length-1-rank)/(values.length-1);
+        // 中央順位型の百分位。部門1位を機械的に100点へ固定しない。
+        out[x.player_key]=values.length?
+          100*(values.length-0.5-rank)/values.length:50;
       });
       return out;
     }
@@ -4468,15 +4470,16 @@
       ["中堅手",posRows("中")],["右翼手",posRows("右")]
     ];
     if(impactLg==="パ") groups.push(["指名打者",posRows("指")]);
-    return groups.map(function(group){
-      return {title:group[0],top:impactCompositeRows(group[1]).slice(0,5)};
+    return groups.map(function(group,index){
+      var reference=index<3?pitchers:batters;
+      return {title:group[0],top:impactCompositeRows(group[1],reference).slice(0,5)};
     });
   }
   function impactDepartmentTable(){
     var groups=impactDepartments();
     var h='<div class="impact-dept"><div class="impact-dept-head">'+
       '<div class="impact-dept-title">部門別 総合TOP5</div>'+
-      '<div class="impact-dept-note">総合点 = W-Value順位 70% + W-Rating順位 30%</div>'+
+      '<div class="impact-dept-note">総合点 = リーグ全野手／全投手内のW-Value百分位 70% + W-Rating百分位 30%</div>'+
       '</div><div class="tblwrap"><table class="stbl impact-dept-table"><thead><tr>'+
       '<th>部門</th><th>1位</th><th>2位</th><th>3位</th><th>4位</th><th>5位</th>'+
       '</tr></thead><tbody>';
@@ -4638,6 +4641,10 @@
     h+='<div class="subsec"><div class="subttl">投手の構成</div>'+
        '<div class="glossformula" style="display:block">投球内容50% + 支配力15% + 失点抑止15% + 役割15% + 出場量5%</div>'+
        '<p style="font-size:13px;line-height:1.7;margin-top:8px">先発・中継ぎ・抑えを別々に標準化します。先発はQS、中継ぎは無失点登板とホールド、抑えはセーブを役割遂行として評価します。</p></div>';
+    h+='<div class="subsec"><div class="subttl">部門別総合点</div>'+
+       '<div class="glossformula" style="display:block">W-Value百分位 70% + W-Rating百分位 30%</div>'+
+       '<p style="font-size:13px;line-height:1.7;margin-top:8px">守備位置や投手役割の各部門内だけでなく、同一リーグの全野手または全投手を共通の比較母集団にします。'+
+       '中央順位型の百分位を使うため、各部門の1位が自動的に100点になることはありません。</p></div>';
     h+='<div class="subsec"><div class="subttl">守備評価の制約</div>'+
        '<p style="font-size:13px;line-height:1.7">守備位置の難度、失策、守備交代、複数ポジションを参考評価します。'+
        '打球座標・速度・守備イニングがないため、守備範囲や好守備は含みません。名称もUZRではなく「守備参考」としています。</p></div>';
