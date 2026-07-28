@@ -31,6 +31,22 @@ def load_config(path=None):
     return _CONFIG
 
 
+def fmt_rate(value, digits=3):
+    """
+    打率・出塁率・長打率・OPS・勝率など「1.000を超えない率」の表記を
+    NPBの慣例（先頭の0を消す）に統一する。例: 0.333 → ".333" / 0.000 → ".000"
+    1.000ちょうど・1を超える値はそのまま表示する（OPSは1を超えることがあるため）。
+    """
+    if value is None:
+        return "-"
+    s = f"{value:.{digits}f}"
+    if s.startswith("0."):
+        s = s[1:]
+    elif s.startswith("-0."):
+        s = "-" + s[2:]
+    return s
+
+
 def _cap(value, limit):
     """カテゴリごとの上限を適用する"""
     return min(value, limit) if limit is not None else value
@@ -883,7 +899,7 @@ def score_weekly_batter(name, team, position, agg, league_pool, team_games, cfg=
     content += _percentile_score([p["slg"] for p in league_pool], agg["slg"], B["slg"])
     content = _cap(content, cats["battingContent"]["max"])
     if agg["ops"] is not None:
-        reasons.append(f"OPS {agg['ops']:.3f}")
+        reasons.append(f"OPS {fmt_rate(agg['ops'])}")
 
     # --- 長打・得点貢献：リーグ最多に対する割合 ---
     R = c["runProduction"]
@@ -948,8 +964,8 @@ def score_weekly_batter(name, team, position, agg, league_pool, team_games, cfg=
                       "defenseBaser": round(db, 2), "teamWin": team_win,
                       "penalty": round(pen, 2)},
         "stat_line": (f"{agg['games']}試合 {agg['ab']}打数{agg['hits']}安打 "
-                      f"打率{agg['avg']:.3f}" if agg['avg'] is not None else f"{agg['games']}試合") +
-                     (f" OPS{agg['ops']:.3f}" if agg['ops'] is not None else "") +
+                      f"打率{fmt_rate(agg['avg'])}" if agg['avg'] is not None else f"{agg['games']}試合") +
+                     (f" OPS{fmt_rate(agg['ops'])}" if agg['ops'] is not None else "") +
                      f" {agg['hr']}本 {agg['rbi']}点",
         "reasons": reasons, "minus_reasons": [],
         "under_min_pa": need_pa and agg["pa"] < need_pa,
