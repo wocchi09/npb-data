@@ -43,9 +43,9 @@ def save_json(path, data):
 # 試合データではない管理ファイル（集計結果や設定）
 MANAGED_FILES = {
     "index.json", "calendar.json", "no_games.json", "exclude.json",
-    "standings.json", "npb_roster.json",
+    "standings.json", "npb_roster.json", "fip_constants.json",
 }
-MANAGED_DIRS = ("/players/", "/teams/", "/dataset/", "/masters/")
+MANAGED_DIRS = ("/players/", "/teams/", "/dataset/", "/masters/", "/awards/")
 
 
 def _is_game_file(path: str) -> bool:
@@ -80,8 +80,8 @@ def is_valid_name(name) -> bool:
 def blank_batting():
     return {
         "games": 0, "pa": 0, "ab": 0, "hits": 0, "singles": 0, "ibb": 0,
-        "doubles": 0, "triples": 0, "hr": 0, "rbi": 0, "bb": 0,
-        "so": 0, "runs": 0, "sf": 0,
+        "doubles": 0, "triples": 0, "hr": 0, "rbi": 0, "bb": 0, "hbp": 0,
+        "so": 0, "runs": 0, "sf": 0, "errors": 0,
     }
 
 
@@ -162,7 +162,8 @@ def merge_official_batting(dst: dict, row: dict):
     dst["hits"] += row["hits"]
     dst["hr"] += row["hr"]
     dst["rbi"] += row["rbi"]
-    dst["bb"] += row["bb"] + row["hbp"]
+    dst["bb"] += row["bb"]
+    dst["hbp"] += row["hbp"]
     dst["so"] += row["so"]
     dst["runs"] += row["runs"]
     dst["sb"] = dst.get("sb", 0) + row["sb"]
@@ -255,8 +256,8 @@ def calc_rate_stats(b: dict) -> dict:
     tb = singles + 2 * doubles + 3 * triples + 4 * hr
 
     avg = round(hits / ab, 3) if ab else None
-    obp_den = ab + b["bb"] + sf
-    obp = round((hits + b["bb"]) / obp_den, 3) if obp_den else None
+    obp_den = ab + b["bb"] + b.get("hbp", 0) + sf
+    obp = round((hits + b["bb"] + b.get("hbp", 0)) / obp_den, 3) if obp_den else None
     slg = round(tb / ab, 3) if ab else None
     ops = round((obp or 0) + (slg or 0), 3) if (obp is not None and slg is not None) else None
     bb_pct = round(b["bb"] / pa, 3) if pa else None

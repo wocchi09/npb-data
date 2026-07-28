@@ -184,7 +184,7 @@ SEASON_BAT_COLS = [
     "season", "player_key", "player_id", "player", "team", "league", "number",
     "hand", "position", "qualified",
     "games", "pa", "ab", "runs", "hits", "singles", "doubles", "triples", "hr",
-    "rbi", "bb", "ibb", "so", "sb", "errors", "tb",
+    "rbi", "bb", "ibb", "hbp", "so", "sb", "errors", "tb",
     "avg", "obp", "slg", "ops", "iso", "babip", "bb_pct", "k_pct",
 ]
 
@@ -255,7 +255,7 @@ def season_tables(season, base="data"):
                     "singles": b.get("singles"), "doubles": b.get("doubles"),
                     "triples": b.get("triples"), "hr": b.get("hr"),
                     "rbi": b.get("rbi"), "bb": b.get("bb"),
-                    "ibb": b.get("ibb"), "so": b.get("so"),
+                    "ibb": b.get("ibb"), "hbp": b.get("hbp"), "so": b.get("so"),
                     "sb": b.get("sb"), "errors": b.get("errors"), "tb": b.get("tb"),
                     "avg": b.get("avg"), "obp": b.get("obp"), "slg": b.get("slg"),
                     "ops": b.get("ops"), "iso": b.get("iso"), "babip": b.get("babip"),

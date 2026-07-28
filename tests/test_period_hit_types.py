@@ -10,6 +10,7 @@ sys.path.insert(0, os.path.join(ROOT, "scraper"))
 
 import build_dataset
 from lib.awards import aggregate_batter_period, score_weekly_batter
+from rebuild_stats import blank_batting, calc_rate_stats, merge_official_batting
 
 
 class PeriodHitTypesTest(unittest.TestCase):
@@ -84,6 +85,18 @@ class PeriodHitTypesTest(unittest.TestCase):
         self.assertEqual(scored["stats"]["singles"], 1)
         self.assertEqual(scored["stats"]["doubles"], 1)
         self.assertEqual(scored["stats"]["triples"], 1)
+
+    def test_season_walks_and_hit_by_pitch_are_separate(self):
+        batting = blank_batting()
+        merge_official_batting(batting, {
+            "ab": 2, "hits": 1, "hr": 0, "rbi": 0,
+            "bb": 1, "hbp": 1, "sac": 0, "so": 0,
+            "runs": 0, "sb": 0, "errors": 0,
+        })
+        rates = calc_rate_stats(batting)
+        self.assertEqual(batting["bb"], 1)
+        self.assertEqual(batting["hbp"], 1)
+        self.assertEqual(rates["obp"], 0.75)
 
 
 if __name__ == "__main__":
