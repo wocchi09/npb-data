@@ -91,6 +91,11 @@ jobs:
           SEASON=$(date +%Y)
           python scraper/build_period_awards.py --season "$SEASON" || echo "週間・月間表彰の算出をスキップ"
 
+      - name: Build simplified WAR
+        run: |
+          SEASON=$(date +%Y)
+          python scraper/build_war.py --season "$SEASON" || echo "WARの算出をスキップ"
+
       - name: Validate data
         run: |
           # 検証は失敗してもワークフローは止めない（情報として記録）
