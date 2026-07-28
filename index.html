@@ -199,6 +199,11 @@
   table.stbl td.num{font-family:'Roboto Mono',monospace;}
   table.stbl td.hi{color:var(--accent);font-weight:700;}
   table.stbl tr:hover td{background:var(--panel2);}
+  table.stbl thead th:not(.no-sort){cursor:pointer;user-select:none;}
+  table.stbl thead th:not(.no-sort):hover{color:var(--accent);}
+  table.stbl thead th.generic-sorted{color:var(--accent);background:var(--zone);}
+  table.stbl thead th.generic-sorted::after{content:attr(data-sort-arrow);
+    margin-left:3px;font-size:10px;}
   .dec{display:inline-block;font-size:11px;font-weight:700;min-width:20px;}
   .dec.win{color:var(--accent);} .dec.lose{color:var(--out);}
   .dec.save{color:var(--accent2);}
@@ -2312,8 +2317,8 @@
   }
 
   /* ===== 選手一覧 ===== */
-  var plName="", plTeam="all", plKind="batter", plPos="all", plHand="all",
-      plNum="", plQual="all", plPlayed="all", plSort="team", plSortDir="desc";
+  var plName="", plTeam="ソフトバンク", plKind="batter", plPos="all", plHand="all",
+      plNum="", plQual="all", plPlayed="all", plSort="number", plSortDir="asc";
 
   /* 選手比較で選んでいる2人（key配列） */
   var cmpSelected=[];
@@ -2650,7 +2655,7 @@
     }
 
     // 見出し（クリックで並び替え。矢印で現在の方向を示す）
-    h+='<div class="tblwrap"><table class="stbl"><thead><tr><th>比較</th>';
+    h+='<div class="tblwrap"><table class="stbl"><thead><tr><th class="no-sort">比較</th>';
     cols.forEach(function(c){
       var on=(plSort===c[0]);
       var arrow = on ? (plSortDir==="asc" ? ' ▲' : ' ▼') : '';
@@ -5398,6 +5403,61 @@
     loadDay();
   }
   function today(){dp.value=todayJST();loadDay();}
+
+  /* ===== 共通テーブルソート =====
+     選手一覧のように専用ソートを持つ列は従来処理を優先し、
+     それ以外の一覧表は見出しクリックで表示行を並べ替える。 */
+  function genericSortValue(cell){
+    var raw=(cell.getAttribute("data-sort-value")||cell.textContent||"").trim();
+    if(!raw || raw==="-" || raw==="—") return {missing:true,value:null,type:"missing"};
+    var compact=raw.replace(/,/g,"");
+    if(/^\d{4}[\/-]\d{1,2}[\/-]\d{1,2}/.test(compact)){
+      return {missing:false,value:compact.slice(0,10).replace(/\//g,"-"),type:"text"};
+    }
+    var m=/^([+-]?(?:\d+(?:\.\d*)?|\.\d+))(?=$|[%点試合打席打数安本点盗回球勝敗分ＳSH]|\s)/.exec(compact);
+    if(m) return {missing:false,value:Number(m[1]),type:"number"};
+    return {missing:false,value:raw,type:"text"};
+  }
+  function genericSortAscFirst(label){
+    return /^(#|順位|背番号|選手|チーム|球団|位置|役割|部門|区分|種類|日付|対戦|H\/V|防御率|ERA|FIP|WHIP|敗|失点|自責)$/.test(label);
+  }
+  document.addEventListener("click",function(ev){
+    var th=ev.target.closest&&ev.target.closest("table.stbl thead th");
+    if(!th || th.classList.contains("no-sort") || th.classList.contains("sortable")) return;
+    var table=th.closest("table");
+    var tbody=table&&table.tBodies&&table.tBodies[0];
+    if(!tbody || tbody.rows.length<2) return;
+    var col=th.cellIndex;
+    var label=(th.textContent||"").trim().replace(/[▲▼]$/,"").trim();
+    var same=table.getAttribute("data-sort-col")===String(col);
+    var dir=same
+      ? (table.getAttribute("data-sort-dir")==="asc"?"desc":"asc")
+      : (genericSortAscFirst(label)?"asc":"desc");
+    var rows=Array.prototype.slice.call(tbody.rows).map(function(row,index){
+      return {row:row,index:index,sort:genericSortValue(row.cells[col]||row.cells[0])};
+    });
+    rows.sort(function(a,b){
+      if(a.sort.missing!==b.sort.missing) return a.sort.missing?1:-1;
+      if(a.sort.missing) return a.index-b.index;
+      var cmp;
+      if(a.sort.type==="number"&&b.sort.type==="number"){
+        cmp=a.sort.value-b.sort.value;
+      }else{
+        cmp=String(a.sort.value).localeCompare(String(b.sort.value),"ja",{numeric:true});
+      }
+      return (dir==="asc"?cmp:-cmp)||(a.index-b.index);
+    });
+    rows.forEach(function(x){tbody.appendChild(x.row);});
+    Array.prototype.forEach.call(table.tHead.querySelectorAll("th"),function(x){
+      x.classList.remove("generic-sorted");
+      x.removeAttribute("data-sort-arrow");
+    });
+    th.classList.add("generic-sorted");
+    th.setAttribute("data-sort-arrow",dir==="asc"?"▲":"▼");
+    table.setAttribute("data-sort-col",String(col));
+    table.setAttribute("data-sort-dir",dir);
+  });
+
   dp.addEventListener("change",loadDay);
   // 初期表示はダッシュボード
   dp.value=todayJST();
