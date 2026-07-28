@@ -3942,8 +3942,8 @@
     h+='<div class="subsec"><div class="subttl">日刊と週間の違い</div>'+
        '<div class="tblwrap"><table class="stbl"><thead><tr><th class="nm">区分</th><th class="nm">重視すること</th></tr></thead><tbody>'+
        '<tr><td class="nm"><b>日刊</b></td><td class="nm" style="font-weight:400">その試合でのインパクト。決勝打・サヨナラ打・逆転打・得点圏での結果・好走塁・完投完封・僅差のセーブなど「その日のヒーロー」</td></tr>'+
-       '<tr><td class="nm"><b>週間</b></td><td class="nm" style="font-weight:400">月曜〜日曜の継続的な活躍。OPS・出塁率・長打率・投球回・防御率・WHIPなど「その週最も優れた成績を残した選手」</td></tr>'+
-       '<tr><td class="nm"><b>月間</b></td><td class="nm" style="font-weight:400">月初〜月末の集計。週間と同じ考え方で1ヶ月分をまとめて比較</td></tr>'+
+       '<tr><td class="nm"><b>週間</b></td><td class="nm" style="font-weight:400">月曜〜日曜の継続的な活躍。OPS・出塁率・長打率・投球回・防御率・WHIPに加え、試合数・打席・登板数も評価</td></tr>'+
+       '<tr><td class="nm"><b>月間</b></td><td class="nm" style="font-weight:400">月初〜月末の集計。期間内のチーム試合数に応じて必要な打席・先発数・投球回・救援登板数も増える</td></tr>'+
        '</tbody></table></div></div>';
 
     h+='<div class="subsec"><div class="subttl">日刊 野手スコア（100点満点）</div>'+
@@ -3969,8 +3969,8 @@
        '<div class="tblwrap"><table class="stbl"><thead><tr><th class="nm">区分</th><th class="nm">野手</th><th class="nm">投手（先発）</th></tr></thead><tbody>'+
        '<tr><td class="nm">最重視</td><td class="nm" style="font-weight:400">打撃内容40点（OPS15・打率8・出塁率8・長打率9）</td>'+
        '<td class="nm" style="font-weight:400">防御率25点・投球回20点</td></tr>'+
-       '<tr><td class="nm">出場条件</td><td class="nm" style="font-weight:400">チーム試合数×2.5打席未満は0.85倍に補正</td>'+
-       '<td class="nm" style="font-weight:400">先発1試合以上。継続登板を評価</td></tr>'+
+       '<tr><td class="nm">出場量補正</td><td class="nm" style="font-weight:400">期間内チーム試合数に対する打席充足率70%＋試合出場率30%。少数出場は0.65〜1.00倍</td>'+
+       '<td class="nm" style="font-weight:400">先発はチーム6試合につき1先発・6回、救援はチーム試合数の約半数を基準に登板数と投球回を補正</td></tr>'+
        '</tbody></table></div>'+
        '<div class="sub" style="font-size:11px;margin-top:6px">リーグ内の他選手との相対比較（百分位）で採点するため、リーグ全体のレベルが変わっても評価がぶれにくい仕組みです</div></div>';
 
@@ -4024,6 +4024,11 @@
          x.minus_reasons.map(function(r){
            return '<span class="subtag" style="background:var(--muted)">'+esc(r)+'</span>';}).join(" ")+'</div>';
     }
+    var volumeMult=x.sample_multiplier!=null?x.sample_multiplier:x.workload_multiplier;
+    if(volumeMult!=null && volumeMult<0.999){
+      h+='<div class="mvprow"><span class="k">出場量</span>'+
+         '<span class="subtag">補正 ×'+Number(volumeMult).toFixed(3)+'</span></div>';
+    }
     if(x.comment) h+='<div class="mvpcomment">'+esc(x.comment)+'</div>';
     if(x.breakdown){
       h+='<div class="mvpbd">';
@@ -4061,6 +4066,10 @@
     list.forEach(function(x,i){
       var good=(x.reasons||[]).join("／");
       var bad=(x.minus_reasons||[]).join("／");
+      var volumeMult=x.sample_multiplier!=null?x.sample_multiplier:x.workload_multiplier;
+      if(volumeMult!=null && volumeMult<0.999){
+        bad+=(bad?"／":"")+"出場量補正×"+Number(volumeMult).toFixed(3);
+      }
       h+='<tr><td class="num">'+(i+1)+'</td>'+
         '<td class="nm">'+esc(x.name)+'</td>'+
         '<td>'+teamBadge(x.team)+'</td>'+

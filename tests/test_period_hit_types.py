@@ -9,7 +9,12 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "scraper"))
 
 import build_dataset
-from lib.awards import aggregate_batter_period, score_weekly_batter
+from lib.awards import (
+    aggregate_batter_period,
+    aggregate_pitcher_period,
+    score_weekly_batter,
+    score_weekly_starter,
+)
 from rebuild_stats import blank_batting, calc_rate_stats, merge_official_batting
 
 
@@ -87,6 +92,34 @@ class PeriodHitTypesTest(unittest.TestCase):
         self.assertEqual(scored["stats"]["singles"], 1)
         self.assertEqual(scored["stats"]["doubles"], 1)
         self.assertEqual(scored["stats"]["triples"], 1)
+
+    def test_batter_small_sample_is_reduced_by_games_and_pa(self):
+        agg = aggregate_batter_period([{
+            "ab": 4, "hits": 2, "singles": 2, "doubles": 0,
+            "triples": 0, "hr": 0, "bb": 0, "hbp": 0,
+        }])
+        scored = score_weekly_batter(
+            "テスト 選手", "巨人", "一", agg, [agg], 24,
+        )
+        self.assertLess(scored["sample_coverage"], 0.1)
+        self.assertLess(scored["sample_multiplier"], 0.7)
+        self.assertEqual(scored["team_games"], 24)
+
+    def test_one_start_is_penalized_in_month_but_not_week(self):
+        agg = aggregate_pitcher_period([{
+            "outs": 21, "earned_runs": 0, "runs_allowed": 0,
+            "so": 8, "bb": 1, "hits_allowed": 3, "hr_allowed": 0,
+            "decision": "勝",
+        }])
+        week = score_weekly_starter(
+            "テスト 投手", "巨人", agg, [agg], team_games=6,
+        )
+        month = score_weekly_starter(
+            "テスト 投手", "巨人", agg, [agg], team_games=24,
+        )
+        self.assertEqual(week["workload_multiplier"], 1)
+        self.assertLess(month["workload_multiplier"], 0.7)
+        self.assertLess(month["score"], week["score"])
 
     def test_season_walks_and_hit_by_pitch_are_separate(self):
         batting = blank_batting()

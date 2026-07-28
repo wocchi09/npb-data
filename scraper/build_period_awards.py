@@ -76,12 +76,29 @@ def month_range(ym):
     return start, end
 
 
-def _team_games_map(season, base):
+def _team_games_map(season, base, date_from=None, date_to=None):
+    """対象期間内のチーム試合数。期間表彰でシーズン累計を使わない。"""
+    rows = read_csv(f"{base}/{season}/dataset/games.csv")
+    if date_from and date_to:
+        rows = [r for r in rows if date_from <= r.get("date", "") <= date_to]
+    out = {}
+    for row in rows:
+        for field in ("home", "away"):
+            team = normalize_team(row.get(field))
+            if team and team != "引分":
+                out[team] = out.get(team, 0) + 1
+    if out:
+        return out
+
+    # 旧データセット向けフォールバック。
     path = f"{base}/{season}/teams/stats.json"
     if not os.path.exists(path):
         return {}
     with open(path, encoding="utf-8") as f:
-        return {t["team"]: t.get("games") or 0 for t in json.load(f).get("teams", []) if t.get("team")}
+        return {
+            t["team"]: t.get("games") or 0
+            for t in json.load(f).get("teams", []) if t.get("team")
+        }
 
 
 def _positions_map(season, base):
@@ -107,7 +124,7 @@ def build_period(kind, label, date_from, date_to, season, base="data", cfg=None)
     if not bl and not pl:
         return None
 
-    team_games = _team_games_map(season, base)
+    team_games = _team_games_map(season, base, date_from, date_to)
     positions = _positions_map(season, base)
 
     # --- 選手ごとにグループ化 ---
@@ -135,7 +152,8 @@ def build_period(kind, label, date_from, date_to, season, base="data", cfg=None)
                                  - num(r.get("triples")) - num(r.get("hr")))),
             "doubles": num(r.get("doubles")),
             "triples": num(r.get("triples")), "hr": num(r.get("hr")),
-            "bb": num(r.get("bb")), "hbp": num(r.get("hbp")), "so": num(r.get("so")),
+            "bb": num(r.get("bb")), "hbp": num(r.get("hbp")),
+            "sac": num(r.get("sac")), "so": num(r.get("so")),
             "rbi": num(r.get("rbi")), "runs": num(r.get("runs")), "sb": num(r.get("sb")),
             "caught_stealing": num(r.get("caught_stealing")),
             "baserunning_outs": num(r.get("baserunning_outs")),
@@ -163,9 +181,12 @@ def build_period(kind, label, date_from, date_to, season, base="data", cfg=None)
                        "games": len(rows), "agg": agg, "role_hint": role}
 
     result = {"awardType": kind, "label": label, "date_from": date_from, "date_to": date_to,
-              "scoreVersion": cfg.get("scoreVersion"),
+              "scoreVersion": cfg.get("periodScoreVersion", cfg.get("scoreVersion")),
               "generated_at": datetime.now(JST).isoformat(),
-              "note": "利用可能データのみで算出（勝敗・得点圏の期間紐付けは今回対象外）",
+              "note": (
+                  "利用可能データのみで算出。期間内のチーム試合数を基準に、"
+                  "野手は試合数・打席、投手は登板数・投球回で出場量補正"
+              ),
               "leagues": {}}
 
     for lg in ("セ", "パ"):
@@ -186,11 +207,17 @@ def build_period(kind, label, date_from, date_to, season, base="data", cfg=None)
         for v in lg_pit:
             agg = v["agg"]
             if v["role_hint"] == "先発" or v["starts"] >= max(v["games"] - v["starts"], 1):
-                starters.append(score_weekly_starter(v["name"], v["team"], agg, pit_pool, cfg))
+                starters.append(score_weekly_starter(
+                    v["name"], v["team"], agg, pit_pool, cfg, team_games.get(v["team"])
+                ))
             elif agg["saves"] > 0:
-                closers.append(score_weekly_closer(v["name"], v["team"], agg, pit_pool, cfg))
+                closers.append(score_weekly_closer(
+                    v["name"], v["team"], agg, pit_pool, cfg, team_games.get(v["team"])
+                ))
             else:
-                relievers.append(score_weekly_reliever(v["name"], v["team"], agg, pit_pool, cfg))
+                relievers.append(score_weekly_reliever(
+                    v["name"], v["team"], agg, pit_pool, cfg, team_games.get(v["team"])
+                ))
         starters.sort(key=lambda x: -x["score"])
         relievers.sort(key=lambda x: -x["score"])
         closers.sort(key=lambda x: -x["score"])
