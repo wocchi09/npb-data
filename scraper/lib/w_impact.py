@@ -217,6 +217,7 @@ def calculate(players, teams, batting_lines, pitching_lines, atbats):
         c = clutch[p.get("key")]
         games = number(batting.get("games"))
         tg = max(team_games.get(p.get("team"), 0), 1)
+        required_pa = team_games.get(p.get("team"), 0) * 3.1
         ops_mean = league_bat[lg]["ops"]
         ops_adj = shrink(number(batting.get("ops")), ops_mean, pa, 50)
 
@@ -264,6 +265,8 @@ def calculate(players, teams, batting_lines, pitching_lines, atbats):
             },
             "stats": {
                 "games": int(games), "pa": int(pa), "ops": batting.get("ops"),
+                "qualified_pa": bool(required_pa and pa >= required_pa),
+                "required_pa": round(required_pa, 1),
                 "hr": int(number(batting.get("hr"))), "rbi": int(number(batting.get("rbi"))),
                 "sb": int(number(batting.get("sb"))), "errors": int(number(batting.get("errors"))),
                 "starts": role["starts"], "pinch_hit_apps": role["pinch_hit_apps"],
@@ -283,6 +286,7 @@ def calculate(players, teams, batting_lines, pitching_lines, atbats):
         role_name = _pitcher_role(pitching, role_data)
         outs = number(pitching.get("outs"))
         ip = outs / 3
+        required_innings = team_games.get(p.get("team"), 0)
         fip = number(pitching.get("fip"), number(pitching.get("era"), 9))
         era = number(pitching.get("era"), 9)
         k9 = number(pitching.get("k9"))
@@ -312,6 +316,8 @@ def calculate(players, teams, batting_lines, pitching_lines, atbats):
             },
             "stats": {
                 "games": games, "innings": round(ip, 1), "era": pitching.get("era"),
+                "qualified_ip": bool(required_innings and ip >= required_innings),
+                "required_innings": required_innings,
                 "fip": pitching.get("fip"), "k9": pitching.get("k9"),
                 "wins": int(number(pitching.get("wins"))),
                 "saves": int(number(pitching.get("saves"))),
@@ -365,9 +371,14 @@ def calculate(players, teams, batting_lines, pitching_lines, atbats):
                 "name": row["name"], "team": row["team"], "league": row["league"],
                 "batter_w_value": 0.0, "pitcher_w_value": 0.0,
                 "batter_w_rating": None, "pitcher_w_rating": None,
+                "qualified_pa": False, "qualified_ip": False,
             })
             item[f"{kind}_w_value"] = row["w_value"]
             item[f"{kind}_w_rating"] = row["w_rating"]
+            if kind == "batter":
+                item["qualified_pa"] = row["stats"]["qualified_pa"]
+            else:
+                item["qualified_ip"] = row["stats"]["qualified_ip"]
     overall = list(combined.values())
     for row in overall:
         row["w_value"] = round(row["batter_w_value"] + row["pitcher_w_value"], 2)
