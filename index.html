@@ -253,6 +253,12 @@
     border-radius:8px;border:2px solid var(--line);background:var(--panel);
     color:var(--ink);}
 
+  /* ---- WAR ---- */
+  .warwarn{background:rgba(232,89,12,.08);border:1px solid var(--accent2);
+    border-radius:10px;padding:10px 12px;font-size:12.5px;line-height:1.7;
+    margin-bottom:12px;}
+  .warwarn a{color:var(--accent);font-weight:700;}
+
   /* ---- 指標一覧 ---- */
   .glossitem{border:1px solid var(--line);border-radius:10px;padding:10px 12px;
     margin-bottom:8px;background:var(--panel2);}
@@ -532,6 +538,7 @@
       <button class="vbtn" id="vb-daily" onclick="setView('daily')">日別分析</button>
       <button class="vbtn" id="vb-awards" onclick="setView('awards')">表彰</button>
       <button class="vbtn" id="vb-glossary" onclick="setView('glossary')">指標一覧</button>
+      <button class="vbtn" id="vb-war" onclick="setView('war')">WAR</button>
       <button class="vbtn" id="vb-export" onclick="setView('export')">データ出力</button>
     </div>
 
@@ -559,6 +566,8 @@
     <div id="awardsView" style="display:none"></div>
     <div id="awardsGuideView" style="display:none"></div>
     <div id="glossaryView" style="display:none"></div>
+    <div id="warView" style="display:none"></div>
+    <div id="warGuideView" style="display:none"></div>
 
     <div id="exportView" style="display:none"></div>
 
@@ -1789,7 +1798,7 @@
     var ids={dash:"dashView", games:"gameView", season:"seasonView",
              players:"playersView", daily:"dailyView", awards:"awardsView",
              awardsGuide:"awardsGuideView", glossary:"glossaryView",
-             export:"exportView"};
+             war:"warView", warGuide:"warGuideView", export:"exportView"};
     for(var k in ids){
       var el=document.getElementById(ids[k]);
       if(el) el.style.display = (k===v ? "block" : "none");
@@ -1806,6 +1815,10 @@
     }
     else if(v==="glossary"){
       document.getElementById("glossaryView").innerHTML=renderGlossary();
+    }
+    else if(v==="war") loadWar();
+    else if(v==="warGuide"){
+      document.getElementById("warGuideView").innerHTML=renderWarGuide();
     }
     else if(v==="export") loadExport();
   }
@@ -3932,6 +3945,12 @@
        formula:"被本塁打 × 9 ÷ 投球回",
        desc:"実は算出可能ですが、現在の画面にはまだ表示していません。"},
     ]},
+    {group:"総合", items:[
+      {abbr:"WAR", name:"Wins Above Replacement", status:"partial",
+       formula:"打撃貢献＋走塁貢献＋ポジション補正－リプレイスメント基準　を得点換算し、1勝あたりの得点で割る",
+       desc:"控え選手と比較して何勝分チームに貢献したかを表す総合指標。野手・投手を同じ単位で比較できる。",
+       note:"★このサイトでは守備貢献を含んでいません★（打球の速度・到達地点のデータが取得元に無いため）。打撃・走塁・ポジション補正のみで算出した参考値です。詳しくはWARランキングページの解説をご覧ください。"},
+    ]},
     {group:"総合・チーム", items:[
       {abbr:"HP", name:"ホールドポイント", status:"impl",
        formula:"ホールド ＋ 救援勝利",
@@ -3961,6 +3980,8 @@
       g.items.forEach(function(it){
         var badge = it.status==="impl"
           ? '<span class="qmark">実装済</span>'
+          : it.status==="partial"
+          ? '<span class="subtag" style="background:var(--accent2)">一部実装（守備抜き）</span>'
           : '<span class="subtag" style="background:var(--muted)">未実装</span>';
         h+='<div class="glossitem"><div class="glosshead">'+
            '<span class="glossabbr">'+esc(it.abbr)+'</span>'+
@@ -3974,6 +3995,7 @@
     });
 
     h+='<div class="expbtns" style="margin-top:12px">'+
+       '<button class="btn" onclick="setView(\'war\')">WARランキングを見る ▶</button>'+
        '<button class="btn" onclick="setView(\'awardsGuide\')">MVP選出基準の説明 ▶</button>'+
        '</div>';
     h+='</div>';
@@ -3990,6 +4012,130 @@
     ["season_teams",   "シーズンチーム","1行＝1球団。得失点・勝敗"]
   ];
   var expSet="pitches", expFrom="", expTo="", expTeam="all", expPlayer="";
+  /* ===== 簡易WAR（守備抜き） ===== */
+  var warData=null, warLg="パ", warKind="batter";
+
+  async function loadWar(){
+    var wv=document.getElementById("warView");
+    wv.innerHTML='<div class="msg">読み込み中…</div>';
+    var year=(dp.value||todayJST()).split("-")[0];
+    try{
+      var r=await fetch("data/"+year+"/war.json?t="+Date.now());
+      warData = r.ok ? await r.json() : null;
+    }catch(e){ warData=null; }
+    renderWar();
+  }
+  function setWarLg(l){ warLg=l; renderWar(); }
+  function setWarKind(k){ warKind=k; renderWar(); }
+
+  function renderWar(){
+    var wv=document.getElementById("warView");
+    var h='<div class="dash-sec"><div class="dash-h"><span class="dot"></span>簡易WAR'+
+      '<span class="dash-date">守備抜き・参考値</span></div>';
+
+    h+='<div class="warwarn">⚠ このWARには<b>守備貢献が含まれていません</b>。'+
+       '取得元のデータに打球の速度・到達地点が無く、守備範囲や失点抑止を算出できないためです。'+
+       '打撃・走塁・ポジション補正のみで算出した参考値としてご覧ください。'+
+       '　<a href="#" onclick="setView(\'warGuide\');return false;">算出方法の詳細 ▶</a></div>';
+
+    if(!warData){
+      h+='<div class="msg">WARデータがまだありません<br>'+
+         '<span style="font-size:12px">Actionsで再集計すると作られます</span></div></div>';
+      wv.innerHTML=h;
+      return;
+    }
+
+    h+='<div class="stabs">';
+    [["セ","セ・リーグ"],["パ","パ・リーグ"]].forEach(function(x){
+      h+='<button class="stab'+(warLg===x[0]?" on":"")+'" style="--sc:'+LEAGUE_COLOR[x[0]]+'" '+
+         'onclick="setWarLg(\''+x[0]+'\')">'+x[1]+'</button>';
+    });
+    h+='</div><div class="stabs gtabs">';
+    [["batter","野手"],["pitcher","投手"]].forEach(function(x){
+      h+='<button class="stab'+(warKind===x[0]?" on":"")+'" style="--sc:var(--accent)" '+
+         'onclick="setWarKind(\''+x[0]+'\')">'+x[1]+'</button>';
+    });
+    h+='</div>';
+
+    var list = (warKind==="batter" ? warData.batters : warData.pitchers)
+      .filter(function(x){ return tLeague(x.team)===warLg; });
+
+    if(!list.length){
+      h+='<div class="msg">データがありません</div></div>';
+      wv.innerHTML=h;
+      return;
+    }
+
+    h+='<div class="tblwrap"><table class="stbl"><thead><tr>'+
+       '<th>#</th><th class="nm">選手</th><th>球団</th>'+
+       (warKind==="batter"?'<th>位置</th>':'')+
+       '<th>WAR</th>'+
+       (warKind==="batter"
+         ?'<th>打撃</th><th>走塁</th><th>位置補正</th>'
+         :'<th>FIP</th><th>回</th>')+
+       '</tr></thead><tbody>';
+    list.forEach(function(x,i){
+      var c=x.components||{};
+      h+='<tr><td class="num">'+(i+1)+'</td>'+
+        '<td class="nm">'+esc(x.name)+
+          (warKind==="batter"&&!x.qualified?'<span class="subtag" style="background:var(--muted)">規定未満</span>':'')+
+        '</td><td>'+teamBadge(x.team)+'</td>'+
+        (warKind==="batter"?'<td class="pos">'+esc(x.position||"-")+'</td>':'')+
+        '<td class="num hi">'+x.war+'</td>'+
+        (warKind==="batter"
+          ?'<td class="num">'+(c.r_bat==null?"-":c.r_bat)+'</td>'+
+           '<td class="num">'+(c.r_baser==null?"-":c.r_baser)+'</td>'+
+           '<td class="num">'+(c.r_pos==null?"-":c.r_pos)+'</td>'
+          :'<td class="num">'+(c.fip==null?"-":c.fip)+'</td>'+
+           '<td class="num">'+(c.ip==null?"-":c.ip)+'</td>')+
+        '</tr>';
+    });
+    h+='</tbody></table></div>';
+    h+='<div class="sub" style="font-size:11px;margin-top:8px">'+esc(warData.note||"")+'</div>';
+    h+='</div>';
+    wv.innerHTML=h;
+  }
+
+  function renderWarGuide(){
+    var h='<div class="dash-sec"><div class="dash-h"><span class="dot"></span>簡易WARの算出方法</div>';
+
+    h+='<div class="warwarn">⚠ 守備貢献（R_field）は算出していません。取得元のデータに打球の速度・到達地点・滞空時間などが無く、守備範囲や失点抑止を測る元データが存在しないためです。「dakyu」という打球関連コードも調査しましたが、これは座標データではなく結果を表す分類コードに過ぎないと判明しました。</div>';
+
+    h+='<div class="subsec"><div class="subttl">評価の目安（1シーズン換算）</div>'+
+       '<div class="tblwrap"><table class="stbl"><thead><tr><th>WAR</th><th class="nm">評価</th></tr></thead><tbody>'+
+       [["6.0以上","MVP級"],["5.0〜6.0","スーパースター級"],["4.0〜5.0","オールスター級"],
+        ["3.0〜4.0","優秀なレギュラー"],["2.0〜3.0","平均的なレギュラー"],
+        ["1.0〜2.0","控え・準レギュラー"],["0.0〜1.0","ベンチ枠"],["0.0未満","代替可能未満"]
+       ].map(function(r){return '<tr><td class="num">'+r[0]+'</td><td class="nm" style="font-weight:400">'+r[1]+'</td></tr>';}).join("")+
+       '</tbody></table></div>'+
+       '<div class="sub" style="font-size:11px;margin-top:6px">この基準は一般的なセイバーメトリクスの目安であり、守備を含む本来のWARを前提にしています。このサイトの値は守備抜きのため、同じ基準をそのまま当てはめると相対的に低く出る傾向があります。</div></div>';
+
+    h+='<div class="subsec"><div class="subttl">野手の計算式</div>'+
+       '<div class="glossformula" style="display:block">WAR = (R_bat + R_baser + R_dp + R_pos) ÷ RPW</div>'+
+       '<div class="tblwrap" style="margin-top:8px"><table class="stbl"><thead><tr><th class="nm">要素</th><th class="nm">内容</th></tr></thead><tbody>'+
+       gRow2("R_bat（打撃貢献）","(自分のOPS－リプレイスメントOPS)×打席×0.2 で近似。正式なwOBAベースの線形加重ではなく簡易的な比例配分です。")+
+       gRow2("R_baser（走塁貢献）","盗塁成功×0.2点。盗塁死のデータが無いため成功分のみで、過大評価しないよう小さめの係数にしています。")+
+       gRow2("R_dp（併殺回避）","現在のデータには併殺打の集計が無いため、0固定です。")+
+       gRow2("R_pos（守備位置補正）","提供いただいた資料の162試合換算値を、実際の出場試合数（÷143）に按分しています。")+
+       gRow2("R_field（守備貢献）","<b>算出していません。</b>")+
+       gRow2("RPW","1勝に必要な得点。このシーズン・このリーグの実際の得点数から算出しています。")+
+       '</tbody></table></div></div>';
+
+    h+='<div class="subsec"><div class="subttl">投手の計算式（fWAR方式）</div>'+
+       '<div class="glossformula" style="display:block">WAR = (リプレイスメントFIP － 投手のFIP) × 投球回 ÷ 9 ÷ RPW</div>'+
+       '<p style="font-size:13px;line-height:1.7;margin-top:8px">FIPを基準にする方式（fWAR）は、守備の影響を最初から取り除いた指標をベースにするため、このサイトの「守備データが無い」という制約と相性が良いと考えて採用しました。'+
+       'リプレイスメントFIPは「リーグ平均防御率＋1.00」という、セイバーメトリクスで広く使われる簡易的な目安を採用しています（NPB独自に実証した値ではありません）。</p></div>';
+
+    h+='<div class="subsec"><div class="subttl">リプレイスメントレベルの決め方</div>'+
+       '<p style="font-size:13px;line-height:1.7">「控え選手の平均的な成績」を、規定打席（チーム試合数×3.1）に届いていない全野手の平均OPSから算出しています。MLBの公表値を借用せず、このシーズン・このリーグの実データから独自に算出している点が特徴です。</p></div>';
+
+    h+='<div class="expbtns" style="margin-top:12px">'+
+       '<button class="btn" onclick="setView(\'war\')">◀ WARランキングにもどる</button> '+
+       '<button class="btn" onclick="setView(\'glossary\')">指標一覧 ▶</button></div>';
+    h+='</div>';
+    return h;
+  }
+
   var expCache={};      // set -> {header:[], rows:[[...]]}
   var expLoading=false;
 
