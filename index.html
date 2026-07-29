@@ -316,22 +316,31 @@
   /* ---- 相関分析 ---- */
   .corr-layout{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(260px,.7fr);
     gap:12px;margin-top:10px;}
-  .corr-panel{border:1px solid var(--line);border-radius:12px;background:var(--panel2);
-    padding:12px;min-width:0;}
+  .corr-panel{border:1px solid var(--line);border-radius:14px;
+    background:linear-gradient(145deg,var(--panel2),var(--panel));
+    padding:12px;min-width:0;box-shadow:0 8px 24px rgba(80,45,15,.07);}
   .corr-panel-head{display:flex;align-items:flex-start;justify-content:space-between;
     gap:10px;margin-bottom:8px;}
   .corr-panel-title{font-size:13px;font-weight:700;color:var(--accent);}
   .corr-panel-sub{font-size:10.5px;color:var(--muted);line-height:1.5;text-align:right;}
-  .corr-svg{display:block;width:100%;height:auto;min-height:360px;
-    background:var(--panel);border-radius:9px;}
-  .corr-chart-scroll{overflow-x:auto;border-radius:9px;}
+  .corr-svg{display:block;width:100%;height:auto;min-height:360px;border-radius:11px;}
+  .corr-chart-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:11px;
+    background:radial-gradient(circle at 75% 15%,rgba(232,89,12,.08),transparent 38%),
+      linear-gradient(145deg,var(--panel),var(--panel2));}
   .corr-svg text{font-family:'Roboto Mono',monospace;fill:var(--muted);font-size:11px;}
   .corr-svg .axis-label{fill:var(--ink);font-family:inherit;font-weight:700;font-size:12px;}
-  .corr-svg .grid{stroke:var(--line);stroke-width:1;}
+  .corr-svg .plot-bg{fill:var(--panel);opacity:.62;}
+  .corr-svg .grid{stroke:var(--line);stroke-width:1;stroke-dasharray:3 6;}
   .corr-svg .axis{stroke:var(--muted);stroke-width:1.2;}
-  .corr-svg .trend{stroke:var(--accent);stroke-width:2.5;stroke-dasharray:7 4;}
-  .corr-svg .point{stroke:var(--panel);stroke-width:1.5;opacity:.82;cursor:pointer;}
-  .corr-svg .point:hover{opacity:1;stroke:var(--ink);stroke-width:2.5;}
+  .corr-svg .mean{stroke:var(--ink2);stroke-width:1.2;stroke-dasharray:2 5;opacity:.5;}
+  .corr-svg .mean-label{fill:var(--ink2);font-family:inherit;font-size:10px;font-weight:700;}
+  .corr-svg .confidence{fill:var(--accent);opacity:.12;}
+  .corr-svg .trend{stroke:var(--accent);stroke-width:3;stroke-linecap:round;
+    filter:drop-shadow(0 1px 2px rgba(232,89,12,.35));}
+  .corr-svg .point{stroke:var(--panel);stroke-width:1.7;opacity:.78;cursor:pointer;
+    transition:opacity .15s,stroke-width .15s;}
+  .corr-svg .point:hover{opacity:1;stroke:var(--ink);stroke-width:2.8;
+    filter:drop-shadow(0 2px 3px rgba(0,0,0,.28));}
   .corr-kpis{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;}
   .corr-kpi{background:var(--panel);border:1px solid var(--line);border-radius:9px;
     padding:10px;text-align:center;}
@@ -340,17 +349,21 @@
   .corr-kpi span{font-size:10.5px;color:var(--muted);}
   .corr-reading{font-size:12px;line-height:1.7;background:var(--panel);
     border-radius:8px;padding:9px 10px;}
-  .corr-legend{display:flex;flex-wrap:wrap;gap:7px 10px;margin-top:9px;}
-  .corr-legend span{display:inline-flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);}
+  .corr-legend{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px;}
+  .corr-legend span{display:inline-flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);
+    background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:3px 7px;}
   .corr-legend i{width:8px;height:8px;border-radius:50%;display:inline-block;}
+  .corr-legend .corr-size-dot{width:12px;height:12px;border:2px solid var(--accent);
+    background:transparent;}
   .corr-matrix{margin-top:12px;}
   table.corr-table{min-width:780px;table-layout:fixed;font-size:10.5px;}
   table.corr-table th,table.corr-table td{text-align:center;padding:4px 3px;height:42px;}
   table.corr-table th:first-child{width:104px;text-align:left;position:sticky;left:0;
     z-index:2;background:var(--panel2);}
   .corr-cell{width:100%;height:32px;border:0;border-radius:5px;
-    font:700 10.5px 'Roboto Mono',monospace;cursor:pointer;color:var(--ink);}
-  .corr-cell:hover{outline:2px solid var(--accent);outline-offset:1px;}
+    font:700 10.5px 'Roboto Mono',monospace;cursor:pointer;color:var(--ink);
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.22);transition:transform .12s;}
+  .corr-cell:hover{outline:2px solid var(--accent);outline-offset:1px;transform:scale(1.06);}
   .corr-diag{background:var(--line);cursor:default;}
   .corr-note{font-size:10.5px;color:var(--muted);line-height:1.65;margin-top:8px;}
   @media(max-width:820px){
@@ -5031,14 +5044,45 @@
         pw=w-l-r,ph=h-t-b;
     if(pairs.length<2) return '<div class="msg">散布図を表示できる選手が足りません</div>';
     var xs=pairs.map(function(p){return p.x;}),ys=pairs.map(function(p){return p.y;});
+    var volumeKey=corrKind==="pitcher"?"stats.innings":"stats.pa";
+    var volumeLabel=corrKind==="pitcher"?"投球回":"打席";
+    var volumes=pairs.map(function(p){return corrValue(p.row,volumeKey)||0;});
+    var vmin=Math.min.apply(null,volumes),vmax=Math.max.apply(null,volumes);
     var xmin=Math.min.apply(null,xs),xmax=Math.max.apply(null,xs),
         ymin=Math.min.apply(null,ys),ymax=Math.max.apply(null,ys);
     var xpad=(xmax-xmin)*.07||1,ypad=(ymax-ymin)*.09||1;
     xmin-=xpad;xmax+=xpad;ymin-=ypad;ymax+=ypad;
     function px(x){return l+(x-xmin)/(xmax-xmin)*pw;}
     function py(y){return t+ph-(y-ymin)/(ymax-ymin)*ph;}
+    function pointRadius(v){
+      return 4+(vmax===vmin?2:5*Math.sqrt(Math.max(0,(v-vmin)/(vmax-vmin))));
+    }
+    var mx=xs.reduce(function(a,v){return a+v;},0)/pairs.length;
+    var my=ys.reduce(function(a,v){return a+v;},0)/pairs.length;
+    var num=0,den=0,slope=null,intercept=null,confidence="";
+    pairs.forEach(function(p){num+=(p.x-mx)*(p.y-my);den+=(p.x-mx)*(p.x-mx);});
+    if(den){
+      slope=num/den;intercept=my-slope*mx;
+      if(pairs.length>3){
+        var residual=0;
+        pairs.forEach(function(p){
+          var e=p.y-(slope*p.x+intercept);residual+=e*e;
+        });
+        var stderr=Math.sqrt(residual/(pairs.length-2)),upper=[],lower=[];
+        for(var ci=0;ci<=30;ci++){
+          var cx=xmin+(xmax-xmin)*ci/30;
+          var band=1.96*stderr*Math.sqrt(1/pairs.length+(cx-mx)*(cx-mx)/den);
+          upper.push(px(cx)+","+py(slope*cx+intercept+band));
+          lower.unshift(px(cx)+","+py(slope*cx+intercept-band));
+        }
+        confidence='<polygon class="confidence" points="'+upper.concat(lower).join(" ")+'"/>';
+      }
+    }
     var s='<svg class="corr-svg" viewBox="0 0 '+w+' '+h+'" role="img" aria-label="'+
-      esc(corrMetric(corrX)[1])+'と'+esc(corrMetric(corrY)[1])+'の散布図">';
+      esc(corrMetric(corrX)[1])+'と'+esc(corrMetric(corrY)[1])+'の散布図">'+
+      '<defs><clipPath id="corrPlotClip"><rect x="'+l+'" y="'+t+'" width="'+pw+
+      '" height="'+ph+'" rx="9"/></clipPath></defs>'+
+      '<rect class="plot-bg" x="'+l+'" y="'+t+'" width="'+pw+'" height="'+ph+'" rx="9"/>';
     for(var i=0;i<=5;i++){
       var gx=l+pw*i/5,gy=t+ph*i/5;
       s+='<line class="grid" x1="'+gx+'" y1="'+t+'" x2="'+gx+'" y2="'+(t+ph)+'"/>'+
@@ -5049,24 +5093,28 @@
          corrFmt(ymax-(ymax-ymin)*i/5,corrY)+'</text>';
     }
     s+='<line class="axis" x1="'+l+'" y1="'+(t+ph)+'" x2="'+(l+pw)+'" y2="'+(t+ph)+'"/>'+
-       '<line class="axis" x1="'+l+'" y1="'+t+'" x2="'+l+'" y2="'+(t+ph)+'"/>';
-    var mx=xs.reduce(function(a,v){return a+v;},0)/pairs.length;
-    var my=ys.reduce(function(a,v){return a+v;},0)/pairs.length;
-    var num=0,den=0;
-    pairs.forEach(function(p){num+=(p.x-mx)*(p.y-my);den+=(p.x-mx)*(p.x-mx);});
-    if(den){
-      var slope=num/den,intercept=my-slope*mx;
+       '<line class="axis" x1="'+l+'" y1="'+t+'" x2="'+l+'" y2="'+(t+ph)+'"/>'+
+       '<g clip-path="url(#corrPlotClip)">'+
+       '<line class="mean" x1="'+px(mx)+'" y1="'+t+'" x2="'+px(mx)+'" y2="'+(t+ph)+'"/>'+
+       '<line class="mean" x1="'+l+'" y1="'+py(my)+'" x2="'+(l+pw)+'" y2="'+py(my)+'"/>'+
+       confidence;
+    if(slope!=null){
       s+='<line class="trend" x1="'+px(xmin)+'" y1="'+py(slope*xmin+intercept)+
          '" x2="'+px(xmax)+'" y2="'+py(slope*xmax+intercept)+'"/>';
     }
-    pairs.forEach(function(p){
+    pairs.forEach(function(p,index){
       var color=tColor(p.row.team)||LEAGUE_COLOR[p.row.league]||"#e8590c";
-      s+='<circle class="point" cx="'+px(p.x)+'" cy="'+py(p.y)+'" r="5.5" fill="'+color+'">'+
+      var volume=volumes[index];
+      s+='<circle class="point" cx="'+px(p.x)+'" cy="'+py(p.y)+'" r="'+pointRadius(volume)+
+         '" fill="'+color+'">'+
          '<title>'+esc(p.row.name)+'（'+esc(p.row.team)+'）&#10;'+
          esc(corrMetric(corrX)[1])+': '+corrFmt(p.x,corrX)+'&#10;'+
-         esc(corrMetric(corrY)[1])+': '+corrFmt(p.y,corrY)+'</title></circle>';
+         esc(corrMetric(corrY)[1])+': '+corrFmt(p.y,corrY)+'&#10;'+
+         volumeLabel+': '+corrFmt(volume,volumeKey)+'</title></circle>';
     });
-    s+='<text class="axis-label" x="'+(l+pw/2)+'" y="'+(h-12)+'" text-anchor="middle">'+
+    s+='</g><text class="mean-label" x="'+(px(mx)+5)+'" y="'+(t+14)+'">平均</text>'+
+       '<text class="mean-label" x="'+(l+pw-5)+'" y="'+(py(my)-6)+'" text-anchor="end">平均</text>'+
+       '<text class="axis-label" x="'+(l+pw/2)+'" y="'+(h-12)+'" text-anchor="middle">'+
        esc(corrMetric(corrX)[1])+'</text>'+
        '<text class="axis-label" transform="translate(18 '+(t+ph/2)+') rotate(-90)" text-anchor="middle">'+
        esc(corrMetric(corrY)[1])+'</text></svg>';
@@ -5107,7 +5155,7 @@
     var cv=document.getElementById("correlationView");
     var h='<div class="dash-sec"><div class="dash-h"><span class="dot"></span>相関分析'+
       '<span class="dash-date">指標どうしの関係を探る</span></div>'+
-      '<div class="warwarn"><b>相関は因果関係を意味しません。</b> 点は選手、破線は単回帰線です。'+
+      '<div class="warwarn"><b>相関は因果関係を意味しません。</b> 円の大きさは出場量、実線は単回帰線、薄い帯は95%信頼帯の参考表示です。'+
       '少数出場による極端な値を避けるには「一定以上」または「規定到達」を選んでください。</div>';
     if(!impactData){
       cv.innerHTML=h+'<div class="msg">相関分析に必要なW-Impactデータがありません</div></div>';
@@ -5145,7 +5193,9 @@
     h+='<div class="corr-layout"><div class="corr-panel"><div class="corr-panel-head">'+
       '<div class="corr-panel-title">'+esc(corrMetric(corrX)[1])+' × '+esc(corrMetric(corrY)[1])+'</div>'+
       '<div class="corr-panel-sub">'+pairs.length+'選手・点に触れると詳細表示</div></div>'+
-      corrScatter(rows)+'<div class="corr-legend">'+legend+'</div></div>'+
+      corrScatter(rows)+'<div class="corr-legend">'+legend+
+      '<span><i class="corr-size-dot"></i>円の大きさ＝'+
+      (corrKind==="pitcher"?"投球回":"打席")+'</span></div></div>'+
       '<div class="corr-panel"><div class="corr-panel-title" style="margin-bottom:8px">相関の読み取り</div>'+
       '<div class="corr-kpis"><div class="corr-kpi"><strong>'+
       (pearson==null?"-":pearson.toFixed(3))+'</strong><span>Pearson（直線的関係）</span></div>'+
