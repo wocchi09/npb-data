@@ -313,6 +313,52 @@
     .impact-dept-head{align-items:flex-start;flex-direction:column;gap:2px;}
   }
 
+  /* ---- 相関分析 ---- */
+  .corr-layout{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(260px,.7fr);
+    gap:12px;margin-top:10px;}
+  .corr-panel{border:1px solid var(--line);border-radius:12px;background:var(--panel2);
+    padding:12px;min-width:0;}
+  .corr-panel-head{display:flex;align-items:flex-start;justify-content:space-between;
+    gap:10px;margin-bottom:8px;}
+  .corr-panel-title{font-size:13px;font-weight:700;color:var(--accent);}
+  .corr-panel-sub{font-size:10.5px;color:var(--muted);line-height:1.5;text-align:right;}
+  .corr-svg{display:block;width:100%;height:auto;min-height:360px;
+    background:var(--panel);border-radius:9px;}
+  .corr-chart-scroll{overflow-x:auto;border-radius:9px;}
+  .corr-svg text{font-family:'Roboto Mono',monospace;fill:var(--muted);font-size:11px;}
+  .corr-svg .axis-label{fill:var(--ink);font-family:inherit;font-weight:700;font-size:12px;}
+  .corr-svg .grid{stroke:var(--line);stroke-width:1;}
+  .corr-svg .axis{stroke:var(--muted);stroke-width:1.2;}
+  .corr-svg .trend{stroke:var(--accent);stroke-width:2.5;stroke-dasharray:7 4;}
+  .corr-svg .point{stroke:var(--panel);stroke-width:1.5;opacity:.82;cursor:pointer;}
+  .corr-svg .point:hover{opacity:1;stroke:var(--ink);stroke-width:2.5;}
+  .corr-kpis{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;}
+  .corr-kpi{background:var(--panel);border:1px solid var(--line);border-radius:9px;
+    padding:10px;text-align:center;}
+  .corr-kpi strong{display:block;color:var(--accent);font-family:'Roboto Mono',monospace;
+    font-size:24px;line-height:1.2;}
+  .corr-kpi span{font-size:10.5px;color:var(--muted);}
+  .corr-reading{font-size:12px;line-height:1.7;background:var(--panel);
+    border-radius:8px;padding:9px 10px;}
+  .corr-legend{display:flex;flex-wrap:wrap;gap:7px 10px;margin-top:9px;}
+  .corr-legend span{display:inline-flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);}
+  .corr-legend i{width:8px;height:8px;border-radius:50%;display:inline-block;}
+  .corr-matrix{margin-top:12px;}
+  table.corr-table{min-width:780px;table-layout:fixed;font-size:10.5px;}
+  table.corr-table th,table.corr-table td{text-align:center;padding:4px 3px;height:42px;}
+  table.corr-table th:first-child{width:104px;text-align:left;position:sticky;left:0;
+    z-index:2;background:var(--panel2);}
+  .corr-cell{width:100%;height:32px;border:0;border-radius:5px;
+    font:700 10.5px 'Roboto Mono',monospace;cursor:pointer;color:var(--ink);}
+  .corr-cell:hover{outline:2px solid var(--accent);outline-offset:1px;}
+  .corr-diag{background:var(--line);cursor:default;}
+  .corr-note{font-size:10.5px;color:var(--muted);line-height:1.65;margin-top:8px;}
+  @media(max-width:820px){
+    .corr-layout{grid-template-columns:1fr;}
+    .corr-svg{min-width:680px;min-height:0;}
+    .corr-panel-sub{text-align:left;}
+  }
+
   /* ---- 指標一覧 ---- */
   .glossitem{border:1px solid var(--line);border-radius:10px;padding:10px 12px;
     margin-bottom:8px;background:var(--panel2);}
@@ -616,6 +662,7 @@
       <button class="vbtn" id="vb-glossary" onclick="setView('glossary')">指標一覧</button>
       <button class="vbtn" id="vb-war" onclick="setView('war')">WAR</button>
       <button class="vbtn" id="vb-impact" onclick="setView('impact')">W-Impact</button>
+      <button class="vbtn" id="vb-correlation" onclick="setView('correlation')">相関分析</button>
       <button class="vbtn" id="vb-export" onclick="setView('export')">データ出力</button>
     </div>
 
@@ -649,6 +696,7 @@
     <div id="warGuideView" style="display:none"></div>
     <div id="impactView" style="display:none"></div>
     <div id="impactGuideView" style="display:none"></div>
+    <div id="correlationView" style="display:none"></div>
 
     <div id="exportView" style="display:none"></div>
 
@@ -1880,7 +1928,8 @@
              players:"playersView", compare:"compareView", daily:"dailyView", awards:"awardsView",
              awardsGuide:"awardsGuideView", glossary:"glossaryView",
              war:"warView", warGuide:"warGuideView",
-             impact:"impactView", impactGuide:"impactGuideView", export:"exportView"};
+             impact:"impactView", impactGuide:"impactGuideView",
+             correlation:"correlationView", export:"exportView"};
     for(var k in ids){
       var el=document.getElementById(ids[k]);
       if(el) el.style.display = (k===v ? "block" : "none");
@@ -1907,6 +1956,7 @@
     else if(v==="impactGuide"){
       document.getElementById("impactGuideView").innerHTML=renderImpactGuide();
     }
+    else if(v==="correlation") loadCorrelation();
     else if(v==="export") loadExport();
   }
 
@@ -4819,6 +4869,296 @@
        '<div class="sub" style="font-size:11px;margin-top:8px">'+esc(impactData.note||"")+
        '／v'+esc(impactData.version||"")+'</div></div>';
     iv.innerHTML=h;
+  }
+
+  /* ===== 相関分析 ===== */
+  var corrKind="batter", corrLeague="all", corrTeam="all", corrQual="regular",
+      corrX="stats.ops", corrY="w_rating";
+
+  function corrMetricDefs(){
+    if(corrKind==="pitcher"){
+      return [
+        ["w_value","W-Value",2,1],["w_rating","W-Rating",1,1],
+        ["stats.era","防御率",2,1],["stats.fip","FIP",2,1],
+        ["stats.k9","K/9",2,1],["components.pitching","投球",1,1],
+        ["components.dominance","奪三振",1,1],
+        ["components.run_prevention","失点抑止",1,1],
+        ["stats.innings","投球回",1,1],["stats.games","登板",0,0],
+        ["stats.wins","勝利",0,0],["stats.saves","セーブ",0,0],
+        ["stats.holds","ホールド",0,0],["stats.qs","QS",0,0]
+      ];
+    }
+    return [
+      ["w_value","W-Value",2,1],["w_rating","W-Rating",1,1],
+      ["stats.ops","OPS",3,1],["components.batting","打撃",1,1],
+      ["components.clutch","勝負",1,1],["components.baserunning","走塁",1,1],
+      ["components.defense","守備",1,1],["components.role","役割",1,1],
+      ["components.versatility","複数",1,1],["stats.games","試合",0,0],
+      ["stats.pa","打席",0,0],["stats.hr","本塁打",0,0],
+      ["stats.rbi","打点",0,0],["stats.sb","盗塁",0,0],
+      ["stats.errors","失策",0,0]
+    ];
+  }
+  function corrMetric(key){
+    var defs=corrMetricDefs();
+    for(var i=0;i<defs.length;i++) if(defs[i][0]===key) return defs[i];
+    return defs[0];
+  }
+  function corrValue(row,key){
+    var parts=key.split("."), value=row;
+    for(var i=0;i<parts.length;i++) value=value==null?null:value[parts[i]];
+    if(value==null || value==="") return null;
+    value=Number(value);
+    return isFinite(value)?value:null;
+  }
+  function corrFmt(value,key){
+    if(value==null || !isFinite(value)) return "-";
+    return Number(value).toFixed(corrMetric(key)[2]);
+  }
+  function corrRows(){
+    if(!impactData) return [];
+    var source=corrKind==="pitcher"?impactData.pitchers:impactData.batters;
+    return impactUniqueRows(source||[]).filter(function(x){
+      var s=x.stats||{}, lg=x.league||tLeague(x.team);
+      if(corrLeague!=="all" && lg!==corrLeague) return false;
+      if(corrTeam!=="all" && x.team!==corrTeam) return false;
+      if(corrQual==="qualified"){
+        return corrKind==="pitcher"?!!s.qualified_ip:!!s.qualified_pa;
+      }
+      if(corrQual==="regular"){
+        return corrKind==="pitcher"?Number(s.innings||0)>=5:Number(s.pa||0)>=50;
+      }
+      return true;
+    });
+  }
+  function corrPairs(rows,xKey,yKey){
+    var pairs=[];
+    rows.forEach(function(row){
+      var x=corrValue(row,xKey),y=corrValue(row,yKey);
+      if(x!=null && y!=null) pairs.push({x:x,y:y,row:row});
+    });
+    return pairs;
+  }
+  function corrPearson(pairs){
+    var n=pairs.length;
+    if(n<3) return null;
+    var sx=0,sy=0;
+    pairs.forEach(function(p){sx+=p.x;sy+=p.y;});
+    var mx=sx/n,my=sy/n,num=0,dx=0,dy=0;
+    pairs.forEach(function(p){
+      var a=p.x-mx,b=p.y-my;num+=a*b;dx+=a*a;dy+=b*b;
+    });
+    return dx&&dy?num/Math.sqrt(dx*dy):null;
+  }
+  function corrRanks(values){
+    var indexed=values.map(function(v,i){return {v:v,i:i};})
+      .sort(function(a,b){return a.v-b.v;});
+    var ranks=new Array(values.length),i=0;
+    while(i<indexed.length){
+      var j=i+1;
+      while(j<indexed.length && indexed[j].v===indexed[i].v) j++;
+      var rank=(i+j-1)/2+1;
+      for(var k=i;k<j;k++) ranks[indexed[k].i]=rank;
+      i=j;
+    }
+    return ranks;
+  }
+  function corrSpearman(pairs){
+    if(pairs.length<3) return null;
+    var rx=corrRanks(pairs.map(function(p){return p.x;}));
+    var ry=corrRanks(pairs.map(function(p){return p.y;}));
+    return corrPearson(rx.map(function(x,i){return {x:x,y:ry[i]};}));
+  }
+  function corrStrength(r){
+    if(r==null) return "算出不可";
+    var a=Math.abs(r),s=a>=.8?"非常に強い":a>=.6?"強い":a>=.4?"中程度":a>=.2?"弱い":"ほぼなし";
+    return s+(a<.2?"":(r>0?"正の相関":"負の相関"));
+  }
+  function corrSetKind(kind){
+    corrKind=kind;corrTeam="all";corrQual="regular";
+    if(kind==="pitcher"){corrX="stats.era";corrY="w_rating";}
+    else{corrX="stats.ops";corrY="w_rating";}
+    renderCorrelation();
+  }
+  function corrSetLeague(lg){
+    corrLeague=lg;
+    if(corrTeam!=="all" && tLeague(corrTeam)!==lg && lg!=="all") corrTeam="all";
+    renderCorrelation();
+  }
+  function corrSetTeam(team){corrTeam=team;renderCorrelation();}
+  function corrSetQual(q){corrQual=q;renderCorrelation();}
+  function corrSetAxis(axis,key){
+    if(axis==="x") corrX=key; else corrY=key;
+    renderCorrelation();
+  }
+  function corrSwap(){var x=corrX;corrX=corrY;corrY=x;renderCorrelation();}
+  function corrSelectPair(x,y){corrX=x;corrY=y;renderCorrelation();window.scrollTo(0,0);}
+
+  async function loadCorrelation(){
+    var cv=document.getElementById("correlationView");
+    cv.innerHTML='<div class="msg">相関データを読み込み中…</div>';
+    var year=(dp.value||todayJST()).split("-")[0];
+    try{
+      var r=await fetch("data/"+year+"/w_impact.json?t="+Date.now());
+      impactData=r.ok?await r.json():null;
+    }catch(e){impactData=null;}
+    renderCorrelation();
+  }
+  function corrAxisOptions(selected){
+    return corrMetricDefs().map(function(d){
+      return '<option value="'+d[0]+'"'+(selected===d[0]?" selected":"")+'>'+d[1]+'</option>';
+    }).join("");
+  }
+  function corrTeamOptions(){
+    var rows=impactData?(corrKind==="pitcher"?impactData.pitchers:impactData.batters):[];
+    var seen={},teams=[];
+    (rows||[]).forEach(function(x){
+      var lg=x.league||tLeague(x.team);
+      if(x.team && (corrLeague==="all"||lg===corrLeague) && !seen[x.team]){
+        seen[x.team]=1;teams.push(x.team);
+      }
+    });
+    teams.sort(function(a,b){
+      var order=TEAM_ORDER_PA.concat(TEAM_ORDER_SE);
+      return order.indexOf(a)-order.indexOf(b);
+    });
+    return '<option value="all">全12球団</option>'+teams.map(function(t){
+      return '<option value="'+esc(t)+'"'+(corrTeam===t?" selected":"")+'>'+esc(t)+'</option>';
+    }).join("");
+  }
+  function corrScatter(rows){
+    var pairs=corrPairs(rows,corrX,corrY),w=900,h=470,l=76,r=24,t=22,b=66,
+        pw=w-l-r,ph=h-t-b;
+    if(pairs.length<2) return '<div class="msg">散布図を表示できる選手が足りません</div>';
+    var xs=pairs.map(function(p){return p.x;}),ys=pairs.map(function(p){return p.y;});
+    var xmin=Math.min.apply(null,xs),xmax=Math.max.apply(null,xs),
+        ymin=Math.min.apply(null,ys),ymax=Math.max.apply(null,ys);
+    var xpad=(xmax-xmin)*.07||1,ypad=(ymax-ymin)*.09||1;
+    xmin-=xpad;xmax+=xpad;ymin-=ypad;ymax+=ypad;
+    function px(x){return l+(x-xmin)/(xmax-xmin)*pw;}
+    function py(y){return t+ph-(y-ymin)/(ymax-ymin)*ph;}
+    var s='<svg class="corr-svg" viewBox="0 0 '+w+' '+h+'" role="img" aria-label="'+
+      esc(corrMetric(corrX)[1])+'と'+esc(corrMetric(corrY)[1])+'の散布図">';
+    for(var i=0;i<=5;i++){
+      var gx=l+pw*i/5,gy=t+ph*i/5;
+      s+='<line class="grid" x1="'+gx+'" y1="'+t+'" x2="'+gx+'" y2="'+(t+ph)+'"/>'+
+         '<line class="grid" x1="'+l+'" y1="'+gy+'" x2="'+(l+pw)+'" y2="'+gy+'"/>'+
+         '<text x="'+gx+'" y="'+(t+ph+22)+'" text-anchor="middle">'+
+         corrFmt(xmin+(xmax-xmin)*i/5,corrX)+'</text>'+
+         '<text x="'+(l-12)+'" y="'+(gy+4)+'" text-anchor="end">'+
+         corrFmt(ymax-(ymax-ymin)*i/5,corrY)+'</text>';
+    }
+    s+='<line class="axis" x1="'+l+'" y1="'+(t+ph)+'" x2="'+(l+pw)+'" y2="'+(t+ph)+'"/>'+
+       '<line class="axis" x1="'+l+'" y1="'+t+'" x2="'+l+'" y2="'+(t+ph)+'"/>';
+    var mx=xs.reduce(function(a,v){return a+v;},0)/pairs.length;
+    var my=ys.reduce(function(a,v){return a+v;},0)/pairs.length;
+    var num=0,den=0;
+    pairs.forEach(function(p){num+=(p.x-mx)*(p.y-my);den+=(p.x-mx)*(p.x-mx);});
+    if(den){
+      var slope=num/den,intercept=my-slope*mx;
+      s+='<line class="trend" x1="'+px(xmin)+'" y1="'+py(slope*xmin+intercept)+
+         '" x2="'+px(xmax)+'" y2="'+py(slope*xmax+intercept)+'"/>';
+    }
+    pairs.forEach(function(p){
+      var color=tColor(p.row.team)||LEAGUE_COLOR[p.row.league]||"#e8590c";
+      s+='<circle class="point" cx="'+px(p.x)+'" cy="'+py(p.y)+'" r="5.5" fill="'+color+'">'+
+         '<title>'+esc(p.row.name)+'（'+esc(p.row.team)+'）&#10;'+
+         esc(corrMetric(corrX)[1])+': '+corrFmt(p.x,corrX)+'&#10;'+
+         esc(corrMetric(corrY)[1])+': '+corrFmt(p.y,corrY)+'</title></circle>';
+    });
+    s+='<text class="axis-label" x="'+(l+pw/2)+'" y="'+(h-12)+'" text-anchor="middle">'+
+       esc(corrMetric(corrX)[1])+'</text>'+
+       '<text class="axis-label" transform="translate(18 '+(t+ph/2)+') rotate(-90)" text-anchor="middle">'+
+       esc(corrMetric(corrY)[1])+'</text></svg>';
+    return '<div class="corr-chart-scroll">'+s+'</div>';
+  }
+  function corrCellColor(r){
+    if(r==null) return "var(--line)";
+    var a=(.08+.68*Math.abs(r)).toFixed(2);
+    return r>=0?"rgba(232,89,12,"+a+")":"rgba(0,149,217,"+a+")";
+  }
+  function corrMatrix(rows){
+    var defs=corrMetricDefs().filter(function(d){return d[3];});
+    var h='<div class="corr-matrix"><div class="corr-panel-head"><div>'+
+      '<div class="corr-panel-title">相関ヒートマップ</div>'+
+      '<div class="corr-note">セルを押すと、その2指標を上の散布図へ反映します。</div></div>'+
+      '<div class="corr-panel-sub">橙：正の相関　青：負の相関</div></div>'+
+      '<div class="tblwrap"><table class="stbl corr-table"><thead><tr><th>指標</th>';
+    defs.forEach(function(d){h+='<th class="no-sort">'+esc(d[1])+'</th>';});
+    h+='</tr></thead><tbody>';
+    defs.forEach(function(rowDef,i){
+      h+='<tr><th>'+esc(rowDef[1])+'</th>';
+      defs.forEach(function(colDef,j){
+        if(i===j){
+          h+='<td><button class="corr-cell corr-diag" disabled>1.00</button></td>';
+        }else{
+          var value=corrPearson(corrPairs(rows,rowDef[0],colDef[0]));
+          h+='<td><button class="corr-cell" style="background:'+corrCellColor(value)+'" '+
+             'onclick="corrSelectPair(\''+rowDef[0]+'\',\''+colDef[0]+'\')" '+
+             'title="'+esc(rowDef[1])+' × '+esc(colDef[1])+'">'+
+             (value==null?"-":value.toFixed(2))+'</button></td>';
+        }
+      });
+      h+='</tr>';
+    });
+    return h+'</tbody></table></div></div>';
+  }
+  function renderCorrelation(){
+    var cv=document.getElementById("correlationView");
+    var h='<div class="dash-sec"><div class="dash-h"><span class="dot"></span>相関分析'+
+      '<span class="dash-date">指標どうしの関係を探る</span></div>'+
+      '<div class="warwarn"><b>相関は因果関係を意味しません。</b> 点は選手、破線は単回帰線です。'+
+      '少数出場による極端な値を避けるには「一定以上」または「規定到達」を選んでください。</div>';
+    if(!impactData){
+      cv.innerHTML=h+'<div class="msg">相関分析に必要なW-Impactデータがありません</div></div>';
+      return;
+    }
+    h+='<div class="stabs gtabs">'+
+      '<button class="stab'+(corrKind==="batter"?" on":"")+'" style="--sc:var(--accent)" onclick="corrSetKind(\'batter\')">野手</button>'+
+      '<button class="stab'+(corrKind==="pitcher"?" on":"")+'" style="--sc:var(--accent)" onclick="corrSetKind(\'pitcher\')">投手</button></div>'+
+      '<div class="expform" style="margin:8px 0 10px">'+
+      '<label class="ef"><span>リーグ</span><select onchange="corrSetLeague(this.value)">'+
+      '<option value="all"'+(corrLeague==="all"?" selected":"")+'>セ・パ両リーグ</option>'+
+      '<option value="セ"'+(corrLeague==="セ"?" selected":"")+'>セ・リーグ</option>'+
+      '<option value="パ"'+(corrLeague==="パ"?" selected":"")+'>パ・リーグ</option></select></label>'+
+      '<label class="ef"><span>球団</span><select onchange="corrSetTeam(this.value)">'+corrTeamOptions()+'</select></label>'+
+      '<label class="ef"><span>出場条件</span><select onchange="corrSetQual(this.value)">'+
+      '<option value="all"'+(corrQual==="all"?" selected":"")+'>全選手</option>'+
+      '<option value="regular"'+(corrQual==="regular"?" selected":"")+'>'+
+      (corrKind==="pitcher"?"5投球回以上":"50打席以上")+'</option>'+
+      '<option value="qualified"'+(corrQual==="qualified"?" selected":"")+'>'+
+      (corrKind==="pitcher"?"規定投球回到達":"規定打席到達")+'</option></select></label>'+
+      '<label class="ef"><span>横軸</span><select onchange="corrSetAxis(\'x\',this.value)">'+corrAxisOptions(corrX)+'</select></label>'+
+      '<label class="ef"><span>縦軸</span><select onchange="corrSetAxis(\'y\',this.value)">'+corrAxisOptions(corrY)+'</select></label>'+
+      '<label class="ef"><span>軸を交換</span><button class="btn" onclick="corrSwap()">↔ 入れ替え</button></label></div>';
+    var rows=corrRows(),pairs=corrPairs(rows,corrX,corrY),
+        pearson=corrPearson(pairs),spearman=corrSpearman(pairs);
+    var reading=pearson==null?"選手数または値のばらつきが足りず、相関を算出できません。":
+      Math.abs(pearson)<.2?"この組み合わせには、明確な直線的関係は見られません。":
+      corrMetric(corrX)[1]+"が変化するとき、"+corrMetric(corrY)[1]+
+      "も"+(pearson>0?"同じ方向":"逆方向")+"へ動く傾向があります。";
+    var teams={},legend="";
+    pairs.forEach(function(p){teams[p.row.team]=1;});
+    Object.keys(teams).sort().forEach(function(team){
+      legend+='<span><i style="background:'+(tColor(team)||"#999")+'"></i>'+esc(team)+'</span>';
+    });
+    h+='<div class="corr-layout"><div class="corr-panel"><div class="corr-panel-head">'+
+      '<div class="corr-panel-title">'+esc(corrMetric(corrX)[1])+' × '+esc(corrMetric(corrY)[1])+'</div>'+
+      '<div class="corr-panel-sub">'+pairs.length+'選手・点に触れると詳細表示</div></div>'+
+      corrScatter(rows)+'<div class="corr-legend">'+legend+'</div></div>'+
+      '<div class="corr-panel"><div class="corr-panel-title" style="margin-bottom:8px">相関の読み取り</div>'+
+      '<div class="corr-kpis"><div class="corr-kpi"><strong>'+
+      (pearson==null?"-":pearson.toFixed(3))+'</strong><span>Pearson（直線的関係）</span></div>'+
+      '<div class="corr-kpi"><strong>'+(spearman==null?"-":spearman.toFixed(3))+
+      '</strong><span>Spearman（順位関係）</span></div></div>'+
+      '<div class="corr-reading"><b>'+corrStrength(pearson)+'</b><br>'+
+      esc(reading)+' 外れ値や出場量の影響も散布図で確認してください。</div>'+
+      '<div class="corr-note">Pearsonは直線的な関係、Spearmanは値の大小順位が似ているかを測ります。'+
+      '防御率など「低いほど良い」指標では、良い成績との関係が負の相関として現れる場合があります。</div></div></div>';
+    h+=corrMatrix(rows);
+    h+='<div class="corr-note">対象データ：W-Impact v'+esc(impactData.version||"")+
+      '。欠損値のある選手は指標の組み合わせごとに除外しています。</div></div>';
+    cv.innerHTML=h;
   }
 
   function renderImpactGuide(){
