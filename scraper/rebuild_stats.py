@@ -25,6 +25,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from lib.holds import estimate_holds
 from lib.baserunning import aggregate_runner_events, collect_game_runner_events
+from lib.events import classify_result
 from lib.normalize import (
     normalize_team, team_info, player_key, clean_name, TEAMS,
 )
@@ -83,7 +84,8 @@ def blank_batting():
     return {
         "games": 0, "pa": 0, "ab": 0, "hits": 0, "singles": 0, "ibb": 0,
         "doubles": 0, "triples": 0, "hr": 0, "rbi": 0, "bb": 0, "hbp": 0,
-        "so": 0, "runs": 0, "sf": 0, "sb": 0, "caught_stealing": 0,
+        "so": 0, "runs": 0, "sf": 0, "sh": 0, "gidp": 0,
+        "gidp_opportunities": 0, "sb": 0, "caught_stealing": 0,
         "baserunning_outs": 0, "baserunning_runs": 0.0, "errors": 0,
     }
 
@@ -138,20 +140,36 @@ def calc_league_fip_constants(pit: dict, players: dict) -> dict:
 
 
 def calc_pitching_rates(p: dict) -> dict:
-    """防御率・WHIP・K/9・BB/9 を計算（0除算対策込み）"""
+    """投手の基本・率指標を計算（0除算対策込み）。"""
     outs = p.get("outs", 0)
     ip = outs / 3 if outs else 0
+    bf = p.get("batters_faced", 0)
     era = round(p["earned_runs"] * 9 / ip, 2) if ip else None
     whip = round((p["hits_allowed"] + p["bb"]) / ip, 2) if ip else None
     k9 = round(p["so"] * 9 / ip, 2) if ip else None
     bb9 = round(p["bb"] * 9 / ip, 2) if ip else None
+    hr9 = round(p["hr_allowed"] * 9 / ip, 2) if ip else None
     kbb = round(p["so"] / p["bb"], 2) if p["bb"] else None
+    k_pct = round(p["so"] / bf, 3) if bf else None
+    bb_pct = round(p["bb"] / bf, 3) if bf else None
+    # FanGraphs等で使われる簡易推定式。個々の走者の生還を追跡した実測LOB%ではない。
+    lob_num = p["hits_allowed"] + p["bb"] + p.get("hbp", 0) - p["runs_allowed"]
+    lob_den = (
+        p["hits_allowed"] + p["bb"] + p.get("hbp", 0)
+        - 1.4 * p["hr_allowed"]
+    )
+    lob_pct_est = (
+        round(max(0.0, min(1.0, lob_num / lob_den)), 3)
+        if lob_den > 0 else None
+    )
     # 勝率（勝敗がついた試合が1つも無ければ None）
     dec = p.get("wins", 0) + p.get("losses", 0)
     win_pct = round(p.get("wins", 0) / dec, 3) if dec else None
     return {
         "innings": f"{outs // 3}.{outs % 3}" if outs % 3 else str(outs // 3),
-        "era": era, "whip": whip, "k9": k9, "bb9": bb9, "k_bb": kbb,
+        "era": era, "whip": whip, "k9": k9, "bb9": bb9, "hr9": hr9,
+        "k_bb": kbb, "k_pct": k_pct, "bb_pct": bb_pct,
+        "lob_pct_est": lob_pct_est,
         "win_pct": win_pct,
         # ホールドポイント＝ホールド＋救援勝利（ホールドは推定値）
         "hp": (p.get("holds_est", 0) or 0) + (p.get("relief_wins", 0) or 0),
@@ -265,6 +283,7 @@ def calc_rate_stats(b: dict) -> dict:
     ops = round((obp or 0) + (slg or 0), 3) if (obp is not None and slg is not None) else None
     bb_pct = round(b["bb"] / pa, 3) if pa else None
     k_pct = round(b["so"] / pa, 3) if pa else None
+    bb_k = round(b["bb"] / b["so"], 2) if b["so"] else None
 
     # ISO（純粋な長打力） = 長打率 － 打率
     iso = round(slg - avg, 3) if (slg is not None and avg is not None) else None
@@ -273,9 +292,137 @@ def calc_rate_stats(b: dict) -> dict:
     babip_den = ab - so - hr + sf
     babip = round((hits - hr) / babip_den, 3) if babip_den > 0 else None
 
+    # 現在の集計列だけで再現できる古典的な得点創出・打撃総合指標。
+    cs = b.get("caught_stealing", 0)
+    gidp = b.get("gidp", 0)
+    sh = b.get("sh", 0)
+    hbp = b.get("hbp", 0)
+    bb = b["bb"]
+    sb = b.get("sb", 0)
+    offensive_outs = ab - hits + cs + gidp + sf + sh
+    rc_den = ab + bb + hbp
+    rc = ((hits + bb + hbp) * tb / rc_den) if rc_den else None
+    rc27 = rc * 27 / offensive_outs if rc is not None and offensive_outs > 0 else None
+    xr = (
+        0.50 * singles + 0.72 * doubles + 1.04 * triples + 1.44 * hr
+        + 0.34 * (bb - b.get("ibb", 0) + hbp) + 0.25 * b.get("ibb", 0)
+        + 0.18 * sb - 0.32 * cs - 0.09 * (ab - hits - so)
+        - 0.098 * so - 0.37 * gidp + 0.37 * sf + 0.04 * sh
+    )
+    xr27 = xr * 27 / offensive_outs if offensive_outs > 0 else None
+    gpa = ((1.8 * obp + slg) / 4) if obp is not None and slg is not None else None
+    seca = (
+        (tb - hits + bb + hbp + sb - cs) / ab
+        if ab else None
+    )
+    ta_den = ab - hits + cs + gidp
+    total_average = (
+        (tb + bb + hbp + sb) / ta_den
+        if ta_den > 0 else None
+    )
+    wsb = 0.20 * sb - 0.40 * cs
+    ubr_est = -0.40 * b.get("baserunning_outs", 0)
+    bsr_est = wsb + ubr_est
+
     return {"avg": avg, "obp": obp, "slg": slg, "ops": ops,
-            "bb_pct": bb_pct, "k_pct": k_pct, "tb": tb,
-            "singles": singles, "iso": iso, "babip": babip}
+            "bb_pct": bb_pct, "k_pct": k_pct, "bb_k": bb_k, "tb": tb,
+            "singles": singles, "iso": iso, "babip": babip,
+            "rc": round(rc, 2) if rc is not None else None,
+            "rc27": round(rc27, 2) if rc27 is not None else None,
+            "xr": round(xr, 2), "xr27": round(xr27, 2) if xr27 is not None else None,
+            "gpa": round(gpa, 3) if gpa is not None else None,
+            "seca": round(seca, 3) if seca is not None else None,
+            "ta": round(total_average, 3) if total_average is not None else None,
+            "wsb": round(wsb, 2), "ubr_est": round(ubr_est, 2),
+            "bsr_est": round(bsr_est, 2)}
+
+
+WOBA_WEIGHTS = {
+    "ubb": 0.69, "hbp": 0.72, "single": 0.89,
+    "double": 1.27, "triple": 1.62, "hr": 2.10,
+}
+WOBA_SCALE = 1.15
+
+
+def _woba_parts(b: dict) -> tuple[float, float]:
+    """固定線形加重による推定wOBAの分子・分母を返す。"""
+    ubb = max(0, b.get("bb", 0) - b.get("ibb", 0))
+    # 公式ボックススコアの一時集計では singles が「安打－本塁打」のため、
+    # 二塁打・三塁打を差し引いて真の単打数を必ずここで作り直す。
+    singles = max(
+        0,
+        b.get("hits", 0)
+        - b.get("hr", 0)
+        - b.get("doubles", 0)
+        - b.get("triples", 0),
+    )
+    numerator = (
+        WOBA_WEIGHTS["ubb"] * ubb
+        + WOBA_WEIGHTS["hbp"] * b.get("hbp", 0)
+        + WOBA_WEIGHTS["single"] * singles
+        + WOBA_WEIGHTS["double"] * b.get("doubles", 0)
+        + WOBA_WEIGHTS["triple"] * b.get("triples", 0)
+        + WOBA_WEIGHTS["hr"] * b.get("hr", 0)
+    )
+    denominator = (
+        b.get("ab", 0) + ubb + b.get("hbp", 0) + b.get("sf", 0)
+    )
+    return numerator, denominator
+
+
+def calc_league_batting_contexts(bat: dict, players: dict) -> dict:
+    """セ・パ別の推定wOBA平均と1打席あたり得点を実測値から作る。"""
+    totals = {
+        "セ": {"woba_num": 0.0, "woba_den": 0.0, "pa": 0, "runs": 0},
+        "パ": {"woba_num": 0.0, "woba_den": 0.0, "pa": 0, "runs": 0},
+    }
+    for key, b in bat.items():
+        lg = team_info((players.get(key) or {}).get("team")).get("league")
+        if lg not in totals:
+            continue
+        num, den = _woba_parts(b)
+        totals[lg]["woba_num"] += num
+        totals[lg]["woba_den"] += den
+        totals[lg]["pa"] += b.get("pa", 0)
+        totals[lg]["runs"] += b.get("runs", 0)
+    contexts = {}
+    for lg, t in totals.items():
+        contexts[lg] = {
+            "woba": t["woba_num"] / t["woba_den"] if t["woba_den"] else None,
+            "runs_per_pa": t["runs"] / t["pa"] if t["pa"] else None,
+            "pa": t["pa"],
+        }
+    return contexts
+
+
+def calc_weighted_batting(b: dict, context: dict | None) -> dict:
+    """
+    固定係数による推定wOBA系指標。
+    wRC+は球場補正を行わないため、正式値ではなく「球場未補正の推定値」とする。
+    """
+    num, den = _woba_parts(b)
+    woba = num / den if den else None
+    lg_woba = (context or {}).get("woba")
+    runs_per_pa = (context or {}).get("runs_per_pa")
+    pa = b.get("pa", 0)
+    if woba is None or lg_woba is None:
+        return {"woba_est": None, "wraa_est": None,
+                "wrc_est": None, "wrc_plus_est": None}
+    wraa = (woba - lg_woba) / WOBA_SCALE * pa
+    wrc = (
+        ((woba - lg_woba) / WOBA_SCALE + runs_per_pa) * pa
+        if runs_per_pa is not None else None
+    )
+    wrc_plus = (
+        100 * (((woba - lg_woba) / WOBA_SCALE + runs_per_pa) / runs_per_pa)
+        if runs_per_pa and runs_per_pa > 0 else None
+    )
+    return {
+        "woba_est": round(woba, 3),
+        "wraa_est": round(wraa, 2),
+        "wrc_est": round(wrc, 2) if wrc is not None else None,
+        "wrc_plus_est": round(wrc_plus, 0) if wrc_plus is not None else None,
+    }
 
 
 # シーズン成績に含めない試合の種別。
@@ -412,7 +559,8 @@ def rebuild(season, base="data"):
         for t in (home, away):
             if t and t not in team_stats:
                 team_stats[t] = {"games": 0, "runs": 0, "runs_allowed": 0,
-                                 "hits": 0, "hr": 0, "wins": 0, "losses": 0}
+                                 "hits": 0, "hr": 0, "wins": 0, "losses": 0,
+                                 "bip": 0, "bip_outs": 0}
         if home:
             team_stats[home]["games"] += 1
         if away:
@@ -527,10 +675,10 @@ def rebuild(season, base="data"):
                     if not players[bkey].get("hand"):
                         players[bkey]["hand"] = b.get("hand")
 
-                # 敬遠・二塁打・三塁打・犠飛は公式ボックススコアに列が無いため、
+                # 敬遠・二塁打・三塁打・犠飛などは公式ボックススコアに列が無いため、
                 # 公式成績を使う試合でも打席結果のテキストから常に復元する。
                 # （以前は使わない試合でしか拾えておらず、長打率が過小評価されていた）
-                ev_extra = classify_batting(ab.get("result_summary"))
+                ev_extra = classify_result(ab.get("result_summary"))
                 if bkey:
                     if bkey not in bat:
                         bat[bkey] = blank_batting()
@@ -541,6 +689,31 @@ def rebuild(season, base="data"):
                     eb["doubles"] += ev_extra["double"]
                     eb["triples"] += ev_extra["triple"]
                     eb["sf"] = eb.get("sf", 0) + ev_extra.get("sf", 0)
+                    eb["sh"] = eb.get("sh", 0) + ev_extra.get("sh", 0)
+                    eb["gidp"] = eb.get("gidp", 0) + ev_extra.get("gidp", 0)
+                    runners = ab.get("runners") or {}
+                    count = ab.get("count") or {}
+                    if (
+                        runners.get("first")
+                        and int(count.get("out") or 0) < 2
+                        and ev_extra.get("ab")
+                    ):
+                        eb["gidp_opportunities"] = (
+                            eb.get("gidp_opportunities", 0) + 1
+                        )
+
+                # 球団DER。四球・死球・三振・本塁打・犠打を除いた打球を分母にし、
+                # 安打または相手失策にならずアウトにした打球を分子にする。
+                if fteam and fteam in team_stats:
+                    is_bip = bool(
+                        (ev_extra.get("ab") and not ev_extra.get("so")
+                         and not ev_extra.get("hr"))
+                        or ev_extra.get("sf")
+                    )
+                    if is_bip:
+                        team_stats[fteam]["bip"] += 1
+                        if not ev_extra.get("hit") and not ev_extra.get("error"):
+                            team_stats[fteam]["bip_outs"] += 1
 
                 # 公式成績が無い試合のみ、残りの項目も打席結果から推定して集計
                 if not used_official:
@@ -554,7 +727,8 @@ def rebuild(season, base="data"):
                     bb["pa"] += ev["pa"]; bb["ab"] += ev["ab"]
                     bb["hits"] += ev["hit"]; bb["singles"] += ev["single"]
                     # doubles/triples/sf は上ですでに加算済みなのでここでは足さない
-                    bb["hr"] += ev["hr"]; bb["bb"] += ev["bb"]; bb["so"] += ev["so"]
+                    bb["hr"] += ev["hr"]; bb["bb"] += ev["bb"]
+                    bb["hbp"] += ev.get("hbp", 0); bb["so"] += ev["so"]
                     m = re.search(r"＋(\d+)点", ab.get("result_summary") or "")
                     if m:
                         bb["rbi"] += int(m.group(1))
@@ -625,6 +799,7 @@ def rebuild(season, base="data"):
     skipped = 0
     # FIP定数はリーグ全体の投手成績が要るため、選手ごとの出力を作る前に計算しておく
     fip_constants = calc_league_fip_constants(pit, players)
+    batting_contexts = calc_league_batting_contexts(bat, players)
 
     for k, info in players.items():
         # 名前が取れていない／合計行を拾ってしまった等の異常データは出力しない
@@ -642,7 +817,13 @@ def rebuild(season, base="data"):
             entry["position"] = "投"
         entry["is_pitcher"] = k in pit
         if k in bat:
-            entry["batting"] = {**bat[k], **calc_rate_stats(_fill(bat[k]))}
+            lg = team_info(entry.get("team")).get("league")
+            filled_bat = _fill(bat[k])
+            entry["batting"] = {
+                **bat[k],
+                **calc_rate_stats(filled_bat),
+                **calc_weighted_batting(filled_bat, batting_contexts.get(lg)),
+            }
         if k in pit:
             entry["pitching"] = {**pit[k], **calc_pitching_rates(pit[k])}
             lg = team_info(entry.get("team")).get("league")
@@ -668,7 +849,11 @@ def rebuild(season, base="data"):
     team_out = []
     for t, s in team_stats.items():
         info = team_info(t)
-        team_out.append({"team": t, "mini": info["mini"], "league": info["league"], **s})
+        der = round(s["bip_outs"] / s["bip"], 3) if s.get("bip") else None
+        team_out.append({
+            "team": t, "mini": info["mini"], "league": info["league"],
+            **s, "der": der,
+        })
     team_out.sort(key=lambda x: (x.get("league") or "", -x.get("runs", 0)))
 
     # 「試合がなかった日」の記録があれば読み込む（未収集の日と区別するため）
@@ -729,7 +914,24 @@ def rebuild(season, base="data"):
               {"teams": [{"name": n, **v} for n, v in TEAMS.items()]})
     save_json(f"{base}/{season}/players/stats.json",
               {"season": season, "count": len(player_out),
-               "runner_event_diagnostics": runner_diag, "players": player_out})
+               "runner_event_diagnostics": runner_diag,
+               "advanced_metric_context": {
+                   "woba_weights": WOBA_WEIGHTS,
+                   "woba_scale": WOBA_SCALE,
+                   "league": {
+                       lg: {
+                           "woba": round(c["woba"], 3) if c.get("woba") is not None else None,
+                           "runs_per_pa": (
+                               round(c["runs_per_pa"], 4)
+                               if c.get("runs_per_pa") is not None else None
+                           ),
+                           "pa": c.get("pa", 0),
+                       }
+                       for lg, c in batting_contexts.items()
+                   },
+                   "note": "wOBA系は固定線形加重、wRC+は球場未補正の推定値",
+               },
+               "players": player_out})
     save_json(f"{base}/{season}/teams/stats.json",
               {"season": season, "teams": team_out})
 
