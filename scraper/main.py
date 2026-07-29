@@ -42,6 +42,7 @@ SLEEP_SEC = 1.5
 # 巡回の上限（延長戦・打者一巡以上に備えた安全弁）
 MAX_INNING = 12
 MAX_BATTERS_PER_INNING = 15
+NON_GAME_STATE_MARKERS = ("ノーゲーム", "中止")
 
 
 def fetch(url: str) -> str:
@@ -76,6 +77,12 @@ def resolve_date(s):
         except ValueError:
             raise SystemExit(f"[ERROR] 日付形式エラー: {s}（例: 2026-07-10）")
     return datetime.now(JST)
+
+
+def is_non_game_state(value) -> bool:
+    """Return True for terminal states whose plays must not count as a game."""
+    state = str(value or "")
+    return any(marker in state for marker in NON_GAME_STATE_MARKERS)
 
 
 def find_game_ids(date: datetime) -> list[str]:
@@ -155,6 +162,35 @@ def collect_game(game_id: str, expected_date: datetime | None = None) -> dict:
             print(f"[SKIP] 試合{game_id}: {teams['date_text']} は対象外（{want}を収集中）")
             return {"game_id": game_id, "skip": True, "card": card, "atbats": []}
 
+    # 試合結果の状態は巡回前に確認する。ノーゲームや中止試合には
+    # 途中まで打席が存在しても、公式成績として保存してはいけない。
+    result_info = {}
+    try:
+        all_games = parse_score_list(html)
+        for gg in all_games:
+            if gg["game_id"] == game_id or (
+                gg["home"] == teams["home"] and gg["away"] == teams["away"]
+            ):
+                result_info = gg
+                break
+        result_info["homeruns"] = parse_homeruns(html)
+        result_info["battery"] = parse_battery(html)
+    except Exception as e:
+        print(f"[WARN] 試合結果の取得に失敗: {e}")
+
+    state = result_info.get("state")
+    if is_non_game_state(state):
+        print(f"[SKIP] 試合{game_id}: state={state}（公式成績に含めません）")
+        return {
+            "game_id": game_id,
+            "skip": True,
+            "skip_reason": "non_game",
+            "state": state,
+            "card": card,
+            "result": result_info,
+            "atbats": [],
+        }
+
     print(f"[INFO] 試合{game_id}: {card} 巡回開始")
 
     atbats = []
@@ -192,22 +228,6 @@ def collect_game(game_id: str, expected_date: datetime | None = None) -> dict:
             # 2イニング連続で打席が無ければ試合終了とみなす
             if empty_innings >= 2:
                 break
-
-    # 試合結果まとめ（スコア・勝敗投手・セーブ・本塁打・バッテリー）
-    # 起点ページに載っている「その日の日程・結果」から自分の試合を探す
-    result_info = {}
-    try:
-        all_games = parse_score_list(html)
-        for gg in all_games:
-            if gg["game_id"] == game_id or (
-                gg["home"] == teams["home"] and gg["away"] == teams["away"]
-            ):
-                result_info = gg
-                break
-        result_info["homeruns"] = parse_homeruns(html)
-        result_info["battery"] = parse_battery(html)
-    except Exception as e:
-        print(f"[WARN] 試合結果の取得に失敗: {e}")
 
     # 出場成績ページから公式の打撃・投手成績を取得（フェーズ2）
     boxscore = None
@@ -415,10 +435,13 @@ def collect_day(date: datetime, only_game: str | None = None) -> dict:
     saved_paths = []
     results = []
     skipped = 0
+    non_game_skipped = 0
     for gid in game_ids:
         result = collect_game(gid, expected_date=None if only_game else date)
         if result.get("skip"):
             skipped += 1
+            if result.get("skip_reason") == "non_game":
+                non_game_skipped += 1
             continue
         if not result.get("atbats"):
             print(f"[SKIP] 試合{gid}: 打席データなし")
@@ -429,6 +452,14 @@ def collect_day(date: datetime, only_game: str | None = None) -> dict:
 
     if not results:
         print(f"[INFO] 保存対象なし（スキップ{skipped}件）")
+        if not only_game:
+            index_paths = []
+            if non_game_skipped == len(game_ids):
+                no_game_path = record_no_game_day(date)
+                if no_game_path:
+                    index_paths.append(no_game_path)
+            # clean_day_folderで消した古い試合への参照も除去する。
+            update_index(index_paths)
         return {"date": date.strftime("%Y-%m-%d"), "games": 0, "pitches": 0, "skipped": skipped}
 
     saved_paths.append(save_summary(date, results))
