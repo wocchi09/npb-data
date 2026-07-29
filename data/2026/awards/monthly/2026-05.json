@@ -4,7 +4,7 @@
   "date_from": "2026-05-01",
   "date_to": "2026-05-31",
   "scoreVersion": "1.2.0",
-  "generated_at": "2026-07-29T17:53:15.152537+09:00",
+  "generated_at": "2026-07-29T20:30:46.939932+09:00",
   "note": "利用可能データのみで算出。期間内のチーム試合数を基準に、野手は試合数・打席、投手は登板数・投球回で出場量補正",
   "leagues": {
     "セ": {
@@ -2282,55 +2282,56 @@
           "under_min_pa": false
         },
         "二": {
-          "name": "小川 龍成",
-          "team": "ロッテ",
+          "name": "滝澤 夏央",
+          "team": "西武",
           "position": "二",
-          "raw": 38.76,
-          "score": 41.68,
+          "raw": 42.31,
+          "score": 45.49,
           "available_max": 93,
-          "team_games": 26,
-          "sample_coverage": 1.0,
-          "sample_multiplier": 1.0,
+          "team_games": 25,
+          "sample_coverage": 0.988,
+          "sample_multiplier": 0.996,
           "breakdown": {
-            "battingContent": 29.82,
-            "runProduction": 4.32,
+            "battingContent": 34.59,
+            "runProduction": 5.38,
             "clutch": 0,
-            "playingTime": 10.0,
-            "defenseBaser": 0,
+            "playingTime": 9.68,
+            "defenseBaser": 3,
             "teamWin": 0,
-            "penalty": -5.39
+            "penalty": -10.17
           },
           "stats": {
-            "games": 26,
-            "pa": 108,
-            "ab": 101,
-            "hits": 33,
-            "singles": 29,
-            "doubles": 3,
+            "games": 24,
+            "pa": 98,
+            "ab": 84,
+            "hits": 29,
+            "singles": 25,
+            "doubles": 2,
             "triples": 1,
-            "hr": 0,
-            "rbi": 8,
-            "runs": 8,
+            "hr": 1,
+            "rbi": 6,
+            "runs": 13,
             "bb": 0,
             "hbp": 0,
             "so": 14,
-            "sb": 0,
-            "caught_stealing": 3,
-            "baserunning_outs": 1,
+            "sb": 4,
+            "caught_stealing": 1,
+            "baserunning_outs": 0,
             "baserunning_runs": 0,
-            "avg": 0.327,
-            "obp": 0.352,
-            "slg": 0.376,
-            "ops": 0.728
+            "avg": 0.345,
+            "obp": 0.418,
+            "slg": 0.429,
+            "ops": 0.847
           },
-          "stat_line": "26試合 108打席 101打数33安打 打率.327 OPS.728 0本 8点",
+          "stat_line": "24試合 98打席 84打数29安打 打率.345 OPS.847 1本 6点",
           "reasons": [
-            "OPS .728",
-            "8打点"
+            "OPS .847",
+            "1本塁打",
+            "6打点",
+            "盗塁4"
           ],
           "minus_reasons": [
-            "盗塁失敗3",
-            "走塁死1"
+            "盗塁失敗1"
           ],
           "under_min_pa": false
         },
@@ -3307,7 +3308,7 @@
         {
           "name": "西川 史礁",
           "team": "ロッテ",
-          "position": "右左",
+          "position": "左",
           "raw": 46.85,
           "score": 50.38,
           "available_max": 93,
