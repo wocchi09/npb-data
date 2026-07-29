@@ -4746,7 +4746,7 @@
       ]);
     }else{
       sortOptions=sortOptions.concat([
-        ["batting_games","試合"],["pitching_games","登板"]
+        ["batting_games","打者出場"],["pitching_games","投手登板"]
       ]);
     }
     h+='<div class="expform" style="margin:8px 0 10px">'+
@@ -4769,7 +4769,8 @@
        (impactKind!=="pitcher"?'<th>位置</th>':'<th>役割</th>')+
        (impactKind==="batter"?'<th>試合</th><th>打席</th>':
         impactKind==="pitcher"?'<th>登板</th><th>投球回</th>':
-        '<th>試合</th><th>登板</th>')+
+        '<th title="打者として成績が記録された試合数。打席数ではありません">打者出場</th>'+
+        '<th title="投手として登板した試合数">投手登板</th>')+
        '<th>W-Value</th><th>W-Rating</th>';
     if(impactKind==="overall") h+='<th>野手値</th><th>投手値</th>';
     if(impactKind==="batter") h+='<th>打撃</th><th>勝負</th><th>走塁</th><th>守備</th><th>役割</th><th>複数</th>';
@@ -4785,8 +4786,10 @@
           '<td class="num">'+(s.pa||0)+'</td>':
           impactKind==="pitcher"?'<td class="num">'+(s.games||0)+'</td>'+
           '<td class="num">'+(s.innings||0)+'</td>':
-          '<td class="num">'+(x.batting_games||0)+'</td>'+
-          '<td class="num">'+(x.pitching_games||0)+'</td>')+
+          '<td class="num" title="打者として成績が記録された試合数">'+
+          (x.batting_games||0)+'</td>'+
+          '<td class="num" title="投手として登板した試合数">'+
+          (x.pitching_games||0)+'</td>')+
          '<td class="num hi">'+Number(x.w_value).toFixed(2)+'</td>'+
          '<td class="num hi">'+impactNum(x.w_rating)+'</td>';
       if(impactKind==="overall"){
@@ -4810,6 +4813,9 @@
       h+='</tr>';
     });
     h+='</tbody></table></div>'+
+       (impactKind==="overall"?'<div class="sub" style="font-size:11px;margin-top:8px">'+
+       '「打者出場」は打者として成績が記録された試合数（打席数ではありません）。'+
+       '「投手登板」は投手として登板した試合数です。</div>':'')+
        '<div class="sub" style="font-size:11px;margin-top:8px">'+esc(impactData.note||"")+
        '／v'+esc(impactData.version||"")+'</div></div>';
     iv.innerHTML=h;
