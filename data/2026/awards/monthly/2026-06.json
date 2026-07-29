@@ -4,7 +4,7 @@
   "date_from": "2026-06-01",
   "date_to": "2026-06-30",
   "scoreVersion": "1.2.0",
-  "generated_at": "2026-07-29T20:30:47.162721+09:00",
+  "generated_at": "2026-07-29T22:54:43.629440+09:00",
   "note": "利用可能データのみで算出。期間内のチーム試合数を基準に、野手は試合数・打席、投手は登板数・投球回で出場量補正",
   "leagues": {
     "セ": {
@@ -402,53 +402,56 @@
           "under_min_pa": false
         },
         "中": {
-          "name": "岡林 勇希",
-          "team": "中日",
+          "name": "松本 剛",
+          "team": "巨人",
           "position": "中",
-          "raw": 44.35,
-          "score": 47.68,
+          "raw": 48.37,
+          "score": 52.01,
           "available_max": 93,
-          "team_games": 20,
-          "sample_coverage": 0.955,
-          "sample_multiplier": 0.984,
+          "team_games": 18,
+          "sample_coverage": 0.983,
+          "sample_multiplier": 0.994,
           "breakdown": {
-            "battingContent": 33.98,
-            "runProduction": 3.86,
+            "battingContent": 35.54,
+            "runProduction": 3.59,
             "clutch": 0,
-            "playingTime": 9.25,
-            "defenseBaser": 0,
+            "playingTime": 9.39,
+            "defenseBaser": 3,
             "teamWin": 0,
-            "penalty": -2.03
+            "penalty": -2.86
           },
           "stats": {
             "games": 17,
-            "pa": 74,
-            "ab": 64,
+            "pa": 69,
+            "ab": 59,
             "hits": 21,
             "singles": 18,
             "doubles": 3,
             "triples": 0,
             "hr": 0,
-            "rbi": 4,
-            "runs": 8,
+            "rbi": 5,
+            "runs": 5,
             "bb": 0,
             "hbp": 0,
-            "so": 13,
-            "sb": 0,
-            "caught_stealing": 0,
+            "so": 11,
+            "sb": 5,
+            "caught_stealing": 1,
             "baserunning_outs": 0,
             "baserunning_runs": 0,
-            "avg": 0.328,
-            "obp": 0.392,
-            "slg": 0.375,
-            "ops": 0.767
+            "avg": 0.356,
+            "obp": 0.391,
+            "slg": 0.407,
+            "ops": 0.798
           },
-          "stat_line": "17試合 74打席 64打数21安打 打率.328 OPS.767 0本 4点",
+          "stat_line": "17試合 69打席 59打数21安打 打率.356 OPS.798 0本 5点",
           "reasons": [
-            "OPS .767",
-            "4打点"
+            "OPS .798",
+            "5打点",
+            "盗塁5"
           ],
-          "minus_reasons": [],
+          "minus_reasons": [
+            "盗塁失敗1"
+          ],
           "under_min_pa": false
         },
         "右": {
@@ -1000,7 +1003,7 @@
         {
           "name": "松本 剛",
           "team": "巨人",
-          "position": "左",
+          "position": "中",
           "raw": 48.37,
           "score": 52.01,
           "available_max": 93,
