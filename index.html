@@ -1307,9 +1307,34 @@
       h+='<div class="card2"><h3>本塁打</h3>'+hr+'</div>';
     }
 
-    // バッテリー
-    if(res.battery&&res.battery.text){
-      h+='<div class="card2"><h3>バッテリー</h3><div class="sub">'+esc(res.battery.text)+'</div></div>';
+    // バッテリー。新規データは両チーム分を保持し、旧データで欠ける側は
+    // 投手成績と捕手の出場記録から補完する。
+    function inferBattery(side){
+      var box=g.boxscore||{}, pitching=(box.pitching&&box.pitching[side])||[];
+      var batting=(box.batting&&box.batting[side])||[];
+      var pitchers=[], catchers=[];
+      pitching.forEach(function(x){
+        if(x.name&&pitchers.indexOf(x.name)<0) pitchers.push(x.name);
+      });
+      batting.forEach(function(x){
+        if(x.name&&String(x.position||"").indexOf("捕")>=0&&catchers.indexOf(x.name)<0){
+          catchers.push(x.name);
+        }
+      });
+      if(!pitchers.length&&!catchers.length) return "";
+      return pitchers.join("、")+(pitchers.length&&catchers.length?" - ":"")+catchers.join("、");
+    }
+    var battery=res.battery||{};
+    var batteryRows=[
+      {side:"away",team:g.away,text:battery.away||inferBattery("away")},
+      {side:"home",team:g.home,text:battery.home||battery.text||inferBattery("home")}
+    ].filter(function(x){return x.text;});
+    if(batteryRows.length){
+      h+='<div class="card2"><h3>バッテリー</h3>'+
+        batteryRows.map(function(x){
+          return '<div class="kv"><span class="k">'+teamBadge(x.team)+' '+esc(x.team||x.side)+'</span>'+
+            '<b>'+esc(x.text)+'</b></div>';
+        }).join("")+'</div>';
     }
     return h;
   }

@@ -4,7 +4,7 @@
   "date_from": "2026-05-18",
   "date_to": "2026-05-24",
   "scoreVersion": "1.2.0",
-  "generated_at": "2026-07-29T20:30:45.158836+09:00",
+  "generated_at": "2026-07-30T06:37:23.503869+09:00",
   "note": "利用可能データのみで算出。期間内のチーム試合数を基準に、野手は試合数・打席、投手は登板数・投球回で出場量補正",
   "leagues": {
     "セ": {
@@ -391,54 +391,56 @@
           "under_min_pa": false
         },
         "中": {
-          "name": "キャベッジ",
-          "team": "巨人",
+          "name": "蝦名 達夫",
+          "team": "DeNA",
           "position": "中",
-          "raw": 41.15,
-          "score": 44.24,
+          "raw": 36.16,
+          "score": 38.88,
           "available_max": 93,
           "team_games": 5,
           "sample_coverage": 1.0,
           "sample_multiplier": 1.0,
           "breakdown": {
-            "battingContent": 22.25,
-            "runProduction": 12.5,
+            "battingContent": 23.29,
+            "runProduction": 3.87,
             "clutch": 0,
-            "playingTime": 9.4,
-            "defenseBaser": 0,
+            "playingTime": 10.0,
+            "defenseBaser": 3,
             "teamWin": 0,
-            "penalty": -3.0
+            "penalty": -4.0
           },
           "stats": {
             "games": 5,
-            "pa": 18,
-            "ab": 18,
-            "hits": 3,
-            "singles": 1,
-            "doubles": 1,
+            "pa": 21,
+            "ab": 19,
+            "hits": 4,
+            "singles": 2,
+            "doubles": 2,
             "triples": 0,
-            "hr": 1,
-            "rbi": 2,
-            "runs": 1,
+            "hr": 0,
+            "rbi": 1,
+            "runs": 0,
             "bb": 0,
             "hbp": 0,
-            "so": 10,
-            "sb": 0,
-            "caught_stealing": 0,
+            "so": 8,
+            "sb": 1,
+            "caught_stealing": 1,
             "baserunning_outs": 0,
             "baserunning_runs": 0,
-            "avg": 0.167,
-            "obp": 0.167,
-            "slg": 0.389,
-            "ops": 0.556
+            "avg": 0.211,
+            "obp": 0.286,
+            "slg": 0.316,
+            "ops": 0.602
           },
-          "stat_line": "5試合 18打席 18打数3安打 打率.167 OPS.556 1本 2点",
+          "stat_line": "5試合 21打席 19打数4安打 打率.211 OPS.602 0本 1点",
           "reasons": [
-            "OPS .556",
-            "1本塁打",
-            "2打点"
+            "OPS .602",
+            "1打点",
+            "盗塁1"
           ],
-          "minus_reasons": [],
+          "minus_reasons": [
+            "盗塁失敗1"
+          ],
           "under_min_pa": false
         },
         "右": {
