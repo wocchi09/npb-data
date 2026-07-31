@@ -917,6 +917,7 @@
     </div>
   </div>
 
+<script src="https://js.puter.com/v2/"></script>
 <script>
   var dp=document.getElementById("dp"),
       gamesEl=document.getElementById("games"),
@@ -4900,31 +4901,73 @@
       (saberKind==="pitcher"?(s.games+"登板・"+s.innings+"回"):(s.games+"試合・"+s.pa+"打席"))+
       "、指標="+facts+"。";
   }
+  function saberPuterText(response){
+    if(typeof response==="string") return response.trim();
+    if(response&&response.message){
+      var content=response.message.content;
+      if(typeof content==="string") return content.trim();
+      if(Array.isArray(content)) return content.map(function(part){
+        return typeof part==="string"?part:String((part&&part.text)||"");
+      }).join("").trim();
+    }
+    return String((response&&(response.text||response.response))||"").trim();
+  }
+  async function saberGeneratePuterAI(row,rows,resultEl){
+    if(!window.puter||!puter.ai||typeof puter.ai.chat!=="function"){
+      throw new Error("Puter AIを読み込めませんでした");
+    }
+    resultEl.textContent="AIが公開データを分析しています…";
+    var response=await puter.ai.chat(saberAiPrompt(row,rows));
+    var answer=saberPuterText(response);
+    if(!answer) throw new Error("AIから文章を取得できませんでした");
+    return answer;
+  }
+  async function saberGenerateLocalAI(row,rows,resultEl){
+    if(typeof LanguageModel==="undefined") throw new Error("このブラウザは端末内AIに対応していません");
+    var options={
+      expectedInputs:[{type:"text",languages:["ja"]}],
+      expectedOutputs:[{type:"text",languages:["ja"]}]
+    };
+    var availability=await LanguageModel.availability(options);
+    if(availability==="unavailable") throw new Error("この端末ではAIモデルを利用できません");
+    if(availability==="downloadable"||availability==="downloading"){
+      resultEl.textContent="初回AIモデルをダウンロードしています。しばらくお待ちください…";
+    }else{
+      resultEl.textContent="端末内AIが公開データを分析しています…";
+    }
+    var session=await LanguageModel.create(options);
+    try{
+      return String(await session.prompt(saberAiPrompt(row,rows))||"").trim();
+    }finally{
+      if(session.destroy) session.destroy();
+    }
+  }
   async function saberGenerateAI(){
     var rows=saberRows(),row=rows.find(function(x){return x.player_key===saberSelectedKey;});
     var resultEl=document.getElementById("saberAiResult"),button=document.getElementById("saberAiButton");
     if(!row||!resultEl) return;
-    saberAiState="loading";button.disabled=true;resultEl.textContent="端末内AIを準備しています…";
+    saberAiState="loading";button.disabled=true;resultEl.textContent="AIを準備しています…";
     try{
-      if(typeof LanguageModel==="undefined") throw new Error("このブラウザは端末内AIに対応していません");
-      var options={
-        expectedInputs:[{type:"text",languages:["ja"]}],
-        expectedOutputs:[{type:"text",languages:["ja"]}]
-      };
-      var availability=await LanguageModel.availability(options);
-      if(availability==="unavailable") throw new Error("この端末ではAIモデルを利用できません");
-      if(availability==="downloadable"||availability==="downloading"){
-        resultEl.textContent="初回AIモデルをダウンロードしています。しばらくお待ちください…";
+      var answer="",puterError=null;
+      try{
+        answer=await saberGeneratePuterAI(row,rows,resultEl);
+      }catch(error){
+        puterError=error;
+        resultEl.textContent="クラウドAIを利用できないため、端末内AIへ切り替えています…";
+        try{
+          answer=await saberGenerateLocalAI(row,rows,resultEl);
+        }catch(localError){
+          throw new Error((puterError&&puterError.message?puterError.message:"クラウドAIを利用できません")+
+            "／"+(localError&&localError.message?localError.message:"端末内AIを利用できません"));
+        }
       }
-      var session=await LanguageModel.create(options);
-      var answer=await session.prompt(saberAiPrompt(row,rows));
-      if(session.destroy) session.destroy();
+      if(!answer) throw new Error("AIから文章を取得できませんでした");
       saberAiText=String(answer||"").trim();
       saberAiState="done";
       resultEl.textContent=saberAiText||"AIから文章を取得できませんでした";
     }catch(error){
       saberAiState="error";
-      resultEl.textContent=(error&&error.message?error.message:"端末内AIを利用できません")+
+      resultEl.textContent=(error&&error.message?error.message:"AIを利用できません")+
         "。上の自動寸評は引き続き利用できます。";
     }finally{
       button.disabled=false;
@@ -4939,9 +4982,12 @@
       saberStatGrid(row)+saberRadar(row,rows)+
       '<div class="saber-comment"><div class="saber-panel-title">データ寸評</div>'+
       saberCommentary(row,rows)+'</div>'+
-      '<div class="saber-ai"><div class="saber-ai-head"><div class="saber-ai-title">端末内AI寸評（無料・APIキー不要）</div>'+
+      '<div class="saber-ai"><div class="saber-ai-head"><div class="saber-ai-title">AI寸評（APIキー不要）</div>'+
       '<button class="btn" id="saberAiButton" onclick="saberGenerateAI()">AIで寸評</button></div>'+
-      '<div class="saber-ai-copy">対応するデスクトップChromeの内蔵AIだけを使用します。選手データは外部APIへ送信しません。非対応端末ではデータ寸評をご利用ください。</div>'+
+      '<div class="saber-ai-copy">'+
+      'PuterのAIが表示中の公開成績だけを分析します。初回利用時はPuterのログイン確認が表示される場合があります。'+
+      '氏名・球団・表示指標以外の情報は送信しません。接続できない場合は端末内AIへ切り替えます。'+
+      'AIを利用できない場合も、上のデータ寸評は常に表示されます。</div>'+
       '<div class="saber-ai-result" id="saberAiResult">'+esc(saberAiText)+'</div></div>';
   }
   function saberTable(rows){
