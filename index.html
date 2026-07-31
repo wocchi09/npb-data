@@ -449,6 +449,81 @@
     .ts-layout{grid-template-columns:1fr;}
   }
 
+  /* ---- セイバーメトリクス ---- */
+  .saber-hero{border:1px solid var(--accent2);border-radius:15px;padding:16px;
+    background:
+      radial-gradient(circle at 88% 12%,rgba(232,89,12,.18),transparent 30%),
+      linear-gradient(135deg,var(--panel2),var(--panel));margin-bottom:10px;}
+  .saber-hero h2{margin:0 0 5px;color:var(--accent);font-size:20px;}
+  .saber-hero p{margin:0;color:var(--ink2);font-size:12px;line-height:1.75;}
+  .saber-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;
+    margin:10px 0;}
+  .saber-kpi{border:1px solid var(--line);border-radius:11px;padding:10px;
+    background:var(--panel);min-width:0;}
+  .saber-kpi-label{font-size:10px;color:var(--muted);margin-bottom:4px;}
+  .saber-kpi-player{font-size:12px;font-weight:700;white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:4px;}
+  .saber-kpi-value{font:700 22px 'Roboto Mono',monospace;color:var(--accent);
+    margin-top:3px;}
+  .saber-grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(310px,.75fr);
+    gap:10px;margin-top:10px;}
+  .saber-panel{border:1px solid var(--line);border-radius:14px;padding:12px;
+    background:linear-gradient(145deg,var(--panel2),var(--panel));min-width:0;}
+  .saber-panel-title{font-size:13px;font-weight:700;color:var(--accent);
+    margin-bottom:2px;}
+  .saber-panel-note{font-size:10px;color:var(--muted);line-height:1.55;
+    margin-bottom:8px;}
+  .saber-bar-scroll{overflow-x:auto;}
+  .saber-bar-svg{display:block;width:100%;height:auto;min-width:620px;}
+  .saber-bar-svg text{font-family:'Roboto Mono',monospace;fill:var(--muted);
+    font-size:10px;}
+  .saber-bar-svg .bar-name{fill:var(--ink);font-family:inherit;font-weight:700;}
+  .saber-bar-svg .bar-bg{fill:var(--line);opacity:.55;}
+  .saber-bar-svg .bar{cursor:pointer;opacity:.84;transition:opacity .15s;}
+  .saber-bar-svg .bar:hover,.saber-bar-svg .bar.selected{opacity:1;
+    stroke:var(--ink);stroke-width:2;}
+  .saber-profile-head{display:flex;align-items:center;justify-content:space-between;
+    gap:8px;margin-bottom:7px;}
+  .saber-profile-name{font-size:18px;font-weight:700;display:flex;
+    align-items:center;gap:6px;}
+  .saber-profile-meta{font-size:10px;color:var(--muted);text-align:right;}
+  .saber-stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;
+    margin-bottom:8px;}
+  .saber-stat{background:var(--panel);border:1px solid var(--line);border-radius:7px;
+    padding:6px;text-align:center;}
+  .saber-stat span{display:block;font-size:9px;color:var(--muted);}
+  .saber-stat b{display:block;font:700 13px 'Roboto Mono',monospace;
+    color:var(--accent);margin-top:2px;}
+  .saber-radar{display:block;width:100%;height:auto;max-width:360px;margin:0 auto;}
+  .saber-radar .grid{fill:none;stroke:var(--line);stroke-width:1;}
+  .saber-radar .axis{stroke:var(--line2);stroke-width:1;}
+  .saber-radar .shape{fill:rgba(232,89,12,.2);stroke:var(--accent);
+    stroke-width:3;stroke-linejoin:round;}
+  .saber-radar text{font-size:10px;fill:var(--ink2);font-family:inherit;font-weight:700;}
+  .saber-comment{border-left:4px solid var(--accent);border-radius:8px;
+    background:var(--panel);padding:9px 11px;font-size:12px;line-height:1.8;
+    margin-top:8px;}
+  .saber-comment b{color:var(--accent);}
+  .saber-ai{border:1px dashed var(--accent2);border-radius:9px;padding:9px 10px;
+    margin-top:8px;background:rgba(232,89,12,.05);}
+  .saber-ai-head{display:flex;align-items:center;justify-content:space-between;
+    gap:8px;margin-bottom:5px;}
+  .saber-ai-title{font-size:11px;font-weight:700;color:var(--accent);}
+  .saber-ai-copy{font-size:10.5px;color:var(--muted);line-height:1.6;}
+  .saber-ai-result{font-size:12px;line-height:1.8;color:var(--ink);
+    white-space:pre-wrap;margin-top:6px;}
+  table.saber-table{min-width:900px;}
+  table.saber-table tr{cursor:pointer;}
+  table.saber-table tr:hover td{background:rgba(232,89,12,.07);}
+  @media(max-width:860px){
+    .saber-grid{grid-template-columns:1fr;}
+    .saber-kpis{grid-template-columns:1fr 1fr;}
+  }
+  @media(max-width:520px){
+    .saber-kpis{grid-template-columns:1fr;}
+    .saber-stat-grid{grid-template-columns:repeat(2,1fr);}
+  }
+
   /* ---- 指標一覧 ---- */
   .glossitem{border:1px solid var(--line);border-radius:10px;padding:10px 12px;
     margin-bottom:8px;background:var(--panel2);}
@@ -791,6 +866,7 @@
         <button class="vbtn" id="vb-metrics" aria-expanded="false"
           onclick="toggleNavGroup('metrics',event)">指標 <span class="navcaret">▼</span></button>
         <div class="navmenu" role="menu">
+          <button class="navitem" id="vb-sabermetrics" onclick="setView('sabermetrics')">セイバーメトリクス</button>
           <button class="navitem" id="vb-glossary" onclick="setView('glossary')">指標一覧</button>
           <button class="navitem" id="vb-war" onclick="setView('war')">WAR</button>
           <button class="navitem" id="vb-impact" onclick="setView('impact')">W-Impact</button>
@@ -824,6 +900,7 @@
 
     <div id="awardsView" style="display:none"></div>
     <div id="awardsGuideView" style="display:none"></div>
+    <div id="sabermetricsView" style="display:none"></div>
     <div id="glossaryView" style="display:none"></div>
     <div id="warView" style="display:none"></div>
     <div id="warGuideView" style="display:none"></div>
@@ -2107,7 +2184,8 @@
     closeNavGroups();
     var ids={dash:"dashView", games:"gameView", season:"seasonView",
              players:"playersView", compare:"compareView", daily:"dailyView", awards:"awardsView",
-             awardsGuide:"awardsGuideView", glossary:"glossaryView",
+             awardsGuide:"awardsGuideView", sabermetrics:"sabermetricsView",
+             glossary:"glossaryView",
              war:"warView", warGuide:"warGuideView",
              impact:"impactView", impactGuide:"impactGuideView",
              correlation:"correlationView", teamstyle:"teamstyleView", export:"exportView"};
@@ -2120,7 +2198,7 @@
     var navGroups={
       stats:["season","players","compare"],
       analysis:["daily","correlation","teamstyle"],
-      metrics:["glossary","war","warGuide","impact","impactGuide"]
+      metrics:["sabermetrics","glossary","war","warGuide","impact","impactGuide"]
     };
     Object.keys(navGroups).forEach(function(group){
       var button=document.getElementById("vb-"+group);
@@ -2137,6 +2215,7 @@
     else if(v==="awardsGuide"){
       document.getElementById("awardsGuideView").innerHTML=renderAwardsGuide();
     }
+    else if(v==="sabermetrics") loadSabermetrics();
     else if(v==="glossary"){
       document.getElementById("glossaryView").innerHTML=renderGlossary();
     }
@@ -4576,6 +4655,379 @@
     });
     h+='</tbody></table></div></div>';
     return h;
+  }
+
+  /* ===== セイバーメトリクス分析 ===== */
+  var saberData=null, saberKind="batter", saberLeague="all", saberTeam="all",
+      saberQual="qualified", saberMetric="wrc_plus_est", saberSelectedKey=null,
+      saberCurrentTop=[], saberAiText="", saberAiState="";
+
+  function saberDefs(){
+    if(saberKind==="pitcher"){
+      return [
+        {key:"era",label:"防御率",digits:2,higher:false,desc:"9回あたりの自責点"},
+        {key:"fip",label:"FIP",digits:2,higher:false,desc:"守備に依存しにくい投球評価"},
+        {key:"whip",label:"WHIP",digits:2,higher:false,desc:"1回あたりに許した走者"},
+        {key:"k_pct",label:"K%",digits:1,higher:true,pct:true,desc:"対戦打者から三振を奪った割合"},
+        {key:"bb_pct",label:"BB%",digits:1,higher:false,pct:true,desc:"対戦打者へ四球を与えた割合"},
+        {key:"k_bb",label:"K/BB",digits:2,higher:true,desc:"奪三振と与四球の比率"},
+        {key:"lob_pct_est",label:"推定LOB%",digits:1,higher:true,pct:true,desc:"走者を生還させなかった推定割合"},
+        {key:"k9",label:"K/9",digits:2,higher:true,desc:"9回あたり奪三振"},
+        {key:"w_rating",label:"W-Rating",digits:1,higher:true,root:true,desc:"役割調整済みの質"}
+      ];
+    }
+    return [
+      {key:"wrc_plus_est",label:"推定wRC+",digits:0,higher:true,desc:"リーグ平均100の打撃得点創出力"},
+      {key:"woba_est",label:"推定wOBA",digits:3,higher:true,desc:"打席あたりの加重得点貢献"},
+      {key:"ops",label:"OPS",digits:3,higher:true,desc:"出塁率と長打率の合計"},
+      {key:"iso",label:"ISO",digits:3,higher:true,desc:"純粋な長打力"},
+      {key:"bb_pct",label:"BB%",digits:1,higher:true,pct:true,desc:"四球を選んだ打席割合"},
+      {key:"k_pct",label:"K%",digits:1,higher:false,pct:true,desc:"三振した打席割合"},
+      {key:"bb_k",label:"BB/K",digits:2,higher:true,desc:"四球と三振の比率"},
+      {key:"rc27",label:"RC27",digits:2,higher:true,desc:"27アウトあたりの推定得点"},
+      {key:"xr27",label:"XR27",digits:2,higher:true,desc:"27アウトあたりの推定XR"},
+      {key:"bsr_est",label:"推定BsR",digits:2,higher:true,desc:"取得可能な走塁イベントの得点価値"},
+      {key:"w_rating",label:"W-Rating",digits:1,higher:true,root:true,desc:"役割調整済みの質"}
+    ];
+  }
+  function saberDef(key){
+    var defs=saberDefs();
+    for(var i=0;i<defs.length;i++) if(defs[i].key===key) return defs[i];
+    return defs[0];
+  }
+  function saberValue(row,key){
+    if(!row) return null;
+    var d=saberDef(key),value=d.root?row[key]:(row.stats||{})[key];
+    if(value==null||value==="") return null;
+    value=Number(value);
+    return isFinite(value)?value:null;
+  }
+  function saberFmt(value,key){
+    if(value==null||!isFinite(value)) return "-";
+    var d=saberDef(key);
+    if(d.pct) return (value*100).toFixed(d.digits)+"%";
+    if(d.digits===0) return String(Math.round(value));
+    return value.toFixed(d.digits);
+  }
+  function saberRows(){
+    if(!saberData) return [];
+    var source=saberKind==="pitcher"?saberData.pitchers:saberData.batters;
+    return impactUniqueRows(source||[]).filter(function(row){
+      var s=row.stats||{},lg=row.league||tLeague(row.team);
+      if(saberLeague!=="all"&&lg!==saberLeague) return false;
+      if(saberTeam!=="all"&&row.team!==saberTeam) return false;
+      if(saberQual==="qualified"){
+        return saberKind==="pitcher"?!!s.qualified_ip:!!s.qualified_pa;
+      }
+      if(saberQual==="regular"){
+        return saberKind==="pitcher"?Number(s.innings||0)>=10:Number(s.pa||0)>=50;
+      }
+      return true;
+    });
+  }
+  function saberSorted(rows,key){
+    var d=saberDef(key);
+    return rows.filter(function(row){return saberValue(row,key)!=null;})
+      .sort(function(a,b){
+        var av=saberValue(a,key),bv=saberValue(b,key);
+        return (d.higher?bv-av:av-bv)||Number(b.w_value||0)-Number(a.w_value||0);
+      });
+  }
+  function saberPercentile(row,key,rows){
+    var value=saberValue(row,key),d=saberDef(key);
+    var values=rows.map(function(x){return saberValue(x,key);})
+      .filter(function(x){return x!=null;});
+    if(value==null||!values.length) return null;
+    var favorable=values.filter(function(x){return d.higher?x<=value:x>=value;}).length;
+    return Math.round(favorable/values.length*100);
+  }
+  function saberSetKind(kind){
+    saberKind=kind;saberTeam="all";saberSelectedKey=null;saberAiText="";saberAiState="";
+    saberMetric=kind==="pitcher"?"fip":"wrc_plus_est";
+    renderSabermetrics();
+  }
+  function saberSetLeague(lg){
+    saberLeague=lg;
+    if(saberTeam!=="all"&&lg!=="all"&&tLeague(saberTeam)!==lg) saberTeam="all";
+    saberSelectedKey=null;saberAiText="";saberAiState="";renderSabermetrics();
+  }
+  function saberSetTeam(team){
+    saberTeam=team;saberSelectedKey=null;saberAiText="";saberAiState="";
+    renderSabermetrics();
+  }
+  function saberSetQual(qual){
+    saberQual=qual;saberSelectedKey=null;saberAiText="";saberAiState="";
+    renderSabermetrics();
+  }
+  function saberSetMetric(metric){
+    saberMetric=metric;saberSelectedKey=null;saberAiText="";saberAiState="";
+    renderSabermetrics();
+  }
+  function saberSelect(key){
+    saberSelectedKey=key;saberAiText="";saberAiState="";renderSabermetrics();
+  }
+  function saberSelectIndex(index){
+    var row=saberCurrentTop[index];
+    if(row) saberSelect(row.player_key);
+  }
+  function saberTeamOptions(rows){
+    var seen={},teams=[];
+    (rows||[]).forEach(function(row){
+      var lg=row.league||tLeague(row.team);
+      if(row.team&&(saberLeague==="all"||lg===saberLeague)&&!seen[row.team]){
+        seen[row.team]=1;teams.push(row.team);
+      }
+    });
+    var order=TEAM_ORDER_PA.concat(TEAM_ORDER_SE);
+    teams.sort(function(a,b){return order.indexOf(a)-order.indexOf(b);});
+    return '<option value="all">全12球団</option>'+teams.map(function(team){
+      return '<option value="'+esc(team)+'"'+(saberTeam===team?" selected":"")+'>'+
+        esc(team)+'</option>';
+    }).join("");
+  }
+  async function loadSabermetrics(){
+    var view=document.getElementById("sabermetricsView");
+    view.innerHTML='<div class="msg">セイバーメトリクスデータを読み込み中…</div>';
+    var year=(dp.value||todayJST()).split("-")[0];
+    try{
+      var response=await fetch("data/"+year+"/w_impact.json?t="+Date.now());
+      saberData=response.ok?await response.json():null;
+    }catch(e){saberData=null;}
+    renderSabermetrics();
+  }
+  function saberKpis(rows){
+    var keys=saberKind==="pitcher"
+      ?["era","fip","k_pct","k_bb"]
+      :["wrc_plus_est","woba_est","rc27","bsr_est"];
+    return '<div class="saber-kpis">'+keys.map(function(key){
+      var leader=saberSorted(rows,key)[0],d=saberDef(key);
+      return '<div class="saber-kpi"><div class="saber-kpi-label">'+esc(d.label)+' リーダー</div>'+
+        (leader?'<div class="saber-kpi-player">'+teamBadge(leader.team)+' '+esc(leader.name)+'</div>'+
+        '<div class="saber-kpi-value">'+saberFmt(saberValue(leader,key),key)+'</div>':
+        '<div class="saber-kpi-player">該当なし</div>')+'</div>';
+    }).join("")+'</div>';
+  }
+  function saberBarChart(rows){
+    var ranked=saberSorted(rows,saberMetric).slice(0,10),d=saberDef(saberMetric);
+    saberCurrentTop=ranked;
+    if(!ranked.length) return '<div class="msg">グラフに表示できる選手がいません</div>';
+    var w=760,left=150,right=72,top=15,rowH=34,h=top+ranked.length*rowH+14;
+    var values=ranked.map(function(row){return saberValue(row,saberMetric);});
+    var min=Math.min.apply(null,values),max=Math.max.apply(null,values);
+    var low=Math.min(0,min),range=(max-low)||1,plot=w-left-right;
+    var s='<div class="saber-bar-scroll"><svg class="saber-bar-svg" viewBox="0 0 '+w+' '+h+
+      '" role="img" aria-label="'+esc(d.label)+'上位選手">';
+    ranked.forEach(function(row,index){
+      var value=values[index],desirable=d.higher?(value-low)/range:(max-value)/(max-min||1);
+      var width=Math.max(18,plot*(.28+.72*desirable)),y=top+index*rowH;
+      var color=tColor(row.team)||"#e8590c",selected=row.player_key===saberSelectedKey;
+      s+='<text class="bar-name" x="'+(left-8)+'" y="'+(y+20)+'" text-anchor="end">'+
+        (index+1)+'. '+esc(row.name)+'</text>'+
+        '<rect class="bar-bg" x="'+left+'" y="'+(y+6)+'" width="'+plot+'" height="20" rx="7"/>'+
+        '<rect class="bar'+(selected?" selected":"")+'" x="'+left+'" y="'+(y+6)+
+        '" width="'+width+'" height="20" rx="7" fill="'+color+'" onclick="saberSelectIndex('+index+')">'+
+        '<title>'+esc(row.name)+'（'+esc(row.team)+'） '+esc(d.label)+' '+
+        saberFmt(value,saberMetric)+'</title></rect>'+
+        '<text x="'+(left+width+7)+'" y="'+(y+20)+'">'+saberFmt(value,saberMetric)+'</text>';
+    });
+    return s+'</svg></div>';
+  }
+  function saberRadarDefs(){
+    return saberKind==="pitcher"
+      ?["era","fip","whip","k_pct","k_bb","lob_pct_est"]
+      :["wrc_plus_est","woba_est","iso","bb_pct","bsr_est","w_rating"];
+  }
+  function saberRadar(row,rows){
+    var keys=saberRadarDefs(),cx=170,cy=137,r=102,count=keys.length;
+    function point(radius,index){
+      var angle=-Math.PI/2+Math.PI*2*index/count;
+      return [cx+Math.cos(angle)*radius,cy+Math.sin(angle)*radius];
+    }
+    var s='<svg class="saber-radar" viewBox="0 0 340 285" role="img" aria-label="'+
+      esc(row.name)+'の指標パーセンタイル">';
+    [20,40,60,80,100].forEach(function(level){
+      var pts=keys.map(function(_,i){return point(r*level/100,i).join(",");});
+      s+='<polygon class="grid" points="'+pts.join(" ")+'"/>';
+    });
+    keys.forEach(function(key,i){
+      var edge=point(r,i),label=point(r+23,i),anchor=label[0]<cx-8?"end":label[0]>cx+8?"start":"middle";
+      s+='<line class="axis" x1="'+cx+'" y1="'+cy+'" x2="'+edge[0]+'" y2="'+edge[1]+'"/>'+
+        '<text x="'+label[0]+'" y="'+(label[1]+4)+'" text-anchor="'+anchor+'">'+
+        esc(saberDef(key).label)+'</text>';
+    });
+    var shape=keys.map(function(key,i){
+      var percentile=saberPercentile(row,key,rows);
+      return point(r*Math.max(5,percentile==null?5:percentile)/100,i).join(",");
+    });
+    return s+'<polygon class="shape" points="'+shape.join(" ")+'"/></svg>';
+  }
+  function saberStatGrid(row){
+    return '<div class="saber-stat-grid">'+saberRadarDefs().map(function(key){
+      return '<div class="saber-stat"><span>'+esc(saberDef(key).label)+'</span><b>'+
+        saberFmt(saberValue(row,key),key)+'</b></div>';
+    }).join("")+'</div>';
+  }
+  function saberCommentary(row,rows){
+    var keys=saberRadarDefs(),strengths=[],watch=[],s=row.stats||{};
+    keys.forEach(function(key){
+      var p=saberPercentile(row,key,rows),label=saberDef(key).label;
+      if(p!=null&&p>=75) strengths.push(label+"（上位"+(100-p)+"%）");
+      else if(p!=null&&p<=25) watch.push(label+"（下位"+p+"%）");
+    });
+    var primary=saberDef(saberMetric),rank=saberSorted(rows,saberMetric)
+      .findIndex(function(x){return x.player_key===row.player_key;})+1;
+    var volume=saberKind==="pitcher"
+      ?Number(s.games||0)+"登板・"+Number(s.innings||0).toFixed(1)+"回"
+      :Number(s.games||0)+"試合・"+Number(s.pa||0)+"打席";
+    var text='<b>'+esc(row.name)+'</b>は、現在の絞り込み内で'+esc(primary.label)+
+      'が'+(rank>0?rank+"位":"比較対象外")+"。"+esc(volume)+"の出場量があります。";
+    if(strengths.length) text+=" 強みは"+esc(strengths.slice(0,3).join("、"))+"です。";
+    if(watch.length) text+=" 一方、"+esc(watch.slice(0,2).join("、"))+
+      "は相対的に低く、役割やサンプル数も含めて見る必要があります。";
+    text+=" 数値は同じ条件の選手との相対比較で、将来成績を保証するものではありません。";
+    return text;
+  }
+  function saberAiPrompt(row,rows){
+    var facts=saberRadarDefs().map(function(key){
+      return saberDef(key).label+"="+saberFmt(saberValue(row,key),key)+
+        "（パーセンタイル"+saberPercentile(row,key,rows)+"）";
+    }).join("、");
+    var s=row.stats||{};
+    return "あなたはNPBのデータアナリストです。次の記録だけを根拠に、日本語で120〜180字の"+
+      "冷静な選手寸評を作成してください。長所、注意点、出場量に触れ、記録にない事実や故障、"+
+      "将来予測は書かないでください。選手="+row.name+"、球団="+row.team+"、区分="+
+      (saberKind==="pitcher"?"投手":"野手")+"、出場量="+
+      (saberKind==="pitcher"?(s.games+"登板・"+s.innings+"回"):(s.games+"試合・"+s.pa+"打席"))+
+      "、指標="+facts+"。";
+  }
+  async function saberGenerateAI(){
+    var rows=saberRows(),row=rows.find(function(x){return x.player_key===saberSelectedKey;});
+    var resultEl=document.getElementById("saberAiResult"),button=document.getElementById("saberAiButton");
+    if(!row||!resultEl) return;
+    saberAiState="loading";button.disabled=true;resultEl.textContent="端末内AIを準備しています…";
+    try{
+      if(typeof LanguageModel==="undefined") throw new Error("このブラウザは端末内AIに対応していません");
+      var options={
+        expectedInputs:[{type:"text",languages:["ja"]}],
+        expectedOutputs:[{type:"text",languages:["ja"]}]
+      };
+      var availability=await LanguageModel.availability(options);
+      if(availability==="unavailable") throw new Error("この端末ではAIモデルを利用できません");
+      if(availability==="downloadable"||availability==="downloading"){
+        resultEl.textContent="初回AIモデルをダウンロードしています。しばらくお待ちください…";
+      }
+      var session=await LanguageModel.create(options);
+      var answer=await session.prompt(saberAiPrompt(row,rows));
+      if(session.destroy) session.destroy();
+      saberAiText=String(answer||"").trim();
+      saberAiState="done";
+      resultEl.textContent=saberAiText||"AIから文章を取得できませんでした";
+    }catch(error){
+      saberAiState="error";
+      resultEl.textContent=(error&&error.message?error.message:"端末内AIを利用できません")+
+        "。上の自動寸評は引き続き利用できます。";
+    }finally{
+      button.disabled=false;
+    }
+  }
+  function saberProfile(row,rows){
+    var s=row.stats||{},meta=saberKind==="pitcher"
+      ?esc(row.role||"投手")+" ／ "+Number(s.games||0)+"登板・"+Number(s.innings||0).toFixed(1)+"回"
+      :esc(s.primary_position||row.position||"野手")+" ／ "+Number(s.games||0)+"試合・"+Number(s.pa||0)+"打席";
+    return '<div class="saber-profile-head"><div class="saber-profile-name">'+
+      teamBadge(row.team)+' '+esc(row.name)+'</div><div class="saber-profile-meta">'+meta+'</div></div>'+
+      saberStatGrid(row)+saberRadar(row,rows)+
+      '<div class="saber-comment"><div class="saber-panel-title">データ寸評</div>'+
+      saberCommentary(row,rows)+'</div>'+
+      '<div class="saber-ai"><div class="saber-ai-head"><div class="saber-ai-title">端末内AI寸評（無料・APIキー不要）</div>'+
+      '<button class="btn" id="saberAiButton" onclick="saberGenerateAI()">AIで寸評</button></div>'+
+      '<div class="saber-ai-copy">対応するデスクトップChromeの内蔵AIだけを使用します。選手データは外部APIへ送信しません。非対応端末ではデータ寸評をご利用ください。</div>'+
+      '<div class="saber-ai-result" id="saberAiResult">'+esc(saberAiText)+'</div></div>';
+  }
+  function saberTable(rows){
+    var keys=saberKind==="pitcher"
+      ?["era","fip","whip","k_pct","bb_pct","k_bb","lob_pct_est"]
+      :["wrc_plus_est","woba_est","ops","iso","bb_pct","k_pct","bsr_est"];
+    var ranked=saberSorted(rows,saberMetric).slice(0,30);
+    var h='<div class="subsec"><div class="subttl">ランキング（上位30）</div>'+
+      '<div class="tblwrap"><table class="stbl saber-table"><thead><tr><th>#</th><th class="nm">選手</th>'+
+      '<th>球団</th><th>'+(saberKind==="pitcher"?"登板":"試合")+'</th>'+
+      '<th>'+(saberKind==="pitcher"?"投球回":"打席")+'</th>';
+    keys.forEach(function(key){h+='<th>'+esc(saberDef(key).label)+'</th>';});
+    h+='</tr></thead><tbody>';
+    ranked.forEach(function(row,index){
+      var s=row.stats||{};
+      h+='<tr onclick="saberSelect(\''+esc(row.player_key)+'\')"><td>'+(index+1)+'</td>'+
+        '<td class="nm">'+esc(row.name)+'</td><td>'+teamBadge(row.team)+'</td>'+
+        '<td class="num">'+Number(s.games||0)+'</td><td class="num">'+
+        (saberKind==="pitcher"?Number(s.innings||0).toFixed(1):Number(s.pa||0))+'</td>';
+      keys.forEach(function(key){
+        h+='<td class="num'+(key===saberMetric?" hi":"")+'">'+
+          saberFmt(saberValue(row,key),key)+'</td>';
+      });
+      h+='</tr>';
+    });
+    return h+'</tbody></table></div></div>';
+  }
+  function renderSabermetrics(){
+    var view=document.getElementById("sabermetricsView");
+    if(!saberData){
+      view.innerHTML='<div class="msg">セイバーメトリクスデータを読み込めませんでした</div>';
+      return;
+    }
+    var allSource=impactUniqueRows((saberKind==="pitcher"?saberData.pitchers:saberData.batters)||[]);
+    var rows=saberRows(),ranked=saberSorted(rows,saberMetric);
+    if(!saberSelectedKey||!rows.some(function(x){return x.player_key===saberSelectedKey;})){
+      saberSelectedKey=ranked.length?ranked[0].player_key:(rows[0]||{}).player_key;
+    }
+    var selected=rows.find(function(x){return x.player_key===saberSelectedKey;});
+    var defs=saberDefs(),metric=saberDef(saberMetric);
+    var playerOptions=rows.slice().sort(function(a,b){return a.name.localeCompare(b.name,"ja");})
+      .map(function(row){
+        return '<option value="'+esc(row.player_key)+'"'+
+          (row.player_key===saberSelectedKey?" selected":"")+'>'+esc(row.name)+
+          '（'+esc(row.team)+'）</option>';
+      }).join("");
+    var h='<div class="saber-hero"><h2>セイバーメトリクス</h2>'+
+      '<p>打率や防御率だけでは見えにくい、得点創出・選球眼・長打力・走塁・投球内容を横断して比較します。'+
+      '「推定」と付く指標は公開データだけで算出した参考値です。球場効果やトラッキングデータが必要な数値は推測していません。</p></div>'+
+      '<div class="stabs gtabs"><button class="stab'+(saberKind==="batter"?" on":"")+
+      '" style="--sc:var(--accent)" onclick="saberSetKind(\'batter\')">野手</button>'+
+      '<button class="stab'+(saberKind==="pitcher"?" on":"")+
+      '" style="--sc:var(--accent)" onclick="saberSetKind(\'pitcher\')">投手</button></div>'+
+      '<div class="expform" style="margin:8px 0 10px">'+
+      '<label class="ef"><span>リーグ</span><select onchange="saberSetLeague(this.value)">'+
+      '<option value="all"'+(saberLeague==="all"?" selected":"")+'>セ・パ両リーグ</option>'+
+      '<option value="セ"'+(saberLeague==="セ"?" selected":"")+'>セ・リーグ</option>'+
+      '<option value="パ"'+(saberLeague==="パ"?" selected":"")+'>パ・リーグ</option></select></label>'+
+      '<label class="ef"><span>球団</span><select onchange="saberSetTeam(this.value)">'+
+      saberTeamOptions(allSource)+'</select></label>'+
+      '<label class="ef"><span>出場条件</span><select onchange="saberSetQual(this.value)">'+
+      '<option value="all"'+(saberQual==="all"?" selected":"")+'>全選手</option>'+
+      '<option value="regular"'+(saberQual==="regular"?" selected":"")+'>'+
+      (saberKind==="pitcher"?"10投球回以上":"50打席以上")+'</option>'+
+      '<option value="qualified"'+(saberQual==="qualified"?" selected":"")+'>'+
+      (saberKind==="pitcher"?"規定投球回到達":"規定打席到達")+'</option></select></label>'+
+      '<label class="ef"><span>ランキング指標</span><select onchange="saberSetMetric(this.value)">'+
+      defs.map(function(d){return '<option value="'+d.key+'"'+
+        (d.key===saberMetric?" selected":"")+'>'+esc(d.label)+'</option>';}).join("")+
+      '</select></label><label class="ef"><span>選手</span><select onchange="saberSelect(this.value)">'+
+      playerOptions+'</select></label></div>'+
+      saberKpis(rows);
+    if(!rows.length){
+      view.innerHTML=h+'<div class="msg">条件に一致する選手がいません</div>';
+      return;
+    }
+    h+='<div class="saber-grid"><div class="saber-panel"><div class="saber-panel-title">'+
+      esc(metric.label)+' TOP10</div><div class="saber-panel-note">'+esc(metric.desc)+
+      '。棒を押すと右側の選手寸評が切り替わります。</div>'+saberBarChart(rows)+'</div>'+
+      '<div class="saber-panel"><div class="saber-panel-title">選手プロフィール</div>'+
+      '<div class="saber-panel-note">レーダーは現在の絞り込み内でのパーセンタイルです。外側ほど相対的に優れています。</div>'+
+      (selected?saberProfile(selected,rows):'<div class="msg">選手を選択してください</div>')+
+      '</div></div>'+saberTable(rows)+
+      '<div class="expbtns"><button class="btn" onclick="setView(\'glossary\')">指標の計算方法を見る ▶</button>'+
+      '<button class="btn" onclick="setView(\'correlation\')">相関分析を見る ▶</button></div>';
+    view.innerHTML=h;
   }
 
   /* ===== セイバーメトリクス指標一覧 ===== */
