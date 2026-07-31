@@ -217,8 +217,14 @@ def parse_homeruns(html: str) -> list[dict]:
 
 
 def parse_battery(html: str) -> dict:
-    """バッテリー（投手 - 捕手）を取得する"""
+    """両チームのバッテリー（投手 - 捕手）を取得する。
+
+    スポナビの試合ページではホーム、ビジターの順に同じ見出しが
+    2回現れる。従来は最初の1件で return していたため、ホーム側しか
+    保存されていなかった。既存データとの互換用に ``text`` も残す。
+    """
     soup = BeautifulSoup(html, "html.parser")
+    texts = []
     for th in soup.select("th.bb-splitsTable__head--battery"):
         table = th.find_parent("tbody") or th.find_parent("table")
         if not table:
@@ -226,8 +232,15 @@ def parse_battery(html: str) -> dict:
         td = table.select_one("td.bb-splitsTable__data")
         if td:
             text = " ".join(td.get_text(" ", strip=True).split())
-            return {"text": text}
-    return {}
+            if text:
+                texts.append(text)
+    if not texts:
+        return {}
+
+    out = {"text": texts[0], "home": texts[0]}
+    if len(texts) > 1:
+        out["away"] = texts[1]
+    return out
 
 
 def _to_int(s, default=0):

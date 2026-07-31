@@ -1307,9 +1307,34 @@
       h+='<div class="card2"><h3>本塁打</h3>'+hr+'</div>';
     }
 
-    // バッテリー
-    if(res.battery&&res.battery.text){
-      h+='<div class="card2"><h3>バッテリー</h3><div class="sub">'+esc(res.battery.text)+'</div></div>';
+    // バッテリー。新規データは両チーム分を保持し、旧データで欠ける側は
+    // 投手成績と捕手の出場記録から補完する。
+    function inferBattery(side){
+      var box=g.boxscore||{}, pitching=(box.pitching&&box.pitching[side])||[];
+      var batting=(box.batting&&box.batting[side])||[];
+      var pitchers=[], catchers=[];
+      pitching.forEach(function(x){
+        if(x.name&&pitchers.indexOf(x.name)<0) pitchers.push(x.name);
+      });
+      batting.forEach(function(x){
+        if(x.name&&String(x.position||"").indexOf("捕")>=0&&catchers.indexOf(x.name)<0){
+          catchers.push(x.name);
+        }
+      });
+      if(!pitchers.length&&!catchers.length) return "";
+      return pitchers.join("、")+(pitchers.length&&catchers.length?" - ":"")+catchers.join("、");
+    }
+    var battery=res.battery||{};
+    var batteryRows=[
+      {side:"away",team:g.away,text:battery.away||inferBattery("away")},
+      {side:"home",team:g.home,text:battery.home||battery.text||inferBattery("home")}
+    ].filter(function(x){return x.text;});
+    if(batteryRows.length){
+      h+='<div class="card2"><h3>バッテリー</h3>'+
+        batteryRows.map(function(x){
+          return '<div class="kv"><span class="k">'+teamBadge(x.team)+' '+esc(x.team||x.side)+'</span>'+
+            '<b>'+esc(x.text)+'</b></div>';
+        }).join("")+'</div>';
     }
     return h;
   }
@@ -2420,7 +2445,8 @@
            '<span class="lgbadge" style="background:'+LEAGUE_COLOR[lg]+'">'+lg+'</span> '+
            esc(LEAGUE_NAME[lg])+'</h3><div class="tblwrap">'+
            '<table class="stbl"><thead><tr><th></th><th class="nm">チーム</th>'+
-           '<th>試合</th><th>得点</th><th>失点</th><th>得失差</th><th>安打</th><th>本塁打</th></tr></thead><tbody>';
+           '<th>試合</th><th>得点</th><th>失点</th><th>得失差</th><th>安打</th><th>本塁打</th>'+
+           '<th title="本塁打などを除く打球をアウトにした割合">DER</th></tr></thead><tbody>';
         rows.forEach(function(t){
           var diff=(t.runs||0)-(t.runs_allowed||0);
           h+='<tr><td>'+teamBadge(t.team)+'</td><td class="nm">'+esc(t.team)+'</td>'+
@@ -2429,9 +2455,11 @@
              '<td class="num">'+(t.runs_allowed||0)+'</td>'+
              '<td class="num'+(diff>0?' hi':'')+'">'+(diff>0?"+":"")+diff+'</td>'+
              '<td class="num">'+(t.hits||0)+'</td>'+
-             '<td class="num">'+(t.hr||0)+'</td></tr>';
+             '<td class="num">'+(t.hr||0)+'</td>'+
+             '<td class="num">'+fmtAvg(t.der)+'</td></tr>';
         });
-        h+='</tbody></table></div></div>';
+        h+='</tbody></table></div>'+
+           '<div class="sub" style="font-size:11px;margin-top:6px">DER＝本塁打・四死球・三振・犠打を除く打球を守備でアウトにした割合。球団単位の参考守備指標です。</div></div>';
       });
     }
 
@@ -2584,12 +2612,15 @@
     ["number","背番号"],["name","選手"],["team","球団"],["position","位置"],["hand","投打"],
     ["games","試合"],["pa","打席"],["ab","打数"],["hits","安打"],["hr","本"],["rbi","点"],
     ["sb","盗"],["avg","打率"],["obp","出塁"],["slg","長打"],["ops","OPS"],
-    ["iso","ISO"],["babip","BABIP"]
+    ["iso","ISO"],["babip","BABIP"],["bb_pct","BB%"],["k_pct","K%"],["bb_k","BB/K"],
+    ["woba_est","推wOBA"],["wrc_plus_est","推wRC+"],["rc27","RC27"],["xr27","XR27"],
+    ["gpa","GPA"],["seca","SecA"],["ta","TA"],["bsr_est","推BsR"]
   ];
   var PL_COLS_PIT = [
     ["number","背番号"],["name","選手"],["team","球団"],["hand","投打"],
     ["games","登板"],["outs","回"],["era","防御率"],["fip","FIP"],["whip","WHIP"],["k9","K/9"],
-    ["so","奪三"],["bb","四球"],["wins","勝"],["losses","敗"],["win_pct","勝率"],
+    ["bb9","BB/9"],["hr9","HR/9"],["k_bb","K/BB"],["k_pct","K%"],["bb_pct","BB%"],
+    ["lob_pct_est","推LOB%"],["so","奪三"],["bb","四球"],["wins","勝"],["losses","敗"],["win_pct","勝率"],
     ["saves","S"],["holds","H"],["hp","HP"]
   ];
   /* 小さいほど良い項目は、最初のクリックで昇順にする */
@@ -2600,7 +2631,9 @@
       plSortDir = (plSortDir==="desc") ? "asc" : "desc";
     }else{
       plSort=k;
-      plSortDir = PL_ASC_FIRST[k] ? "asc" : "desc";
+      var pitchLower = plKind==="pitcher" &&
+        /^(bb9|hr9|bb_pct|era|fip|whip|losses)$/.test(k);
+      plSortDir = (PL_ASC_FIRST[k] || pitchLower) ? "asc" : "desc";
     }
     renderPlayers();
   }
@@ -2632,11 +2665,26 @@
       case "ops": return b.ops;
       case "iso": return b.iso;
       case "babip": return b.babip;
+      case "bb_pct": return plKind==="pitcher" ? q.bb_pct : b.bb_pct;
+      case "k_pct": return plKind==="pitcher" ? q.k_pct : b.k_pct;
+      case "bb_k": return b.bb_k;
+      case "woba_est": return b.woba_est;
+      case "wrc_plus_est": return b.wrc_plus_est;
+      case "rc27": return b.rc27;
+      case "xr27": return b.xr27;
+      case "gpa": return b.gpa;
+      case "seca": return b.seca;
+      case "ta": return b.ta;
+      case "bsr_est": return b.bsr_est;
       case "outs": return q.outs||0;
       case "era": return q.era;
       case "fip": return q.fip;
       case "whip": return q.whip;
       case "k9": return q.k9;
+      case "bb9": return q.bb9;
+      case "hr9": return q.hr9;
+      case "k_bb": return q.k_bb;
+      case "lob_pct_est": return q.lob_pct_est;
       case "so": return q.so||0;
       case "bb": return q.bb||0;
       case "wins": return q.wins||0;
@@ -2925,6 +2973,12 @@
            '<td class="num">'+(q.fip==null?"-":q.fip.toFixed(2))+'</td>'+
            '<td class="num">'+(q.whip==null?"-":q.whip.toFixed(2))+'</td>'+
            '<td class="num">'+(q.k9==null?"-":q.k9.toFixed(1))+'</td>'+
+           '<td class="num">'+(q.bb9==null?"-":q.bb9.toFixed(1))+'</td>'+
+           '<td class="num">'+(q.hr9==null?"-":q.hr9.toFixed(1))+'</td>'+
+           '<td class="num">'+(q.k_bb==null?"-":q.k_bb.toFixed(2))+'</td>'+
+           '<td class="num">'+(q.k_pct==null?"-":(q.k_pct*100).toFixed(1)+"%")+'</td>'+
+           '<td class="num">'+(q.bb_pct==null?"-":(q.bb_pct*100).toFixed(1)+"%")+'</td>'+
+           '<td class="num">'+(q.lob_pct_est==null?"-":(q.lob_pct_est*100).toFixed(1)+"%")+'</td>'+
            '<td class="num">'+(q.so||0)+'</td>'+
            '<td class="num">'+(q.bb||0)+'</td>'+
            '<td class="num'+((q.wins||0)>0?' hi':'')+'">'+(q.wins||0)+'</td>'+
@@ -2948,7 +3002,18 @@
            '<td class="num">'+fmtAvg(b.slg)+'</td>'+
            '<td class="num">'+(b.ops==null?"-":b.ops.toFixed(3).replace(/^0\./,"."))+'</td>'+
            '<td class="num">'+fmtAvg(b.iso)+'</td>'+
-           '<td class="num">'+fmtAvg(b.babip)+'</td>';
+           '<td class="num">'+fmtAvg(b.babip)+'</td>'+
+           '<td class="num">'+(b.bb_pct==null?"-":(b.bb_pct*100).toFixed(1)+"%")+'</td>'+
+           '<td class="num">'+(b.k_pct==null?"-":(b.k_pct*100).toFixed(1)+"%")+'</td>'+
+           '<td class="num">'+(b.bb_k==null?"-":b.bb_k.toFixed(2))+'</td>'+
+           '<td class="num">'+fmtAvg(b.woba_est)+'</td>'+
+           '<td class="num hi">'+(b.wrc_plus_est==null?"-":Math.round(b.wrc_plus_est))+'</td>'+
+           '<td class="num">'+(b.rc27==null?"-":b.rc27.toFixed(2))+'</td>'+
+           '<td class="num">'+(b.xr27==null?"-":b.xr27.toFixed(2))+'</td>'+
+           '<td class="num">'+fmtAvg(b.gpa)+'</td>'+
+           '<td class="num">'+fmtAvg(b.seca)+'</td>'+
+           '<td class="num">'+fmtAvg(b.ta)+'</td>'+
+           '<td class="num">'+(b.bsr_est==null?"-":b.bsr_est.toFixed(2))+'</td>';
       }
       h+='</tr>';
     });
@@ -3051,6 +3116,19 @@
         cmpRow("OPS", a.ops, b.ops, fmtAvg)+
         cmpRow("ISO", a.iso, b.iso, fmtAvg)+
         cmpRow("BABIP", a.babip, b.babip, fmtAvg)+
+        cmpRow("BB%", a.bb_pct, b.bb_pct, function(v){return v==null?"-":(v*100).toFixed(1)+"%";})+
+        cmpRow("K%", a.k_pct, b.k_pct, function(v){return v==null?"-":(v*100).toFixed(1)+"%";}, true)+
+        cmpRow("BB/K", a.bb_k, b.bb_k, function(v){return v==null?"-":v.toFixed(2);})+
+        cmpRow("推定wOBA", a.woba_est, b.woba_est, fmtAvg)+
+        cmpRow("推定wRAA", a.wraa_est, b.wraa_est, function(v){return v==null?"-":v.toFixed(2);})+
+        cmpRow("推定wRC", a.wrc_est, b.wrc_est, function(v){return v==null?"-":v.toFixed(2);})+
+        cmpRow("推定wRC+（球場未補正）", a.wrc_plus_est, b.wrc_plus_est, function(v){return v==null?"-":Math.round(v);})+
+        cmpRow("RC27", a.rc27, b.rc27, function(v){return v==null?"-":v.toFixed(2);})+
+        cmpRow("XR27", a.xr27, b.xr27, function(v){return v==null?"-":v.toFixed(2);})+
+        cmpRow("GPA", a.gpa, b.gpa, fmtAvg)+
+        cmpRow("SecA", a.seca, b.seca, fmtAvg)+
+        cmpRow("TA", a.ta, b.ta, fmtAvg)+
+        cmpRow("推定BsR", a.bsr_est, b.bsr_est, function(v){return v==null?"-":v.toFixed(2);})+
         cmpRow("三振", a.so, b.so, null, true)+
         '</tbody></table></div>';
     }
@@ -3067,6 +3145,12 @@
         cmpRow("奪三振", qa.so, qb.so)+
         cmpRow("与四球", qa.bb, qb.bb, null, true)+
         cmpRow("K/9", qa.k9, qb.k9, function(v){return v==null?"-":v.toFixed(1);})+
+        cmpRow("BB/9", qa.bb9, qb.bb9, function(v){return v==null?"-":v.toFixed(2);}, true)+
+        cmpRow("HR/9", qa.hr9, qb.hr9, function(v){return v==null?"-":v.toFixed(2);}, true)+
+        cmpRow("K/BB", qa.k_bb, qb.k_bb, function(v){return v==null?"-":v.toFixed(2);})+
+        cmpRow("K%", qa.k_pct, qb.k_pct, function(v){return v==null?"-":(v*100).toFixed(1)+"%";})+
+        cmpRow("BB%", qa.bb_pct, qb.bb_pct, function(v){return v==null?"-":(v*100).toFixed(1)+"%";}, true)+
+        cmpRow("推定LOB%", qa.lob_pct_est, qb.lob_pct_est, function(v){return v==null?"-":(v*100).toFixed(1)+"%";})+
         cmpRow("勝利", qa.wins, qb.wins)+
         cmpRow("敗戦", qa.losses, qb.losses, null, true)+
         cmpRow("勝率", qa.win_pct, qb.win_pct, fmtAvg)+
@@ -3281,7 +3365,28 @@
           '<br><span style="font-size:9px">純長打力</span></div></div>'+
         '<div class="stat"><div class="sv">'+fmtAvg(b.babip)+'</div><div class="sl">BABIP'+
           '<br><span style="font-size:9px">インプレー打率</span></div></div>'+
+        '<div class="stat"><div class="sv">'+(b.bb_pct==null?"-":(b.bb_pct*100).toFixed(1)+"%")+'</div><div class="sl">BB%</div></div>'+
+        '<div class="stat"><div class="sv">'+(b.k_pct==null?"-":(b.k_pct*100).toFixed(1)+"%")+'</div><div class="sl">K%</div></div>'+
+        '<div class="stat"><div class="sv">'+(b.bb_k==null?"-":b.bb_k.toFixed(2))+'</div><div class="sl">BB/K</div></div>'+
+        '</div><div class="subttl" style="margin-top:12px">得点創出指標</div>'+
+        '<div class="statrow">'+
+        '<div class="stat"><div class="sv">'+fmtAvg(b.woba_est)+'</div><div class="sl">推定wOBA</div></div>'+
+        '<div class="stat"><div class="sv">'+(b.wraa_est==null?"-":b.wraa_est.toFixed(2))+'</div><div class="sl">推定wRAA</div></div>'+
+        '<div class="stat"><div class="sv">'+(b.wrc_est==null?"-":b.wrc_est.toFixed(2))+'</div><div class="sl">推定wRC</div></div>'+
+        '<div class="stat"><div class="sv">'+(b.wrc_plus_est==null?"-":Math.round(b.wrc_plus_est))+'</div><div class="sl">推定wRC+<br><span style="font-size:9px">球場未補正</span></div></div>'+
+        '<div class="stat"><div class="sv">'+(b.rc27==null?"-":b.rc27.toFixed(2))+'</div><div class="sl">RC27</div></div>'+
+        '<div class="stat"><div class="sv">'+(b.xr27==null?"-":b.xr27.toFixed(2))+'</div><div class="sl">XR27</div></div>'+
+        '</div><div class="statrow" style="margin-top:8px">'+
+        '<div class="stat"><div class="sv">'+fmtAvg(b.gpa)+'</div><div class="sl">GPA</div></div>'+
+        '<div class="stat"><div class="sv">'+fmtAvg(b.seca)+'</div><div class="sl">SecA</div></div>'+
+        '<div class="stat"><div class="sv">'+fmtAvg(b.ta)+'</div><div class="sl">TA</div></div>'+
+        '<div class="stat"><div class="sv">'+(b.gidp||0)+'</div><div class="sl">併殺打</div></div>'+
+        '<div class="stat"><div class="sv">'+(b.wsb==null?"-":b.wsb.toFixed(2))+'</div><div class="sl">推定wSB</div></div>'+
+        '<div class="stat"><div class="sv">'+(b.bsr_est==null?"-":b.bsr_est.toFixed(2))+'</div><div class="sl">推定BsR</div></div>'+
         '</div></div>';
+      h+='<div class="sub" style="font-size:11px;margin:-4px 0 10px">'+
+         '推定wOBA系は固定線形加重、推定wRC+は球場効果未補正です。'+
+         '推定BsRは盗塁・盗塁死・明示的な走塁死だけを使い、通常の進塁は含みません。</div>';
     }
     if(isPitcherP(p)){
       h+='<div class="subsec"><div class="subttl">投手成績'+
@@ -3303,7 +3408,16 @@
         '<div class="stat"><div class="sv">'+(q.win_pct==null?"-":q.win_pct.toFixed(3).replace(/^0\./,"."))+'</div><div class="sl">勝率</div></div>'+
         '<div class="stat"><div class="sv">'+(q.hits_allowed||0)+'</div><div class="sl">被安打</div></div>'+
         '<div class="stat"><div class="sv">'+(q.hr_allowed||0)+'</div><div class="sl">被本塁打</div></div>'+
+        '</div><div class="statrow" style="margin-top:8px">'+
+        '<div class="stat"><div class="sv">'+(q.bb9==null?"-":q.bb9.toFixed(2))+'</div><div class="sl">BB/9</div></div>'+
+        '<div class="stat"><div class="sv">'+(q.hr9==null?"-":q.hr9.toFixed(2))+'</div><div class="sl">HR/9</div></div>'+
+        '<div class="stat"><div class="sv">'+(q.k_bb==null?"-":q.k_bb.toFixed(2))+'</div><div class="sl">K/BB</div></div>'+
+        '<div class="stat"><div class="sv">'+(q.k_pct==null?"-":(q.k_pct*100).toFixed(1)+"%")+'</div><div class="sl">K%</div></div>'+
+        '<div class="stat"><div class="sv">'+(q.bb_pct==null?"-":(q.bb_pct*100).toFixed(1)+"%")+'</div><div class="sl">BB%</div></div>'+
+        '<div class="stat"><div class="sv">'+(q.lob_pct_est==null?"-":(q.lob_pct_est*100).toFixed(1)+"%")+'</div><div class="sl">推定LOB%</div></div>'+
         '</div></div>';
+      h+='<div class="sub" style="font-size:11px;margin:-4px 0 10px">'+
+         '推定LOB%は被安打・与四死球・被本塁打・失点から算出する推定式で、走者単位の実測残塁率ではありません。</div>';
     }
     h+='<div id="playerTrend"></div>';
     h+='<div class="subsec"><div class="subttl">スプリット分析</div>'+
@@ -4496,20 +4610,44 @@
       {abbr:"K%", name:"三振率", status:"impl",
        formula:"三振 ÷ 打席",
        desc:"打席のうち三振に終わった割合。低いほどコンタクト能力が高い。"},
+      {abbr:"BB/K", name:"四球・三振比", status:"impl",
+       formula:"四球 ÷ 三振",
+       desc:"三振1回に対して何個の四球を選んだか。選球眼とコンタクトのバランスを見る。"},
+      {abbr:"GPA", name:"Gross Production Average", status:"impl",
+       formula:"(1.8×出塁率＋長打率) ÷ 4",
+       desc:"出塁を長打より重く評価し、打率に近い尺度へ換算した総合打撃指標。"},
+      {abbr:"SecA", name:"Secondary Average", status:"impl",
+       formula:"(塁打－安打＋四死球＋盗塁－盗塁死) ÷ 打数",
+       desc:"単打以外の長打・選球・走塁による貢献を打数あたりで評価する。"},
+      {abbr:"TA", name:"Total Average", status:"impl",
+       formula:"(塁打＋四死球＋盗塁) ÷ (打数－安打＋盗塁死＋併殺打)",
+       desc:"アウト1つに対して、打者がどれだけ塁を獲得したかを表す。"},
+      {abbr:"RC / RC27", name:"Runs Created", status:"impl",
+       formula:"RC＝(安打＋四死球)×塁打÷(打数＋四死球)、RC27＝RC×27÷攻撃アウト",
+       desc:"古典的な得点創出推定と、その打者だけで27アウトを消費した場合の得点換算。"},
+      {abbr:"XR / XR27", name:"Extrapolated Runs", status:"impl",
+       formula:"単打・長打・四死球・盗塁・三振・併殺などに固定得点価値を掛けて合計",
+       desc:"RCより多くの打撃イベントを個別に重み付けした得点創出推定と27アウト換算。"},
+      {abbr:"Spd", name:"Speed Score", status:"unavailable",
+       formula:"盗塁成功率・盗塁企図率・三塁打・得点など複数要素を標準化",
+       desc:"単純な盗塁数だけではない総合的な走力指標。",
+       note:"走塁機会と通常進塁の取得範囲を広げてから実装します。"},
     ]},
-    {group:"打撃・発展（現状は未実装）", items:[
-      {abbr:"wOBA", name:"加重出塁率", status:"planned",
-       formula:"各打撃結果に「その結果が実際にどれだけ得点に貢献したか」の係数を掛けて合算し、打席数で割る",
+    {group:"打撃・得点創出（固定係数による参考値）", items:[
+      {abbr:"推定wOBA", name:"加重出塁率", status:"estimate",
+       formula:"(0.69×非敬遠四球＋0.72×死球＋0.89×単打＋1.27×二塁打＋1.62×三塁打＋2.10×本塁打) ÷ 対象打席",
        desc:"単打・二塁打・本塁打・四球などを「同じ1」として扱わず、実際の得点価値に応じて重み付けする指標。OPSより得点との相関が高いとされる。",
-       note:"係数はリーグの得点環境から算出する必要があり、NPB向けの係数をまだ算出していません。複数シーズン分のデータが貯まってから、セ・パ別に算出することを検討しています。"},
-      {abbr:"wRC+", name:"加重得点創出率＋", status:"planned",
-       formula:"wOBAを基準にリーグ平均を100として指数化し、球場の影響（パークファクター）で補正する",
-       desc:"「リーグ平均と比べてどれだけ得点を生み出したか」を球場差まで補正して比較できる指標。",
-       note:"wOBAと同様、NPBの係数とパークファクターの算出が必要なため未実装です。"},
-      {abbr:"RC27", name:"27アウトあたり創出得点", status:"planned",
-       formula:"打撃成績から、その選手だけで打線を組んだ場合に27アウト（1試合分）で生み出す得点を推定する",
-       desc:"打撃成績を「1試合でどれだけ点を取れるか」に変換した指標。",
-       note:"推定式の係数調整が必要なため未実装です。"},
+       note:"係数はNPB各年から再推定した値ではなく固定値です。そのため名称に「推定」を付けています。"},
+      {abbr:"推定wRAA", name:"Weighted Runs Above Average", status:"estimate",
+       formula:"(選手wOBA－リーグwOBA) ÷ 1.15 × 打席",
+       desc:"セ・パそれぞれの平均打者と比べて増減させた推定得点。"},
+      {abbr:"推定wRC", name:"Weighted Runs Created", status:"estimate",
+       formula:"wRAA＋リーグ1打席あたり得点×打席",
+       desc:"リーグの得点環境を加え、打者が生み出した得点数へ換算する。"},
+      {abbr:"推定wRC+", name:"Weighted Runs Created Plus", status:"estimate",
+       formula:"推定wRCの打席あたり値をリーグ平均100に指数化",
+       desc:"100がリーグ平均。120なら平均より20%高い打撃得点創出を示す。",
+       note:"球場効果を算出できていないため、正式なwRC+と異なる球場未補正値です。"},
     ]},
     {group:"投手・基本", items:[
       {abbr:"ERA", name:"防御率", status:"impl",
@@ -4524,9 +4662,15 @@
       {abbr:"BB/9", name:"9イニングあたり与四球", status:"impl",
        formula:"与四球 × 9 ÷ 投球回",
        desc:"制球力の指標。低いほど四球を出していない。"},
-      {abbr:"K-BB", name:"奪三振と与四球の差", status:"impl",
+      {abbr:"HR/9", name:"9イニングあたり被本塁打", status:"impl",
+       formula:"被本塁打 × 9 ÷ 投球回",
+       desc:"投球回の違いをならして、本塁打を許す頻度を比較する。"},
+      {abbr:"K/BB", name:"奪三振・与四球比", status:"impl",
        formula:"奪三振 ÷ 与四球",
        desc:"このサイトでは奪三振÷与四球（K/BB）として算出しています。奪三振能力と制球力を1つにまとめた指標。"},
+      {abbr:"K% / BB%", name:"対戦打者あたり奪三振・与四球率", status:"impl",
+       formula:"奪三振または与四球 ÷ 対戦打者",
+       desc:"投球回ではなく対戦打者を分母にし、三振能力と四球抑制を評価する。"},
     ]},
     {group:"投手・応用", items:[
       {abbr:"FIP", name:"守備非依存防御率", status:"impl",
@@ -4539,15 +4683,70 @@
       {abbr:"HQS", name:"ハイクオリティスタート", status:"impl",
        formula:"先発して7回以上・自責点2以下",
        desc:"QSよりも基準が厳しい、より優れた先発内容の目安。"},
+      {abbr:"推定LOB%", name:"残塁率", status:"estimate",
+       formula:"(被安打＋与四死球－失点) ÷ (被安打＋与四死球－1.4×被本塁打)",
+       desc:"塁に出した走者を生還させなかった割合を、シーズン集計値から推定する。",
+       note:"走者を一人ずつ追跡した実測残塁率ではありません。"},
     ]},
-    {group:"投手・発展（現状は未実装）", items:[
-      {abbr:"xFIP", name:"被本塁打を調整したFIP", status:"planned",
+    {group:"投手・打球品質（データ不足）", items:[
+      {abbr:"xFIP", name:"被本塁打を調整したFIP", status:"unavailable",
        formula:"被本塁打の代わりに「フライ打球数×リーグ平均本塁打率」を使ってFIPを計算する",
        desc:"被本塁打は運の影響を受けやすいため、フライ打球の割合から期待される被本塁打数に置き換えて計算する指標。",
        note:"フライ・ゴロなど打球方向の詳しい分類データが必要なため未実装です。"},
-      {abbr:"HR/9", name:"9イニングあたり被本塁打", status:"impl",
-       formula:"被本塁打 × 9 ÷ 投球回",
-       desc:"実は算出可能ですが、現在の画面にはまだ表示していません。"},
+      {abbr:"SIERA / tRA", name:"打球性質を含む投手評価", status:"unavailable",
+       formula:"三振・四球に加えてゴロ、フライ、ライナーなどの打球性質を使用",
+       desc:"投手の実力や失点リスクをFIPより細かく推定する。",
+       note:"全打球の正確な分類と係数が不足しています。"},
+      {abbr:"GB% / FB% / LD% / HR/FB", name:"打球タイプ割合", status:"unavailable",
+       formula:"各打球タイプ数 ÷ 分類可能な打球数",
+       desc:"ゴロ・フライ・ライナーの傾向と、フライが本塁打になった割合。",
+       note:"凡打の一部は分類できますが、安打を含む全打球の性質が取れないため表示しません。"},
+      {abbr:"RS/9", name:"9回あたり援護点", status:"unavailable",
+       formula:"投手の登板中に味方が取った得点 × 9 ÷ 投球回",
+       desc:"投手がマウンドにいる間に受けた打線の援護。",
+       note:"投手交代時点と得点発生を完全には結び付けられないため表示しません。"},
+    ]},
+    {group:"守備", items:[
+      {abbr:"DER", name:"Defensive Efficiency Ratio", status:"impl",
+       formula:"守備でアウトにした打球 ÷ (本塁打・四死球・三振・犠打を除く打球)",
+       desc:"グラウンド内へ飛んだ打球をアウトにした割合。シーズン成績の球団表に表示する。",
+       note:"個人ではなく球団単位の指標です。"},
+      {abbr:"UZR / DRS / OAA", name:"守備範囲・失点防止", status:"unavailable",
+       formula:"打球位置・速度・滞空時間・捕球確率などから平均比を得点またはアウトへ換算",
+       desc:"平均的な野手よりどれだけ多くアウトを取り、失点を防いだかを評価する。",
+       note:"打球座標とトラッキングデータが無いため推測しません。"},
+      {abbr:"FRM / Pop Time", name:"捕手フレーミング・送球時間", status:"unavailable",
+       formula:"球審判定、捕球位置、捕球から二塁到達までの時間を使用",
+       desc:"捕手のストライク獲得能力や盗塁阻止過程を評価する。",
+       note:"捕球・送球トラッキングデータがありません。"},
+      {abbr:"CERA", name:"捕手別防御率", status:"unavailable",
+       formula:"捕手が実際に守備中だった投球回の自責点 × 9 ÷ 投球回",
+       desc:"特定の捕手がマスクを被った時間帯の防御率。",
+       note:"イニング途中を含む捕手交代時刻を完全に取得できないため表示しません。"},
+      {abbr:"ARM / RngR / ErrR / DPR", name:"守備要素別得点", status:"unavailable",
+       formula:"送球・守備範囲・失策・併殺完成を平均と比較して得点換算",
+       desc:"守備のどの要素で失点を防いだかを分解する指標。",
+       note:"個人の守備機会、送球、打球位置が不足しています。"},
+    ]},
+    {group:"総合・走塁", items:[
+      {abbr:"推定wSB", name:"盗塁得点", status:"estimate",
+       formula:"0.20×盗塁－0.40×盗塁死",
+       desc:"盗塁成功と盗塁失敗による得点価値を固定係数で換算する。"},
+      {abbr:"推定UBR", name:"盗塁以外の走塁", status:"estimate",
+       formula:"－0.40×明示的な走塁死",
+       desc:"取得できる盗塁以外の走塁イベントを得点換算する。",
+       note:"通常の進塁成功を網羅できないため、減点中心の下限値です。"},
+      {abbr:"推定BsR", name:"総合走塁得点", status:"estimate",
+       formula:"推定wSB＋推定UBR",
+       desc:"盗塁・盗塁死・高確度の走塁死を同じ得点単位で合計する。"},
+      {abbr:"wGDP", name:"併殺回避得点", status:"unavailable",
+       formula:"併殺機会に対する併殺率をリーグ平均と比較して得点換算",
+       desc:"併殺打を避けたことによる貢献。",
+       note:"併殺打と併殺機会は集計を開始しましたが、NPB向け得点係数を検証中のため表示しません。"},
+      {abbr:"WPA / RE24", name:"勝利確率・得点期待値貢献", status:"unavailable",
+       formula:"試合状況の前後で勝利確率または24塁状況の得点期待値がどう変わったかを合計",
+       desc:"同じ安打でも、試合状況に応じた価値の違いを評価する。",
+       note:"NPB用の勝利確率表・得点期待値表をまだ構築していません。"},
     ]},
     {group:"総合", items:[
       {abbr:"W-Rating", name:"役割調整済み貢献度", status:"impl",
@@ -4562,6 +4761,30 @@
        desc:"控え選手と比較して何勝分チームに貢献したかを表す総合指標。野手・投手を同じ単位で比較できる。",
        note:"★このサイトでは守備貢献を含んでいません★（打球の速度・到達地点のデータが取得元に無いため）。打撃・走塁・ポジション補正のみで算出した参考値です。詳しくはWARランキングページの解説をご覧ください。"},
     ]},
+    {group:"Statcast・トラッキング（データ不足）", items:[
+      {abbr:"Run Value", name:"打撃・投球・守備・走塁Run Value", status:"unavailable",
+       formula:"各プレーをトラッキングデータと状況に基づいて得点換算",
+       desc:"Batting / Pitching / Fielding / Baserunning Run Value。",
+       note:"NPBの公開取得元にStatcast相当のプレー価値データがありません。"},
+      {abbr:"xwOBA / xBA / xSLG / xERA", name:"期待値指標", status:"unavailable",
+       formula:"打球速度・打球角度・三振・四球から結果の期待値を推定",
+       desc:"実際の結果から守備や運の影響を減らし、打球品質に基づく期待成績を表す。",
+       note:"打球速度と角度が無いため算出できません。"},
+      {abbr:"Barrel% / HardHit%", name:"強い打球の割合", status:"unavailable",
+       formula:"打球速度と打球角度が所定の条件を満たす打球 ÷ 打球数",
+       desc:"長打になりやすい理想的な打球と、強い打球の頻度。",
+       note:"Exit VelocityとLaunch Angleがありません。"},
+      {abbr:"Exit Velocity / Launch Angle", name:"打球速度・角度", status:"unavailable",
+       formula:"計測機器による打球の初速と上下角度",
+       desc:"打球品質を直接表すトラッキング値。"},
+      {abbr:"Spin / Active Spin / Extension", name:"投球トラッキング", status:"unavailable",
+       formula:"投球の回転数、有効回転率、リリース位置を計測",
+       desc:"球速だけでは見えない球質や打者への見え方を評価する。",
+       note:"現在取得できるのは主に球種・球速・コースです。"},
+      {abbr:"Sprint Speed / Arm Strength", name:"走力・送球速度", status:"unavailable",
+       formula:"走者のトップスピード、野手の送球速度を計測",
+       desc:"走塁と守備の身体能力を直接評価する。"},
+    ]},
     {group:"総合・チーム", items:[
       {abbr:"HP", name:"ホールドポイント", status:"impl",
        formula:"ホールド ＋ 救援勝利",
@@ -4573,27 +4796,32 @@
   ];
 
   function renderGlossary(){
-    var implCount=0, plannedCount=0;
+    var implCount=0, estimateCount=0, unavailableCount=0;
     STAT_GLOSSARY.forEach(function(g){
-      g.items.forEach(function(it){ it.status==="impl" ? implCount++ : plannedCount++; });
+      g.items.forEach(function(it){
+        if(it.status==="impl") implCount++;
+        else if(it.status==="estimate" || it.status==="partial") estimateCount++;
+        else unavailableCount++;
+      });
     });
 
     var h='<div class="dash-sec"><div class="dash-h"><span class="dot"></span>セイバーメトリクス指標一覧'+
-      '<span class="dash-date">実装済み'+implCount+' ／ 未実装'+plannedCount+'</span></div>';
+      '<span class="dash-date">実装'+implCount+' ／ 参考値'+estimateCount+' ／ データ不足'+unavailableCount+'</span></div>';
 
-    h+='<p style="line-height:1.8;font-size:13.5px">このサイトで使っている（または将来使う予定の）指標をまとめました。'+
-       '<span class="qmark">実装済</span> は実際に選手ページやシーズン成績に表示されている指標、'+
-       '<span class="subtag" style="background:var(--muted)">未実装</span> はまだ算出していない指標です。'+
-       '推測で数字を作ることはしていないので、算出に必要なデータが揃っていない指標は未実装のままにしてあります。</p>';
+    h+='<p style="line-height:1.8;font-size:13.5px">利用できる試合データだけで算出可否を分類しています。'+
+       '<span class="qmark">実装済</span> は定義どおり算出、'+
+       '<span class="subtag" style="background:var(--accent2)">参考値</span> は固定係数や取得できるイベントだけで算出、'+
+       '<span class="subtag" style="background:var(--muted)">データ不足</span> は必要なトラッキング情報などが無いため数値を作っていません。</p>';
 
     STAT_GLOSSARY.forEach(function(g){
       h+='<div class="subsec"><div class="subttl">'+esc(g.group)+'</div>';
       g.items.forEach(function(it){
         var badge = it.status==="impl"
           ? '<span class="qmark">実装済</span>'
-          : it.status==="partial"
-          ? '<span class="subtag" style="background:var(--accent2)">一部実装（守備抜き）</span>'
-          : '<span class="subtag" style="background:var(--muted)">未実装</span>';
+          : (it.status==="estimate" || it.status==="partial")
+          ? '<span class="subtag" style="background:var(--accent2)">'+
+            (it.status==="partial"?"一部実装":"参考値")+'</span>'
+          : '<span class="subtag" style="background:var(--muted)">データ不足</span>';
         h+='<div class="glossitem"><div class="glosshead">'+
            '<span class="glossabbr">'+esc(it.abbr)+'</span>'+
            '<span class="glossname">'+esc(it.name)+'</span>'+badge+'</div>'+
@@ -4726,7 +4954,7 @@
        '<div class="tblwrap" style="margin-top:8px"><table class="stbl"><thead><tr><th class="nm">要素</th><th class="nm">内容</th></tr></thead><tbody>'+
        gRow2("R_bat（打撃貢献）","(自分のOPS－リプレイスメントOPS)×打席×0.2 で近似。正式なwOBAベースの線形加重ではなく簡易的な比例配分です。")+
        gRow2("R_baser（走塁貢献）","盗塁成功×0.2点－盗塁失敗×0.4点－高確度の走塁死×0.4点。全指標で共通の走塁イベント集計を使用します。")+
-       gRow2("R_dp（併殺回避）","現在のデータには併殺打の集計が無いため、0固定です。")+
+       gRow2("R_dp（併殺回避）","併殺打と併殺機会の集計は開始しましたが、NPB向けの得点係数を未検証のため現在のWARでは0固定です。")+
        gRow2("R_pos（守備位置補正）","提供いただいた資料の162試合換算値を、実際の出場試合数（÷143）に按分しています。")+
        gRow2("R_field（守備貢献）","<b>算出していません。</b>")+
        gRow2("RPW","1勝に必要な得点。このシーズン・このリーグの実際の得点数から算出しています。")+
@@ -5048,7 +5276,11 @@
       return [
         ["w_value","W-Value",2,1],["w_rating","W-Rating",1,1],
         ["stats.era","防御率",2,1],["stats.fip","FIP",2,1],
-        ["stats.k9","K/9",2,1],["components.pitching","投球",1,1],
+        ["stats.whip","WHIP",2,1],["stats.k9","K/9",2,1],
+        ["stats.bb9","BB/9",2,1],["stats.hr9","HR/9",2,1],
+        ["stats.k_bb","K/BB",2,1],["stats.k_pct","K%",3,1],
+        ["stats.bb_pct","BB%",3,1],["stats.lob_pct_est","推定LOB%",3,1],
+        ["components.pitching","投球",1,1],
         ["components.dominance","奪三振",1,1],
         ["components.run_prevention","失点抑止",1,1],
         ["stats.innings","投球回",1,1],["stats.games","登板",0,0],
@@ -5058,7 +5290,16 @@
     }
     return [
       ["w_value","W-Value",2,1],["w_rating","W-Rating",1,1],
-      ["stats.ops","OPS",3,1],["components.batting","打撃",1,1],
+      ["stats.avg","打率",3,1],["stats.obp","出塁率",3,1],
+      ["stats.slg","長打率",3,1],["stats.ops","OPS",3,1],
+      ["stats.iso","ISO",3,1],["stats.babip","BABIP",3,1],
+      ["stats.bb_pct","BB%",3,1],["stats.k_pct","K%",3,1],
+      ["stats.bb_k","BB/K",2,1],["stats.woba_est","推定wOBA",3,1],
+      ["stats.wraa_est","推定wRAA",2,1],["stats.wrc_est","推定wRC",2,1],
+      ["stats.wrc_plus_est","推定wRC+",0,0],["stats.rc27","RC27",2,1],
+      ["stats.xr27","XR27",2,1],["stats.gpa","GPA",3,1],
+      ["stats.seca","SecA",3,1],["stats.ta","TA",3,1],
+      ["stats.bsr_est","推定BsR",2,1],["components.batting","打撃",1,1],
       ["components.clutch","勝負",1,1],["components.baserunning","走塁",1,1],
       ["components.defense","守備",1,1],["components.role","役割",1,1],
       ["components.versatility","複数",1,1],["stats.games","試合",0,0],

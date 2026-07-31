@@ -187,8 +187,12 @@ SEASON_BAT_COLS = [
     "hand", "position", "qualified",
     "games", "pa", "ab", "runs", "hits", "singles", "doubles", "triples", "hr",
     "rbi", "bb", "ibb", "hbp", "so", "sb", "caught_stealing",
-    "baserunning_outs", "baserunning_runs", "errors", "tb",
-    "avg", "obp", "slg", "ops", "iso", "babip", "bb_pct", "k_pct",
+    "baserunning_outs", "baserunning_runs", "errors", "sf", "sh", "gidp",
+    "gidp_opportunities", "tb",
+    "avg", "obp", "slg", "ops", "iso", "babip", "bb_pct", "k_pct", "bb_k",
+    "woba_est", "wraa_est", "wrc_est", "wrc_plus_est",
+    "rc", "rc27", "xr", "xr27", "gpa", "seca", "ta",
+    "wsb", "ubr_est", "bsr_est",
 ]
 
 SEASON_PIT_COLS = [
@@ -198,12 +202,14 @@ SEASON_PIT_COLS = [
     "hits_allowed", "hr_allowed", "so", "bb", "hbp",
     "runs_allowed", "earned_runs", "wins", "losses", "saves",
     "holds_official", "holds_est", "relief_wins", "hp",
-    "era", "fip", "whip", "k9", "bb9", "k_bb", "win_pct",
+    "era", "fip", "whip", "k9", "bb9", "hr9", "k_bb",
+    "k_pct", "bb_pct", "lob_pct_est", "win_pct",
 ]
 
 SEASON_TEAM_COLS = [
     "season", "team", "mini", "league",
     "games", "wins", "losses", "runs", "runs_allowed", "run_diff", "hits", "hr",
+    "bip", "bip_outs", "der",
 ]
 
 GAME_COLS = [
@@ -269,9 +275,20 @@ def season_tables(season, base="data"):
                     "caught_stealing": b.get("caught_stealing", 0),
                     "baserunning_outs": b.get("baserunning_outs", 0),
                     "baserunning_runs": b.get("baserunning_runs", 0),
+                    "sf": b.get("sf"), "sh": b.get("sh"), "gidp": b.get("gidp"),
+                    "gidp_opportunities": b.get("gidp_opportunities"),
                     "avg": b.get("avg"), "obp": b.get("obp"), "slg": b.get("slg"),
                     "ops": b.get("ops"), "iso": b.get("iso"), "babip": b.get("babip"),
                     "bb_pct": b.get("bb_pct"), "k_pct": b.get("k_pct"),
+                    "bb_k": b.get("bb_k"),
+                    "woba_est": b.get("woba_est"), "wraa_est": b.get("wraa_est"),
+                    "wrc_est": b.get("wrc_est"),
+                    "wrc_plus_est": b.get("wrc_plus_est"),
+                    "rc": b.get("rc"), "rc27": b.get("rc27"),
+                    "xr": b.get("xr"), "xr27": b.get("xr27"),
+                    "gpa": b.get("gpa"), "seca": b.get("seca"), "ta": b.get("ta"),
+                    "wsb": b.get("wsb"), "ubr_est": b.get("ubr_est"),
+                    "bsr_est": b.get("bsr_est"),
                 })
 
             q = p.get("pitching")
@@ -298,7 +315,10 @@ def season_tables(season, base="data"):
                     "relief_wins": q.get("relief_wins"), "hp": q.get("hp"),
                     "era": q.get("era"), "fip": q.get("fip"), "whip": q.get("whip"),
                     "k9": q.get("k9"), "bb9": q.get("bb9"),
-                    "k_bb": q.get("k_bb"), "win_pct": q.get("win_pct"),
+                    "hr9": q.get("hr9"), "k_bb": q.get("k_bb"),
+                    "k_pct": q.get("k_pct"), "bb_pct": q.get("bb_pct"),
+                    "lob_pct_est": q.get("lob_pct_est"),
+                    "win_pct": q.get("win_pct"),
                 })
 
     tpath = f"{base}/{season}/teams/stats.json"
@@ -312,6 +332,8 @@ def season_tables(season, base="data"):
                     "runs": t.get("runs"), "runs_allowed": t.get("runs_allowed"),
                     "run_diff": (t.get("runs") or 0) - (t.get("runs_allowed") or 0),
                     "hits": t.get("hits"), "hr": t.get("hr"),
+                    "bip": t.get("bip"), "bip_outs": t.get("bip_outs"),
+                    "der": t.get("der"),
                 })
 
     return bat_rows, pit_rows, team_rows
