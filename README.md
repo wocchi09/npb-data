@@ -3,6 +3,10 @@
 スポナビ（Yahoo!スポーツ）の一球速報を毎日自動収集し、
 **球種・球速・コース・結果**を貯めて、スマホ・PCから見られるリポジトリ。
 
+## NotebookLM連携
+
+毎日の収集後、NotebookLM向けの軽量CSVを `data/notebooklm/` に生成します。Googleスプレッドシートへの自動反映と初回設定は [NotebookLMセットアップ手順](docs/NOTEBOOKLM_SETUP.md)、列と絞り込み条件は [データ項目仕様](docs/NOTEBOOKLM_DATA_SPEC.md) を参照してください。
+
 ## 取れるデータ
 
 各打席の1球ごとに以下を記録します（Seleniumなし・requestsのみで動作）:

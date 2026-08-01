@@ -109,6 +109,16 @@ jobs:
           SEASON=$(date +%Y)
           python scraper/build_w_impact.py --season "$SEASON"
 
+      - name: Build NotebookLM CSV
+        run: |
+          SEASON="${{ github.event.inputs.from_date }}"
+          if [ -z "$SEASON" ]; then SEASON="${{ github.event.inputs.date }}"; fi
+          SEASON="${SEASON%%-*}"
+          if [ -z "$SEASON" ]; then SEASON=$(date +%Y); fi
+          python scraper/build_notebooklm.py --season "$SEASON"
+          # 必須CSVの欠落やヘッダー不一致は明示的に失敗させる。
+          python scraper/build_notebooklm.py --output data/notebooklm --validate-only
+
       - name: Validate data
         run: |
           # 不整合を検出した場合は停止し、壊れた集計結果をpushしない。
