@@ -4865,8 +4865,6 @@
     var low=scored.slice().sort(function(a,b){return a.score-b.score||b.row.pa-a.row.pa||String(a.row.name).localeCompare(String(b.row.name),"ja");});
     var good=(isPitcher?low:high).filter(function(x){return isPitcher?x.score<0:x.score>0;});
     var bad=(isPitcher?high:low).filter(function(x){return isPitcher?x.score>0:x.score<0;});
-    good.sort(function(a,b){return b.row.pa-a.row.pa||(isPitcher?a.score-b.score:b.score-a.score);});
-    bad.sort(function(a,b){return b.row.pa-a.row.pa||(isPitcher?b.score-a.score:a.score-b.score);});
     return {good:good.slice(0,5).map(function(x){return x.row;}),bad:bad.slice(0,5).map(function(x){return x.row;})};
   }
   function matchupRankCard(label,items,isPitcher){
@@ -4930,7 +4928,7 @@
       });
       h+='</tbody></table></div>';
     }
-    h+='<div class="matchup-note">得意・苦手は、画面で指定した最低対戦打席を満たす相手について、単打・長打・四死球・本塁打・盗塁・盗塁死の得点価値を総合して分類しています。TOP5の順位は対戦打席数を第一優先とし、同じ打席数なら総合値で決定します。盗塁は打席と投手を正確に特定できた走塁イベントのみです。'+
+    h+='<div class="matchup-note">得意・苦手は、画面で指定した最低対戦打席を満たす相手について、単打・長打・四死球・本塁打・盗塁・盗塁死の得点価値を総合して分類しています。TOP5は総合値を優先し、対戦打席数は信頼度補正と同評価時の優先順位に使います。盗塁は打席と投手を正確に特定できた走塁イベントのみです。'+
       (isPitcher?'投手の防御率・失点は個別打者へ正確に配分できないため表示しません。':'')+'</div></div>';
     view.innerHTML=h;
   }

@@ -26,7 +26,7 @@ class MatchupPageTests(unittest.TestCase):
     def test_filters_and_sample_size_warning_exist(self):
         for label in ("相手選手", "シーズン", "相手球団", "相手の左右", "最低対戦打席"):
             self.assertIn(label, self.html)
-        self.assertIn("対戦打席数を第一優先", self.html)
+        self.assertIn("対戦打席数は信頼度補正", self.html)
         self.assertIn("row.pa>=matchupState.minPa", self.html)
 
     def test_matchup_summary_uses_composite_top_five_lists(self):
@@ -41,7 +41,8 @@ class MatchupPageTests(unittest.TestCase):
         self.assertIn("function matchupProduction(row)", self.html)
         self.assertIn("row.pa/(row.pa+12)", self.html)
         self.assertIn("x.score<0:x.score>0", self.html)
-        self.assertIn("b.row.pa-a.row.pa", self.html)
+        self.assertIn("b.score-a.score||b.row.pa-a.row.pa", self.html)
+        self.assertNotIn("good.sort(function", self.html)
 
     def test_batter_and_pitcher_labels_are_distinct(self):
         self.assertIn('対打者別の被打撃成績', self.html)
