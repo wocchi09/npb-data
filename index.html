@@ -4,9 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NPB SCOREBOARD</title>
-<link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700;800&family=Roboto:wght@500;700&display=swap" rel="stylesheet">
 <style>
   :root{
+    --font-ui:'Noto Sans JP','BIZ UDPGothic','Yu Gothic UI','Meiryo',sans-serif;
+    --font-brand:'Roboto','Noto Sans JP',sans-serif;
     --bg:#FFF9F0;--panel:#FFFFFF;--panel2:#FFF4E3;
     --line:#F0D9B5;--line2:#E5C596;
     --ink:#3D2510;--ink2:#6B4A28;--muted:#9A7B57;
@@ -27,7 +29,7 @@
     --shadow:0 2px 10px rgba(0,0,0,.35);
   }
   *{box-sizing:border-box;margin:0;padding:0;}
-  body{font-family:'BIZ UDPGothic','Noto Sans JP',sans-serif;background:var(--bg);color:var(--ink);
+  body{font-family:var(--font-ui);background:var(--bg);color:var(--ink);
     min-height:100vh;font-size:15.5px;line-height:1.75;transition:background .2s,color .2s;}
   .wrap{max-width:1600px;margin:0 auto;padding:0 20px 60px;}
   /* 試合ビュー・シーズン成績は読みやすさ優先で幅を抑える */
@@ -1043,6 +1045,31 @@
     .situ{margin-top:6px;}
     .pt{grid-template-columns:24px 1fr;}
     .pt-r{grid-column:2;text-align:left;padding-top:2px;}
+  }
+
+  /* ---- Typography: 日本語と小さい成績表の可読性を優先 ---- */
+  body *,button,input,select,textarea,svg text{
+    font-family:var(--font-ui)!important;
+  }
+  body,button,input,select,textarea{
+    text-rendering:optimizeLegibility;
+    font-kerning:normal;
+  }
+  table,.no,.cnt,.pt-s,.dg-score,.rankrow,.zcell,.mvpscore,.tile,.stat,
+  .matchup-kpi,.pg-kpi,.saber-kpi-value{
+    font-variant-numeric:tabular-nums lining-nums;
+  }
+  .hero h1,.hero p{
+    font-family:var(--font-brand)!important;
+  }
+  table.stbl th{
+    font-weight:600;
+  }
+  table.stbl td{
+    font-weight:500;
+  }
+  table.stbl td.nm{
+    font-weight:700;
   }
 </style>
 </head>
