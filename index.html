@@ -1047,6 +1047,36 @@
     .pt-r{grid-column:2;text-align:left;padding-top:2px;}
   }
 
+  /* ---- 出場選手登録・抹消公示 ---- */
+  .roster-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:10px 0;}
+  .roster-kpi{border:1px solid var(--line);border-radius:10px;background:var(--panel2);padding:11px;text-align:center;}
+  .roster-kpi b{display:block;color:var(--accent);font-size:20px;line-height:1.15;}
+  .roster-kpi span{display:block;color:var(--muted);font-size:10px;margin-top:4px;}
+  .roster-datebar{display:flex;align-items:end;gap:8px;flex-wrap:wrap;margin:10px 0;}
+  .roster-datebar label{display:flex;flex-direction:column;gap:4px;font-size:10px;color:var(--muted);}
+  .roster-datebar input,.roster-datebar select{min-height:34px;}
+  .roster-datebar input[type=date]{flex:none;width:170px;min-width:0;}
+  .roster-events{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0;}
+  .roster-event{border:1px solid var(--line);border-radius:10px;background:var(--panel2);padding:10px;}
+  .roster-event h3{font-size:12px;margin:0 0 7px;display:flex;align-items:center;gap:6px;}
+  .roster-event-list{display:flex;flex-direction:column;gap:5px;}
+  .roster-event-row{display:grid;grid-template-columns:70px 28px minmax(0,1fr);gap:5px;align-items:center;
+    padding-bottom:5px;border-bottom:1px dashed var(--line);font-size:11px;}
+  .roster-event-row:last-child{border-bottom:0;padding-bottom:0;}
+  .roster-status{display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;
+    border-radius:999px;padding:2px 7px;font-size:9px;font-weight:700;}
+  .roster-status.on{background:#e7f7ed;color:#16743a;border:1px solid #9bd4ae;}
+  .roster-status.off{background:var(--panel2);color:var(--muted);border:1px solid var(--line);}
+  [data-theme="dark"] .roster-status.on{background:#123923;color:#8ee0aa;border-color:#286c41;}
+  .roster-periods{font-size:10px;line-height:1.6;color:var(--muted);}
+  @media(max-width:680px){
+    .roster-kpis{grid-template-columns:1fr 1fr;}
+    .roster-events{grid-template-columns:1fr;}
+    .roster-datebar .btn{flex:1;}
+    #rosterView .dash-h{flex-wrap:wrap;align-items:center;}
+    #rosterView .dash-date{width:100%;margin-left:16px;text-align:left;}
+  }
+
   /* ---- Typography: 日本語と小さい成績表の可読性を優先 ---- */
   body *,button,input,select,textarea,svg text{
     font-family:var(--font-ui)!important;
@@ -1091,6 +1121,7 @@
         <div class="navmenu" role="menu">
           <button class="navitem" id="vb-season" onclick="setView('season')">シーズン成績</button>
           <button class="navitem" id="vb-players" onclick="setView('players')">選手一覧</button>
+          <button class="navitem" id="vb-roster" onclick="setView('roster')">登録・抹消公示</button>
           <button class="navitem" id="vb-compare" onclick="setView('compare')">選手比較</button>
         </div>
       </div>
@@ -1137,6 +1168,8 @@
     <div id="seasonView" style="display:none"></div>
 
     <div id="playersView" style="display:none"></div>
+
+    <div id="rosterView" style="display:none"></div>
 
     <div id="matchupView" style="display:none"></div>
 
@@ -2460,7 +2493,7 @@
     curView = v;
     closeNavGroups();
     var ids={dash:"dashView", games:"gameView", season:"seasonView",
-             players:"playersView", matchup:"matchupView", compare:"compareView", daily:"dailyView",
+             players:"playersView", roster:"rosterView", matchup:"matchupView", compare:"compareView", daily:"dailyView",
              playergraph:"playerGraphView", awards:"awardsView",
              awardsGuide:"awardsGuideView", sabermetrics:"sabermetricsView",
              glossary:"glossaryView",
@@ -2475,7 +2508,7 @@
       if(btn) btn.classList.toggle("on", k===v);
     }
     var navGroups={
-      stats:["season","players","matchup","compare"],
+      stats:["season","players","roster","matchup","compare"],
       analysis:["daily","playergraph","correlation","teamstyle"],
       metrics:["sabermetrics","glossary","war","warGuide","impact","impactGuide"]
     };
@@ -2488,6 +2521,7 @@
     if(v==="dash") loadDash();
     else if(v==="season") loadSeason();
     else if(v==="players") loadPlayers();
+    else if(v==="roster") loadRosterAnnouncements();
     else if(v==="matchup") loadMatchups();
     else if(v==="compare") loadCompare();
     else if(v==="daily") loadDaily();
@@ -2895,6 +2929,164 @@
     el.scrollIntoView({behavior:"smooth",block:"nearest"});
   }
 
+  /* ===== 出場選手登録・抹消公示 ===== */
+  var rosterRegistration=null, rosterRegistrationYear=null, rosterDaily=null;
+  var rosterSelectedDate="", rosterTeam="all";
+
+  async function loadRegistrationData(){
+    var year=(dp.value||todayJST()).split("-")[0];
+    if(rosterRegistration!==null && rosterRegistrationYear===year) return rosterRegistration;
+    rosterRegistrationYear=year;
+    try{
+      var response=await fetch("data/"+year+"/roster/registration.json?t="+Date.now());
+      rosterRegistration=response.ok?await response.json():false;
+    }catch(e){rosterRegistration=false;}
+    return rosterRegistration;
+  }
+
+  function registrationIndex(){
+    var index={};
+    if(rosterRegistration&&rosterRegistration.players){
+      rosterRegistration.players.forEach(function(player){index[player.npb_id]=player;});
+    }
+    return index;
+  }
+
+  function registeredDaysAt(player, selectedDate){
+    if(!player||!selectedDate) return 0;
+    if(player.registered_dates){
+      return player.registered_dates.filter(function(value){return value<=selectedDate;}).length;
+    }
+    var target=new Date(selectedDate+"T00:00:00"),total=0;
+    (player.periods||[]).forEach(function(period){
+      var begin=new Date(period.from+"T00:00:00");
+      var finish=period.to?new Date(period.to+"T00:00:00"):target;
+      if(begin>target) return;
+      if(finish>target) finish=target;
+      total+=Math.max(0,Math.round((finish-begin)/86400000)+1);
+    });
+    return total;
+  }
+
+  function registrationCountAt(player, selectedDate){
+    return (player&&player.periods||[]).filter(function(period){return period.from<=selectedDate;}).length;
+  }
+
+  function lastDeregisteredAt(player, selectedDate){
+    var latest="";
+    (player&&player.periods||[]).forEach(function(period){
+      if(!period.to||period.to>=selectedDate) return;
+      var day=new Date(period.to+"T00:00:00");
+      day.setDate(day.getDate()+1);
+      var value=fmtDate(day);
+      if(value<=selectedDate&&value>latest) latest=value;
+    });
+    return latest||"-";
+  }
+
+  function rosterDateLabel(value){
+    if(!value) return "-";
+    var parts=value.split("-");
+    return Number(parts[1])+"月"+Number(parts[2])+"日";
+  }
+
+  async function loadRosterAnnouncements(){
+    var view=document.getElementById("rosterView");
+    view.innerHTML='<div class="msg">公示データを読み込み中…</div>';
+    var data=await loadRegistrationData();
+    if(!data){
+      view.innerHTML='<div class="msg">公示データがまだありません<br><span style="font-size:11px">Actions の「Update Roster Announcements」を実行すると作成されます。</span></div>';
+      return;
+    }
+    if(!rosterSelectedDate || !(data.dates||[]).some(function(x){return x.date===rosterSelectedDate;})){
+      rosterSelectedDate=data.latest_date;
+    }
+    await loadRosterDaily(rosterSelectedDate);
+  }
+
+  async function loadRosterDaily(value){
+    var view=document.getElementById("rosterView");
+    rosterSelectedDate=value;
+    rosterDaily=null;
+    if(view) view.innerHTML='<div class="msg">'+esc(rosterDateLabel(value))+'の公示を読み込み中…</div>';
+    try{
+      var year=value.split("-")[0];
+      var response=await fetch("data/"+year+"/roster/daily/"+value+".json?t="+Date.now());
+      rosterDaily=response.ok?await response.json():false;
+    }catch(e){rosterDaily=false;}
+    renderRosterAnnouncements();
+  }
+
+  function shiftRosterDate(offset){
+    var dates=(rosterRegistration&&rosterRegistration.dates||[]).map(function(x){return x.date;});
+    var index=dates.indexOf(rosterSelectedDate),next=index+offset;
+    if(next>=0&&next<dates.length) loadRosterDaily(dates[next]);
+  }
+
+  function setRosterTeam(value){rosterTeam=value;renderRosterAnnouncements();}
+
+  function rosterEventCard(title, rows, kind){
+    var filtered=(rows||[]).filter(function(row){return rosterTeam==="all"||row.team===rosterTeam;});
+    var h='<div class="roster-event"><h3><span class="roster-status '+kind+'">'+(kind==="on"?"登録":"抹消")+'</span>'+title+' <span class="sub2">'+filtered.length+'人</span></h3>';
+    if(!filtered.length) return h+'<div class="sub">該当選手なし</div></div>';
+    h+='<div class="roster-event-list">';
+    filtered.forEach(function(row){
+      h+='<div class="roster-event-row"><span>'+teamBadge(row.team)+'</span><span>'+esc(row.position||"-")+'</span><b>'+esc(row.name)+(row.number?' <span class="no">#'+esc(row.number)+'</span>':'')+'</b></div>';
+    });
+    return h+'</div></div>';
+  }
+
+  function rosterPeriodsText(player, selectedDate){
+    if(!player||!player.periods) return "";
+    var target=selectedDate||(rosterRegistration&&rosterRegistration.latest_date)||todayJST();
+    return player.periods.filter(function(period){return period.from<=target;}).map(function(period){
+      var finish=period.to&&period.to<target?period.to:target;
+      var open=!period.to||period.to>=target;
+      var days=player.registered_dates
+        ? player.registered_dates.filter(function(value){return value>=period.from&&value<=finish;}).length
+        : Math.round((new Date(finish+"T00:00:00")-new Date(period.from+"T00:00:00"))/86400000)+1;
+      return rosterDateLabel(period.from)+'〜'+(open?"登録中":rosterDateLabel(finish))+'（'+days+'日）';
+    }).join("／");
+  }
+
+  function renderRosterAnnouncements(){
+    var view=document.getElementById("rosterView"),data=rosterRegistration,daily=rosterDaily;
+    if(!view||!data) return;
+    if(!daily){view.innerHTML='<div class="msg">選択日の公示データを読み込めませんでした</div>';return;}
+    var regIndex=registrationIndex();
+    var teams={};
+    (daily.registered||[]).forEach(function(p){if(p.team)teams[p.team]=1;});
+    var teamOptions='<option value="all">全球団</option>'+Object.keys(teams).sort().map(function(team){
+      return '<option value="'+esc(team)+'"'+(rosterTeam===team?' selected':'')+'>'+esc(team)+'</option>';
+    }).join("");
+    var selected=(daily.registered||[]).filter(function(p){return rosterTeam==="all"||p.team===rosterTeam;});
+    var coverageComplete=!(data.missing_dates&&data.missing_dates.length);
+    var h='<div class="dash-sec"><div class="dash-h"><span class="dot"></span><span class="roster-title">出場選手登録・抹消公示</span>'+
+      '<span class="dash-date">NPB公式／'+esc(data.season)+'年</span></div>'+
+      '<div class="notice">各日のNPB公式「出場選手一覧」に掲載された日を登録日数として集計します。登録日は含み、抹消日は含みません。訂正後の一覧を正とし、取得できない日は推測しません。</div>'+
+      '<div class="roster-kpis"><div class="roster-kpi"><b>'+data.covered_days+'</b><span>集計済み日数</span></div>'+
+      '<div class="roster-kpi"><b>'+data.current_registered_count+'</b><span>最新日の登録選手</span></div>'+
+      '<div class="roster-kpi"><b>'+((daily.additions||[]).length)+'</b><span>選択日の登録</span></div>'+
+      '<div class="roster-kpi"><b>'+((daily.removals||[]).length)+'</b><span>選択日の抹消</span></div></div>'+
+      (coverageComplete?'':'<div class="warn">未取得日が '+data.missing_dates.length+'日あります。登録日数は取得済みの日だけで表示しています。</div>')+
+      '<div class="roster-datebar"><button class="btn" onclick="shiftRosterDate(-1)">◀ 前日</button>'+
+      '<label>公示日<input type="date" value="'+esc(rosterSelectedDate)+'" min="'+esc(data.start_date)+'" max="'+esc(data.latest_date)+'" onchange="loadRosterDaily(this.value)"></label>'+
+      '<button class="btn" onclick="shiftRosterDate(1)">翌日 ▶</button>'+
+      '<label>球団<select onchange="setRosterTeam(this.value)">'+teamOptions+'</select></label></div>'+
+      '<div class="roster-events">'+rosterEventCard("出場選手登録",daily.additions,"on")+rosterEventCard("出場選手登録抹消",daily.removals,"off")+'</div>'+
+      '<div class="subttl">'+esc(rosterDateLabel(rosterSelectedDate))+'時点の登録選手 '+selected.length+'人</div>'+
+      '<div class="tblwrap"><table class="stbl"><thead><tr><th>球団</th><th>位置</th><th>背番号</th><th class="nm">選手</th><th>登録日数</th><th>登録回数</th><th>初回登録</th><th>直近抹消</th><th class="nm">登録期間</th></tr></thead><tbody>';
+    selected.forEach(function(row){
+      var summary=regIndex[row.npb_id],days=registeredDaysAt(summary,rosterSelectedDate);
+      h+='<tr><td>'+teamBadge(row.team)+'</td><td>'+esc(row.position||"-")+'</td><td class="num">'+esc(row.number||"-")+'</td><td class="nm">'+esc(row.name)+'</td>'+
+        '<td class="num hi">'+days+'日</td><td class="num">'+(summary?registrationCountAt(summary,rosterSelectedDate):"-")+'</td>'+
+        '<td>'+esc(summary?summary.first_registered:"-")+'</td><td>'+esc(summary?lastDeregisteredAt(summary,rosterSelectedDate):"-")+'</td>'+
+        '<td class="roster-periods">'+esc(rosterPeriodsText(summary,rosterSelectedDate)||"-")+'</td></tr>';
+    });
+    h+='</tbody></table></div><div class="sub" style="margin-top:8px">出典：<a href="'+esc(daily.source)+'" target="_blank" rel="noopener">NPB公式 '+esc(daily.date)+' 公示</a> ／ 最終集計 '+esc(String(data.updated_at||"").slice(0,16).replace("T"," "))+'</div></div>';
+    view.innerHTML=h;
+  }
+
   /* ===== 公式名鑑（NPB公式・支配下選手のみ） ===== */
   var npbRoster=null;      // {updated_at, players:[...]}
 
@@ -2949,7 +3141,7 @@
 
   /* ===== 選手一覧 ===== */
   var plName="", plTeam="ソフトバンク", plKind="batter", plPos="all", plHand="all",
-      plNum="", plQual="all", plPlayed="all", plSort="number", plSortDir="asc";
+      plNum="", plQual="all", plPlayed="all", plRegistered="all", plSort="number", plSortDir="asc";
 
   /* 選手比較で選んでいる2人（key配列） */
   var cmpSelected=[];
@@ -2971,7 +3163,7 @@
 
   /* 選手一覧の列定義（打者・投手で別々） */
   var PL_COLS_BAT = [
-    ["number","背番号"],["name","選手"],["team","球団"],["position","位置"],["hand","投打"],
+    ["number","背番号"],["name","選手"],["team","球団"],["roster_status","一軍"],["registered_days","登録日数"],["position","位置"],["hand","投打"],
     ["games","試合"],["pa","打席"],["ab","打数"],["hits","安打"],["hr","本"],["rbi","点"],
     ["sb","盗"],["avg","打率"],["obp","出塁"],["slg","長打"],["ops","OPS"],
     ["iso","ISO"],["babip","BABIP"],["bb_pct","BB%"],["k_pct","K%"],["bb_k","BB/K"],
@@ -2979,7 +3171,7 @@
     ["gpa","GPA"],["seca","SecA"],["ta","TA"],["bsr_est","推BsR"]
   ];
   var PL_COLS_PIT = [
-    ["number","背番号"],["name","選手"],["team","球団"],["hand","投打"],
+    ["number","背番号"],["name","選手"],["team","球団"],["roster_status","一軍"],["registered_days","登録日数"],["hand","投打"],
     ["games","登板"],["outs","回"],["era","防御率"],["fip","FIP"],["whip","WHIP"],["k9","K/9"],
     ["bb9","BB/9"],["hr9","HR/9"],["k_bb","K/BB"],["k_pct","K%"],["bb_pct","BB%"],
     ["lob_pct_est","推LOB%"],["so","奪三"],["bb","四球"],["wins","勝"],["losses","敗"],["win_pct","勝率"],
@@ -3012,6 +3204,8 @@
       case "number": var n=parseInt(p.number,10); return isNaN(n)?99999:n;
       case "name": return p.name||"";
       case "team": return p.team||"";
+      case "roster_status": return p.current_registered?1:0;
+      case "registered_days": return p.registered_days==null?null:p.registered_days;
       case "position": return p.position||"";
       case "hand": return p.hand||"";
       case "games": return plKind==="pitcher" ? (q.games||0) : (b.games||0);
@@ -3061,10 +3255,11 @@
 
   async function loadPlayers(){
     var pv=document.getElementById("playersView");
-    if(seasonData && npbRoster!==null){ renderPlayers(); return; }
+    if(seasonData && npbRoster!==null && rosterRegistration!==null){ renderPlayers(); return; }
     pv.innerHTML='<div class="msg">読み込み中…</div>';
     // 公式名鑑（一覧の基準）と、成績（表示用）の両方を読む
     await loadRoster();
+    await loadRegistrationData();
     if(!seasonData) await loadSeason();
     if(!npbRoster && !seasonData){
       pv.innerHTML='<div class="msg">選手データがまだありません<br>'+
@@ -3078,12 +3273,12 @@
     var g=function(id){var e=document.getElementById(id);return e?e.value:"";};
     plName=g("plName");
     plPos=g("plPos"); plHand=g("plHand"); plNum=g("plNum");
-    plQual=g("plQual"); plPlayed=g("plPlayed");
+    plQual=g("plQual"); plPlayed=g("plPlayed"); plRegistered=g("plRegistered");
     renderPlayers();
   }
   function resetPlayers(){
     plName=""; plTeam="all"; plPos="all"; plHand="all";
-    plNum=""; plQual="all"; plPlayed="all"; plSort="team"; plSortDir="asc";
+    plNum=""; plQual="all"; plPlayed="all"; plRegistered="all"; plSort="team"; plSortDir="asc";
     renderPlayers();
   }
 
@@ -3120,10 +3315,12 @@
      無ければ従来どおり成績データから組み立てる。 */
   function buildPlayerList(){
     var idx=statsIndex();
+    var regIdx=registrationIndex();
     if(npbRoster && npbRoster.players && npbRoster.players.length){
       return npbRoster.players.map(function(r){
         var st=findStats(idx, r.name, r.team) || {};
         var b=st.batting, q=st.pitching;
+        var registration=regIdx[r.npb_id]||null;
         return {
           key: st.key || ("npb:"+(r.npb_id||r.name)),
           npb_id: r.npb_id,
@@ -3139,6 +3336,12 @@
           played: !!(b || q),                     // 一軍出場（収集済み試合に登場したか）
           batting: b, pitching: q,
           positions: st.positions || null,
+          current_registered: !!(registration&&registration.current_registered),
+          registered_days: registration?registration.registered_days:null,
+          registration_count: registration?registration.registration_count:null,
+          registration_periods: registration?registration.periods:null,
+          first_registered: registration?registration.first_registered:null,
+          last_deregistered: registration?registration.last_deregistered:null,
           fromRoster: true
         };
       });
@@ -3224,6 +3427,7 @@
       '<label class="ef"><span>背番号</span><input type="text" id="plNum" placeholder="例: 7" value="'+esc(plNum)+'" oninput="onPlayersChange()"></label>'+
       sel("plQual","規定",plQual,[["qualified","規定到達のみ"]],"すべて")+
       sel("plPlayed","一軍出場",plPlayed,[["played","出場ありのみ"]],"すべて")+
+      sel("plRegistered","現在の登録",plRegistered,[["registered","一軍登録中のみ"],["not_registered","登録外のみ"]],"すべて")+
       '</div><div class="expbtns" style="margin-top:10px">'+
       '<button class="btn" onclick="resetPlayers()">条件をクリア</button></div>';
 
@@ -3241,6 +3445,8 @@
         if(plKind==="batter" && !isBatterP(p)) return false;
       }
       if(plPlayed==="played" && !p.played) return false;
+      if(plRegistered==="registered" && !p.current_registered) return false;
+      if(plRegistered==="not_registered" && p.current_registered) return false;
       if(plPos!=="all"){
         var hit=(p.position===plPos);
         (p.positions||[]).forEach(function(x){ if(x.pos===plPos) hit=true; });
@@ -3326,7 +3532,9 @@
          (checked?"checked":"")+' onchange="toggleCompare(\''+esc(p.key)+'\')"></td>';
       h+='<td class="num unumcell">'+(p.number?esc(p.number):"-")+'</td>'+
          '<td class="nm lnk">'+esc(p.name)+qmark+'</td>'+
-         '<td>'+teamBadge(p.team)+'</td>';
+         '<td>'+teamBadge(p.team)+'</td>'+
+         '<td>'+(p.current_registered?'<span class="roster-status on">登録中</span>':'<span class="roster-status off">登録外</span>')+'</td>'+
+         '<td class="num">'+(p.registered_days==null?"-":p.registered_days+'日')+'</td>';
       if(isPitTab){
         h+='<td class="pos">'+esc(p.hand||"-")+'</td>'+
            '<td class="num">'+(q.games||0)+'</td>'+
@@ -4377,8 +4585,13 @@
   /* 選手詳細（選手一覧から開く） */
   function showPlayerDetail(key){
     var p=null;
+    var players=buildPlayerList();
+    for(var j=0;j<players.length;j++){
+      if(players[j].key===key){ p=players[j]; break; }
+    }
+    /* 成績だけで構築した旧データへのフォールバック */
     for(var i=0;i<seasonData.length;i++){
-      if(seasonData[i].key===key){ p=seasonData[i]; break; }
+      if(!p&&seasonData[i].key===key){ p=seasonData[i]; break; }
     }
     var el=document.getElementById("plDetail");
     if(!p||!el) return;
@@ -4404,6 +4617,16 @@
         h+='<div class="ef"><span>'+esc(x[0])+'</span><b style="font-size:14px">'+esc(x[1])+'</b></div>';
       });
       h+='</div>';
+    }
+
+    if(p.registered_days!=null){
+      h+='<div class="subsec"><div class="subttl">一軍登録状況</div><div class="statrow">'+
+        '<div class="stat"><div class="sv">'+(p.current_registered?'登録中':'登録外')+'</div><div class="sl">現在</div></div>'+
+        '<div class="stat"><div class="sv">'+p.registered_days+'</div><div class="sl">今季登録日数</div></div>'+
+        '<div class="stat"><div class="sv">'+(p.registration_count||0)+'</div><div class="sl">登録期間数</div></div>'+
+        '<div class="stat"><div class="sv">'+esc(p.first_registered||'-')+'</div><div class="sl">初回登録</div></div>'+
+        '<div class="stat"><div class="sv">'+esc(p.last_deregistered||'-')+'</div><div class="sl">直近抹消</div></div></div>'+
+        '<div class="roster-periods" style="margin-top:7px">'+esc(rosterPeriodsText({periods:p.registration_periods})||'-')+'</div></div>';
     }
 
     // 出場した守備位置
@@ -8425,7 +8648,7 @@
     motionTimers[key]=setTimeout(function(){motionRun(root);},45);
   }
   function motionSetup(){
-    var ids=["dashView","gameView","seasonView","playersView","matchupView","compareView","dailyView","playerGraphView",
+    var ids=["dashView","gameView","seasonView","playersView","rosterView","matchupView","compareView","dailyView","playerGraphView",
       "awardsView","awardsGuideView","sabermetricsView","glossaryView","warView",
       "warGuideView","impactView","impactGuideView","correlationView","teamstyleView","exportView","socialView"];
     ids.forEach(function(id){
@@ -8504,6 +8727,7 @@
     var initialParams=new URLSearchParams(location.search),requestedView=initialParams.get("view");
     if(requestedView==="playergraph")initialView="playergraph";
     else if(requestedView==="matchup")initialView="matchup";
+    else if(requestedView==="roster")initialView="roster";
     else if(requestedView==="social"&&personalPostingMode)initialView="social";
   }catch(e){}
   setView(initialView);

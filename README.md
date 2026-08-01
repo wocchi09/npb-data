@@ -29,7 +29,9 @@
 | ファイル | 役割 |
 |---|---|
 | `.github/workflows/daily.yml` | 毎日実行＋手動実行（日付・試合ID指定可） |
+| `.github/workflows/roster_announcements.yml` | NPB公式の登録・抹消公示を毎日更新 |
 | `scraper/main.py` | 収集本体（全試合・全打席を巡回） |
+| `scraper/roster_announcements.py` | 公示の日次保存と一軍登録日数の集計 |
 | `scraper/parser.py` | 一球速報HTMLのパーサー（球種・球速・コース抽出） |
 | `index.html` | Pages公開用ビューア |
 | `requirements.txt` | 依存ライブラリ |
@@ -40,6 +42,8 @@
 ```
 data/2026/07/12/2021038864.json   … 試合ごとの一球速報フル
 data/2026/07/12/_summary.json     … その日の試合一覧
+data/2026/roster/daily/2026-07-31.json … 当日の登録・抹消と登録選手一覧
+data/2026/roster/registration.json     … 選手別の登録日数・登録期間
 data/index.json                   … 収集済みファイル一覧（ビューア用）
 ```
 
