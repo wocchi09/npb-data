@@ -682,21 +682,50 @@
     gap:8px;margin-bottom:6px;}
   .pg-panel-title{font-size:13px;font-weight:700;color:var(--accent);}
   .pg-panel-note{font-size:9.5px;color:var(--muted);text-align:right;}
-  .pg-chart-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
-  .pg-svg{display:block;width:100%;height:auto;min-width:660px;min-height:350px;}
+  .pg-chart-stage{position:relative;isolation:isolate;overflow:hidden;border-radius:10px;
+    background:
+      radial-gradient(circle at 82% 10%,color-mix(in srgb,var(--accent) 10%,transparent),transparent 34%),
+      linear-gradient(160deg,color-mix(in srgb,var(--panel) 90%,transparent),var(--panel2));
+    animation:pg-stage-in .48s cubic-bezier(.2,.75,.25,1) both;}
+  .pg-chart-stage::before{content:"";position:absolute;inset:-35% -12%;z-index:-1;pointer-events:none;
+    background:linear-gradient(110deg,transparent 34%,rgba(255,255,255,.2) 48%,transparent 62%);
+    transform:translateX(-65%);animation:pg-sheen 1.05s .08s ease-out both;}
+  .pg-chart-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:thin;}
+  .pg-svg{display:block;width:100%;height:auto;min-width:660px;min-height:350px;overflow:visible;}
   .pg-svg text{font:10px 'Roboto Mono',monospace;fill:var(--muted);}
-  .pg-svg .grid{stroke:var(--line);stroke-width:1;stroke-dasharray:3 6;}
+  .pg-svg .grid{stroke:var(--line);stroke-width:1;stroke-dasharray:3 6;
+    animation:pg-grid-in .55s ease-out both;animation-delay:var(--pg-grid-delay,0ms);}
   .pg-svg .axis{stroke:var(--muted);stroke-width:1.2;}
   .pg-svg .baseline{stroke:var(--ink2);stroke-width:1;stroke-dasharray:4 5;opacity:.55;}
   .pg-svg .series{fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;
-    filter:drop-shadow(0 1px 2px rgba(70,35,10,.18));}
-  .pg-svg .dot{stroke:var(--panel);stroke-width:2;}
+    filter:drop-shadow(0 2px 3px rgba(70,35,10,.2));stroke-dasharray:1;
+    stroke-dashoffset:1;animation:pg-line-draw 1.05s cubic-bezier(.42,0,.18,1) forwards;
+    animation-delay:var(--pg-series-delay,0ms);}
+  .pg-svg .area{opacity:0;animation:pg-area-in .65s ease-out forwards;
+    animation-delay:calc(var(--pg-series-delay,0ms) + 420ms);}
+  .pg-svg .dot{stroke:var(--panel);stroke-width:2;transform-box:fill-box;
+    transform-origin:center;transform:scale(0);opacity:0;
+    animation:pg-dot-in .36s cubic-bezier(.2,1.7,.35,1) forwards;
+    animation-delay:var(--pg-dot-delay,0ms);cursor:pointer;transition:r .16s,filter .16s;}
+  .pg-svg .dot:hover,.pg-svg .dot:focus{r:6;outline:none;
+    filter:drop-shadow(0 0 5px currentColor);}
+  .pg-svg .latest-halo{fill:none;stroke-width:2;opacity:0;transform-box:fill-box;
+    transform-origin:center;animation:pg-latest-pulse 2s calc(var(--pg-series-delay,0ms) + 1s) ease-out infinite;}
+  .pg-chart-tooltip{position:absolute;z-index:3;pointer-events:none;min-width:135px;max-width:210px;
+    padding:8px 10px;border-radius:9px;background:color-mix(in srgb,var(--ink) 92%,transparent);
+    color:var(--panel);font-size:10px;line-height:1.55;box-shadow:0 8px 24px rgba(20,10,0,.24);
+    opacity:0;transform:translate(-50%,8px) scale(.96);transition:opacity .16s,transform .16s;}
+  .pg-chart-tooltip.show{opacity:1;transform:translate(-50%,0) scale(1);}
+  .pg-chart-tooltip b{display:block;color:#fff;font-size:11px;margin-bottom:1px;}
+  .pg-chart-tooltip span{color:rgba(255,255,255,.72);}
   .pg-legend{display:flex;gap:8px;flex-wrap:wrap;margin-top:5px;font-size:10.5px;}
-  .pg-legend span{display:inline-flex;align-items:center;gap:4px;}
+  .pg-legend span{display:inline-flex;align-items:center;gap:4px;animation:pg-legend-in .42s ease-out both;
+    animation-delay:var(--pg-legend-delay,0ms);}
   .pg-legend i{width:13px;height:4px;border-radius:4px;display:inline-block;}
   .pg-profiles{display:grid;gap:8px;}
   .pg-player-card{background:var(--panel);border:1px solid var(--line);border-radius:10px;
-    padding:9px 10px;border-left:4px solid var(--accent);}
+    padding:9px 10px;border-left:4px solid var(--accent);animation:pg-card-in .48s ease-out both;
+    animation-delay:var(--pg-card-delay,0ms);}
   .pg-player-name{font-size:14px;font-weight:700;display:flex;align-items:center;gap:5px;}
   .pg-player-meta{font-size:10px;color:var(--muted);margin:2px 0 6px;}
   .pg-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;}
@@ -742,6 +771,15 @@
   .social-template summary{cursor:pointer;font-size:11px;font-weight:700;color:var(--accent);}
   .social-template-grid{display:grid;grid-template-columns:1fr 1fr auto;gap:7px;align-items:end;margin-top:8px;}
   .social-posted-badge{font-size:9px;color:var(--safe);border:1px solid currentColor;border-radius:12px;padding:2px 6px;}
+  @keyframes pg-stage-in{from{opacity:0;transform:translateY(7px) scale(.995)}to{opacity:1;transform:none}}
+  @keyframes pg-sheen{from{transform:translateX(-65%)}to{transform:translateX(65%)}}
+  @keyframes pg-grid-in{from{opacity:0}to{opacity:1}}
+  @keyframes pg-line-draw{to{stroke-dashoffset:0}}
+  @keyframes pg-area-in{from{opacity:0}to{opacity:.16}}
+  @keyframes pg-dot-in{to{opacity:1;transform:scale(1)}}
+  @keyframes pg-latest-pulse{0%{opacity:.7;transform:scale(.65)}75%,100%{opacity:0;transform:scale(2.3)}}
+  @keyframes pg-legend-in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  @keyframes pg-card-in{from{opacity:0;transform:translateX(8px)}to{opacity:1;transform:none}}
   @media(max-width:920px){
     .pg-controls{grid-template-columns:repeat(2,minmax(0,1fr));}
     .pg-layout{grid-template-columns:1fr;}
@@ -756,6 +794,10 @@
     .social-controls .btn{grid-column:1/-1;width:100%;}
     .social-actions .btn{flex:1;}
     .social-template-grid{grid-template-columns:1fr;}
+    .pg-svg .area{display:none;}
+    .pg-svg .series{filter:none;animation-duration:.62s;}
+    .pg-svg .latest-halo{animation-iteration-count:1;}
+    .pg-chart-stage::before{display:none;}
   }
 
   /* ---- 規定到達マーク ---- */
@@ -3699,6 +3741,23 @@
     pgEnsureSelection();renderPlayerGraph();
   }
   function pgFormat(v,digits){return v==null||!isFinite(Number(v))?"-":Number(v).toFixed(digits);}
+  function pgShowTooltip(event,node){
+    var stage=node&&node.closest(".pg-chart-stage"),tip=stage&&stage.querySelector(".pg-chart-tooltip");
+    if(!stage||!tip)return;
+    tip.innerHTML="<b>"+esc(node.dataset.player||"")+"</b><span>"+
+      esc(node.dataset.date||"")+" ／ "+esc(node.dataset.label||"")+" "+esc(node.dataset.value||"")+"<br>"+
+      esc(node.dataset.volume||"")+"</span>";
+    var box=stage.getBoundingClientRect(),dot=node.getBoundingClientRect();
+    var clientX=event&&event.clientX||dot.left+dot.width/2;
+    var clientY=event&&event.clientY||dot.top;
+    var left=Math.max(82,Math.min(box.width-82,clientX-box.left));
+    var top=Math.max(8,clientY-box.top-62);
+    tip.style.left=left+"px";tip.style.top=top+"px";tip.classList.add("show");
+  }
+  function pgHideTooltip(node){
+    var stage=node&&node.closest(".pg-chart-stage"),tip=stage&&stage.querySelector(".pg-chart-tooltip");
+    if(tip)tip.classList.remove("show");
+  }
   function pgChart(){
     var def=pgMetricDef(),series=pgSelectedKeys.map(function(key,index){
       return {player:pgPlayer(key),color:PG_COLORS[index],points:pgPoints(key).filter(function(p){
@@ -3717,29 +3776,47 @@
     var w=860,h=390,l=62,r=18,t=20,b=48,pw=w-l-r,ph=h-t-b;
     function px(date){return l+(new Date(date+"T00:00:00").getTime()-dmin)/(dmax-dmin)*pw;}
     function py(value){return t+(max-Number(value))/(max-min)*ph;}
-    var svg='<svg class="pg-svg" viewBox="0 0 '+w+' '+h+'" role="img" aria-label="'+esc(def.label)+'の選手比較グラフ">';
+    var svg='<svg class="pg-svg" viewBox="0 0 '+w+' '+h+'" role="img" aria-label="'+esc(def.label)+'の選手比較グラフ"><defs>';
+    series.forEach(function(s,index){
+      svg+='<linearGradient id="pg-gradient-'+index+'" x1="0" y1="0" x2="0" y2="1">'+
+        '<stop offset="0%" stop-color="'+s.color+'" stop-opacity=".72"/>'+
+        '<stop offset="100%" stop-color="'+s.color+'" stop-opacity="0"/></linearGradient>';
+    });
+    svg+='</defs>';
     for(var i=0;i<=4;i++){
       var y=t+ph*i/4,value=max-(max-min)*i/4;
-      svg+='<line class="grid" x1="'+l+'" y1="'+y+'" x2="'+(w-r)+'" y2="'+y+'"/>'+
+      svg+='<line class="grid" style="--pg-grid-delay:'+(i*45)+'ms" x1="'+l+'" y1="'+y+'" x2="'+(w-r)+'" y2="'+y+'"/>'+
         '<text x="'+(l-7)+'" y="'+(y+4)+'" text-anchor="end">'+pgFormat(value,def.digits)+'</text>';
     }
     if(def.baseline!=null&&def.baseline>=min&&def.baseline<=max){
       svg+='<line class="baseline" x1="'+l+'" y1="'+py(def.baseline)+'" x2="'+(w-r)+'" y2="'+py(def.baseline)+'"/>';
     }
     svg+='<line class="axis" x1="'+l+'" y1="'+(t+ph)+'" x2="'+(w-r)+'" y2="'+(t+ph)+'"/>';
-    series.forEach(function(s){
+    series.forEach(function(s,index){
       var coords=s.points.map(function(p){return px(p.date).toFixed(1)+","+py(p[def.key]).toFixed(1);});
-      svg+='<polyline class="series" stroke="'+s.color+'" points="'+coords.join(" ")+'"/>';
-      s.points.forEach(function(p){
+      var path="M "+coords.join(" L "),delay=index*150;
+      var area=path+' L '+px(s.points[s.points.length-1].date).toFixed(1)+' '+(t+ph)+
+        ' L '+px(s.points[0].date).toFixed(1)+' '+(t+ph)+' Z';
+      svg+='<path class="area" fill="url(#pg-gradient-'+index+')" d="'+area+'" style="--pg-series-delay:'+delay+'ms"/>'+
+        '<path class="series" pathLength="1" stroke="'+s.color+'" d="'+path+'" style="--pg-series-delay:'+delay+'ms;color:'+s.color+'"/>';
+      s.points.forEach(function(p,pointIndex){
         var volume=pgKind==="pitcher"?(p.innings+"回"):(p.pa+"打席");
-        svg+='<circle class="dot" fill="'+s.color+'" cx="'+px(p.date)+'" cy="'+py(p[def.key])+'" r="4">'+
+        var cx=px(p.date),cy=py(p[def.key]),dotDelay=650+delay+pointIndex*55;
+        if(pointIndex===s.points.length-1){
+          svg+='<circle class="latest-halo" stroke="'+s.color+'" cx="'+cx+'" cy="'+cy+'" r="7" style="--pg-series-delay:'+delay+'ms"/>';
+        }
+        svg+='<circle class="dot'+(pointIndex===s.points.length-1?' latest-dot':'')+'" tabindex="0" fill="'+s.color+'" cx="'+cx+'" cy="'+cy+'" r="4" '+
+          'style="--pg-dot-delay:'+dotDelay+'ms;color:'+s.color+'" data-player="'+esc(s.player.name)+'" data-date="'+esc(p.date)+'" '+
+          'data-label="'+esc(def.label)+'" data-value="'+pgFormat(p[def.key],def.digits)+'" data-volume="'+esc(volume)+'" '+
+          'onmouseenter="pgShowTooltip(event,this)" onmousemove="pgShowTooltip(event,this)" onmouseleave="pgHideTooltip(this)" '+
+          'onfocus="pgShowTooltip(event,this)" onblur="pgHideTooltip(this)">'+
           '<title>'+esc(s.player.name)+' '+esc(p.date)+' '+esc(def.label)+' '+pgFormat(p[def.key],def.digits)+' / '+esc(volume)+'</title></circle>';
       });
     });
     var first=new Date(dmin).toISOString().slice(5,10).replace("-","/"),last=new Date(dmax).toISOString().slice(5,10).replace("-","/");
     svg+='<text x="'+l+'" y="'+(h-14)+'">'+first+'</text><text x="'+(w-r)+'" y="'+(h-14)+'" text-anchor="end">'+last+'</text></svg>';
-    var legend=series.map(function(s){return '<span><i style="background:'+s.color+'"></i>'+esc(s.player.name)+'</span>';}).join("");
-    return '<div class="pg-chart-scroll">'+svg+'</div><div class="pg-legend">'+legend+'</div>';
+    var legend=series.map(function(s,index){return '<span style="--pg-legend-delay:'+(720+index*100)+'ms"><i style="background:'+s.color+'"></i>'+esc(s.player.name)+'</span>';}).join("");
+    return '<div class="pg-chart-stage"><div class="pg-chart-scroll">'+svg+'</div><div class="pg-chart-tooltip" role="status"></div></div><div class="pg-legend">'+legend+'</div>';
   }
   function pgSeasonKpis(player){
     var s=pgKind==="pitcher"?(player.pitching||{}):(player.batting||{});
@@ -3766,7 +3843,7 @@
   function pgProfiles(){
     return '<div class="pg-profiles">'+pgSelectedKeys.map(function(key,index){
       var p=pgPlayer(key);if(!p)return "";
-      return '<div class="pg-player-card" style="border-left-color:'+PG_COLORS[index]+'">'+
+      return '<div class="pg-player-card" style="border-left-color:'+PG_COLORS[index]+';--pg-card-delay:'+(index*90)+'ms">'+
         '<div class="pg-player-name">'+teamBadge(p.team)+' '+esc(p.name)+'</div>'+
         '<div class="pg-player-meta">'+esc(p.team)+' ／ #'+esc(p.number||"-")+' ／ '+esc(p.position||(pgKind==="pitcher"?"投手":"野手"))+'</div>'+
         '<div class="pg-kpis">'+pgSeasonKpis(p)+'</div><div class="pg-comment">'+esc(pgCommentary(p))+'</div>'+
