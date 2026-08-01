@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NPB SCOREBOARD</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700;800&family=Roboto:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="insights.css">
 <style>
   :root{
     --font-ui:'Noto Sans JP','BIZ UDPGothic','Yu Gothic UI','Meiryo',sans-serif;
@@ -1139,6 +1140,7 @@
           onclick="toggleNavGroup('analysis',event)">分析 <span class="navcaret">▼</span></button>
         <div class="navmenu" role="menu">
           <button class="navitem" id="vb-daily" onclick="setView('daily')">日別分析</button>
+          <button class="navitem" id="vb-insights" onclick="setView('insights')">インサイト</button>
           <button class="navitem" id="vb-playergraph" onclick="setView('playergraph')">選手グラフ</button>
           <button class="navitem" id="vb-correlation" onclick="setView('correlation')">相関分析</button>
           <button class="navitem" id="vb-teamstyle" onclick="setView('teamstyle')">球団スタイル</button>
@@ -1185,6 +1187,7 @@
     <div id="compareView" style="display:none"></div>
 
     <div id="dailyView" style="display:none"></div>
+    <div id="insightsView" style="display:none"></div>
     <div id="playerGraphView" style="display:none"></div>
 
     <div id="awardsView" style="display:none"></div>
@@ -2502,7 +2505,7 @@
     curView = v;
     closeNavGroups();
     var ids={dash:"dashView", games:"gameView", season:"seasonView",
-             players:"playersView", roster:"rosterView", matchup:"matchupView", compare:"compareView", daily:"dailyView",
+             players:"playersView", roster:"rosterView", matchup:"matchupView", compare:"compareView", daily:"dailyView", insights:"insightsView",
              playergraph:"playerGraphView", awards:"awardsView",
              awardsGuide:"awardsGuideView", sabermetrics:"sabermetricsView",
              glossary:"glossaryView",
@@ -2518,7 +2521,7 @@
     }
     var navGroups={
       stats:["season","players","roster","matchup","compare"],
-      analysis:["daily","playergraph","correlation","teamstyle"],
+      analysis:["daily","insights","playergraph","correlation","teamstyle"],
       metrics:["sabermetrics","glossary","war","warGuide","impact","impactGuide"]
     };
     Object.keys(navGroups).forEach(function(group){
@@ -2534,6 +2537,7 @@
     else if(v==="matchup") loadMatchups();
     else if(v==="compare") loadCompare();
     else if(v==="daily") loadDaily();
+    else if(v==="insights"&&typeof loadInsights==="function") loadInsights();
     else if(v==="playergraph") loadPlayerGraph();
     else if(v==="awards") loadAwards();
     else if(v==="awardsGuide"){
@@ -8754,9 +8758,11 @@
     if(requestedView==="playergraph")initialView="playergraph";
     else if(requestedView==="matchup")initialView="matchup";
     else if(requestedView==="roster")initialView="roster";
+    // インサイトは外部スクリプト読込後に初期表示する
     else if(requestedView==="social"&&personalPostingMode)initialView="social";
   }catch(e){}
   setView(initialView);
 </script>
+<script src="insights.js"></script>
 </body>
 </html>
