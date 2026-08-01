@@ -39,6 +39,12 @@ class MatchupPageTests(unittest.TestCase):
         self.assertIn('.matchup-controls{grid-template-columns:1fr 1fr;}', self.html)
         self.assertIn('.matchup-kpis{grid-template-columns:1fr;}', self.html)
 
+    def test_readable_japanese_typography_is_applied(self):
+        self.assertIn("family=Noto+Sans+JP:wght@400;500;600;700;800", self.html)
+        self.assertIn("--font-ui:'Noto Sans JP'", self.html)
+        self.assertIn("font-variant-numeric:tabular-nums lining-nums", self.html)
+        self.assertIn("body *,button,input,select,textarea,svg text", self.html)
+
 
 if __name__ == "__main__":
     unittest.main()
