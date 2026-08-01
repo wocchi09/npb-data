@@ -1,0 +1,79 @@
+name: Update Roster Announcements
+
+on:
+  schedule:
+    # JST 22:35。NPBの当日公示を試合終了前後に取り込む。
+    - cron: "35 13 * * *"
+  workflow_dispatch:
+    inputs:
+      season:
+        description: "シーズン（YYYY）"
+        required: false
+        default: "2026"
+      start_date:
+        description: "集計開始日（YYYY-MM-DD）"
+        required: false
+        default: "2026-03-26"
+      to_date:
+        description: "取得終了日（YYYY-MM-DD、空欄なら今日）"
+        required: false
+        default: ""
+
+concurrency:
+  group: npb-data-write
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  roster-announcements:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+
+      - name: Fetch announcements and calculate active-roster days
+        run: |
+          SEASON="${{ github.event.inputs.season }}"
+          START_DATE="${{ github.event.inputs.start_date }}"
+          TO_DATE="${{ github.event.inputs.to_date }}"
+          if [ -z "$SEASON" ]; then SEASON=$(date +%Y); fi
+          if [ -z "$START_DATE" ]; then START_DATE="$SEASON-03-26"; fi
+          ARGS="--season $SEASON --start-date $START_DATE"
+          if [ -n "$TO_DATE" ]; then ARGS="$ARGS --to-date $TO_DATE"; fi
+          python scraper/roster_announcements.py $ARGS
+
+      - name: Test roster announcement parser
+        run: python -m unittest tests.test_roster_announcements
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          find . -name "__pycache__" -type d -prune -exec rm -rf {} + 2>/dev/null || true
+          SEASON="${{ github.event.inputs.season }}"
+          if [ -z "$SEASON" ]; then SEASON=$(date +%Y); fi
+          if [ ! -d "data/$SEASON/roster" ]; then
+            echo "対象シーズンの公示データなし。"
+            exit 0
+          fi
+          git add "data/$SEASON/roster"
+          if git diff --cached --quiet; then
+            echo "公示データの変更なし。"
+            exit 0
+          fi
+          git commit -m "data: update roster announcements $(date +'%Y-%m-%d')"
+          for i in 1 2 3; do
+            git fetch origin main
+            if git rebase -X theirs origin/main && git push origin HEAD:main; then
+              exit 0
+            fi
+            git rebase --abort 2>/dev/null || true
+            sleep $((5 * i))
+          done
+          exit 1
