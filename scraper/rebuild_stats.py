@@ -48,7 +48,9 @@ MANAGED_FILES = {
     "standings.json", "npb_roster.json", "fip_constants.json",
         "war.json", "w_impact.json", "w_impact_trends.json",
 }
-MANAGED_DIRS = ("/players/", "/teams/", "/dataset/", "/masters/", "/awards/")
+MANAGED_DIRS = (
+    "/players/", "/teams/", "/dataset/", "/masters/", "/awards/", "/matchups/",
+)
 
 
 def _is_game_file(path: str) -> bool:
@@ -191,6 +193,21 @@ def merge_official_batting(dst: dict, row: dict):
     dst["errors"] = dst.get("errors", 0) + row["errors"]
     # 単打は「安打 - 本塁打」で近似（二塁打/三塁打は公式表に無いため）
     dst["singles"] += max(0, row["hits"] - row["hr"])
+
+
+def merge_batting_event_extras(dst: dict, event: dict, used_official: bool):
+    """公式表にない長打種別等を打席ログから補い、打席数も標準定義へ揃える。"""
+    if event.get("ibb"):
+        dst["ibb"] = dst.get("ibb", 0) + 1
+    dst["doubles"] += event.get("double", 0)
+    dst["triples"] += event.get("triple", 0)
+    dst["sf"] = dst.get("sf", 0) + event.get("sf", 0)
+    dst["sh"] = dst.get("sh", 0) + event.get("sh", 0)
+    dst["gidp"] = dst.get("gidp", 0) + event.get("gidp", 0)
+    # 公式ボックスの「犠打」は犠牲バントのみ。犠飛も打席数へ加える。
+    # 公式表を使わない試合は event["pa"] で既に加算するため二重計上しない。
+    if used_official:
+        dst["pa"] += event.get("sf", 0)
 
 
 def merge_official_pitching(dst: dict, row: dict):
@@ -684,13 +701,8 @@ def rebuild(season, base="data"):
                         bat[bkey] = blank_batting()
                     eb = bat[bkey]
                     if ev_extra.get("ibb"):
-                        eb["ibb"] = eb.get("ibb", 0) + 1
                         ibb_found += 1
-                    eb["doubles"] += ev_extra["double"]
-                    eb["triples"] += ev_extra["triple"]
-                    eb["sf"] = eb.get("sf", 0) + ev_extra.get("sf", 0)
-                    eb["sh"] = eb.get("sh", 0) + ev_extra.get("sh", 0)
-                    eb["gidp"] = eb.get("gidp", 0) + ev_extra.get("gidp", 0)
+                    merge_batting_event_extras(eb, ev_extra, used_official)
                     runners = ab.get("runners") or {}
                     count = ab.get("count") or {}
                     if (

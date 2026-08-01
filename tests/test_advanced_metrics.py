@@ -12,6 +12,7 @@ from rebuild_stats import (  # noqa: E402
     calc_pitching_rates,
     calc_rate_stats,
     calc_weighted_batting,
+    merge_batting_event_extras,
 )
 
 
@@ -88,6 +89,17 @@ class AdvancedMetricsTest(unittest.TestCase):
         self.assertEqual(result["bb_pct"], 0.077)
         self.assertEqual(result["k_bb"], 3.5)
         self.assertIsNotNone(result["lob_pct_est"])
+
+    def test_official_batting_adds_sacrifice_fly_to_plate_appearances(self):
+        line = self.batting_line()
+        event = {"double": 0, "triple": 0, "sf": 1, "sh": 0, "gidp": 0, "ibb": 0}
+        merge_batting_event_extras(line, event, used_official=True)
+        self.assertEqual(line["pa"], 111)
+        self.assertEqual(line["sf"], 1)
+
+        estimated = self.batting_line()
+        merge_batting_event_extras(estimated, event, used_official=False)
+        self.assertEqual(estimated["pa"], 110)
 
 
 if __name__ == "__main__":

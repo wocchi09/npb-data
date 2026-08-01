@@ -771,6 +771,18 @@
   .social-template summary{cursor:pointer;font-size:11px;font-weight:700;color:var(--accent);}
   .social-template-grid{display:grid;grid-template-columns:1fr 1fr auto;gap:7px;align-items:end;margin-top:8px;}
   .social-posted-badge{font-size:9px;color:var(--safe);border:1px solid currentColor;border-radius:12px;padding:2px 6px;}
+  /* ---- 選手別対戦成績 ---- */
+  .matchup-hero{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px;}
+  .matchup-hero-main{min-width:220px;flex:1;}
+  .matchup-player{font-size:20px;font-weight:800;line-height:1.3;}
+  .matchup-sub{font-size:11px;color:var(--muted);margin-top:3px;}
+  .matchup-controls{display:grid;grid-template-columns:minmax(150px,1fr) repeat(4,minmax(110px,170px));gap:8px;margin:10px 0;}
+  .matchup-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0;}
+  .matchup-kpi{border:1px solid var(--line);border-radius:10px;background:var(--panel2);padding:9px 10px;min-width:0;}
+  .matchup-kpi span{display:block;font-size:9px;color:var(--muted);margin-bottom:4px;}
+  .matchup-kpi b{display:block;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .matchup-kpi em{display:block;font:700 13px 'Roboto Mono',monospace;color:var(--accent);margin-top:2px;font-style:normal;}
+  .matchup-note{font-size:10px;line-height:1.6;color:var(--muted);margin-top:7px;}
   @keyframes pg-stage-in{from{opacity:0;transform:translateY(7px) scale(.995)}to{opacity:1;transform:none}}
   @keyframes pg-sheen{from{transform:translateX(-65%)}to{transform:translateX(65%)}}
   @keyframes pg-grid-in{from{opacity:0}to{opacity:1}}
@@ -794,6 +806,8 @@
     .social-controls .btn{grid-column:1/-1;width:100%;}
     .social-actions .btn{flex:1;}
     .social-template-grid{grid-template-columns:1fr;}
+    .matchup-controls{grid-template-columns:1fr 1fr;}
+    .matchup-kpis{grid-template-columns:1fr;}
     .pg-svg .area{display:none;}
     .pg-svg .series{filter:none;animation-duration:.62s;}
     .pg-svg .latest-halo{animation-iteration-count:1;}
@@ -1096,6 +1110,8 @@
     <div id="seasonView" style="display:none"></div>
 
     <div id="playersView" style="display:none"></div>
+
+    <div id="matchupView" style="display:none"></div>
 
     <div id="compareView" style="display:none"></div>
 
@@ -2417,7 +2433,7 @@
     curView = v;
     closeNavGroups();
     var ids={dash:"dashView", games:"gameView", season:"seasonView",
-             players:"playersView", compare:"compareView", daily:"dailyView",
+             players:"playersView", matchup:"matchupView", compare:"compareView", daily:"dailyView",
              playergraph:"playerGraphView", awards:"awardsView",
              awardsGuide:"awardsGuideView", sabermetrics:"sabermetricsView",
              glossary:"glossaryView",
@@ -2432,7 +2448,7 @@
       if(btn) btn.classList.toggle("on", k===v);
     }
     var navGroups={
-      stats:["season","players","compare"],
+      stats:["season","players","matchup","compare"],
       analysis:["daily","playergraph","correlation","teamstyle"],
       metrics:["sabermetrics","glossary","war","warGuide","impact","impactGuide"]
     };
@@ -2445,6 +2461,7 @@
     if(v==="dash") loadDash();
     else if(v==="season") loadSeason();
     else if(v==="players") loadPlayers();
+    else if(v==="matchup") loadMatchups();
     else if(v==="compare") loadCompare();
     else if(v==="daily") loadDaily();
     else if(v==="playergraph") loadPlayerGraph();
@@ -4447,6 +4464,12 @@
       h+='<div class="sub" style="font-size:11px;margin:-4px 0 10px">'+
          '推定LOB%は被安打・与四死球・被本塁打・失点から算出する推定式で、走者単位の実測残塁率ではありません。</div>';
     }
+    var matchupButtons=[];
+    if(isBatterP(p))matchupButtons.push('<button class="btn primary" onclick="openMatchups(\''+esc(key)+'\',\'batter\')">対投手成績を見る ▶</button>');
+    if(isPitcherP(p))matchupButtons.push('<button class="btn primary" onclick="openMatchups(\''+esc(key)+'\',\'pitcher\')">対打者成績を見る ▶</button>');
+    if(matchupButtons.length){
+      h+='<div class="subsec"><div class="subttl">対戦成績</div><div class="expbtns">'+matchupButtons.join('')+'</div></div>';
+    }
     h+='<div id="playerTrend"></div>';
     h+='<div class="subsec"><div class="subttl">スプリット分析</div>'+
        '<div class="expbtns"><button class="btn primary" onclick="openSplits(\''+esc(key)+'\')">'+
@@ -4456,6 +4479,148 @@
     el.innerHTML=h;
     loadPlayerTrends(p.key,p.name,p.team,"playerTrend");
     el.scrollIntoView({behavior:"smooth", block:"nearest"});
+  }
+
+  /* ===== 選手別対戦成績（野手は対投手、投手は対打者） ===== */
+  var matchupIndexCache={};
+  var matchupState={key:"",kind:"batter",year:"",entry:null,data:null,search:"",team:"all",hand:"all",minPa:1};
+
+  function matchupPlayer(key){
+    var all=buildPlayerList();
+    for(var i=0;i<all.length;i++)if(all[i].key===key)return all[i];
+    for(var j=0;j<(seasonData||[]).length;j++)if(seasonData[j].key===key)return seasonData[j];
+    return null;
+  }
+  function matchupReadUrl(){
+    try{
+      var params=new URLSearchParams(location.search);
+      if(params.get("view")!=="matchup")return;
+      matchupState.key=params.get("player")||matchupState.key;
+      matchupState.kind=params.get("kind")==="pitcher"?"pitcher":"batter";
+      matchupState.year=params.get("season")||matchupState.year;
+    }catch(e){}
+  }
+  function matchupWriteUrl(){
+    try{
+      var url=new URL(location.href);
+      url.searchParams.set("view","matchup");url.searchParams.set("player",matchupState.key);
+      url.searchParams.set("kind",matchupState.kind);url.searchParams.set("season",matchupState.year);
+      history.pushState(null,"",url.pathname+"?"+url.searchParams.toString());
+    }catch(e){}
+  }
+  function closeMatchups(){
+    try{
+      var url=new URL(location.href);["view","player","kind","season"].forEach(function(key){url.searchParams.delete(key);});
+      history.pushState(null,"",url.pathname+(url.searchParams.toString()?"?"+url.searchParams.toString():""));
+    }catch(e){}
+    setView("players");
+  }
+  function openMatchups(key,kind){
+    matchupState.key=key;matchupState.kind=kind==="pitcher"?"pitcher":"batter";
+    matchupState.year=(dp.value||todayJST()).slice(0,4);matchupState.entry=null;matchupState.data=null;
+    matchupState.search="";matchupState.team="all";matchupState.hand="all";matchupState.minPa=1;
+    matchupWriteUrl();setView("matchup");
+  }
+  async function matchupIndex(year){
+    if(matchupIndexCache[year])return matchupIndexCache[year];
+    var response=await fetch("data/"+year+"/matchups/index.json?t="+Date.now());
+    if(!response.ok)throw new Error("notfound");
+    matchupIndexCache[year]=await response.json();return matchupIndexCache[year];
+  }
+  async function loadMatchups(){
+    var view=document.getElementById("matchupView");if(!view)return;
+    matchupReadUrl();
+    if(!matchupState.year)matchupState.year=(dp.value||todayJST()).slice(0,4);
+    if(!matchupState.key){view.innerHTML='<div class="msg">選手一覧から選手を選んでください</div>';return;}
+    view.innerHTML='<div class="msg">対戦成績を読み込み中…</div>';
+    try{
+      var index=await matchupIndex(matchupState.year),list=matchupState.kind==="pitcher"?index.pitchers:index.batters;
+      var entry=(list||[]).find(function(item){return item.key===matchupState.key;});
+      if(!entry){
+        var selected=matchupPlayer(matchupState.key),playerId=selected&&selected.player_id;
+        entry=(list||[]).find(function(item){return playerId&&String(item.player_id)===String(playerId);});
+      }
+      if(!entry)throw new Error("player-notfound");
+      var response=await fetch("data/"+matchupState.year+"/matchups/"+entry.file+"?t="+Date.now());
+      if(!response.ok)throw new Error("data-notfound");
+      matchupState.entry=entry;matchupState.key=entry.key;matchupState.data=await response.json();renderMatchups();
+    }catch(e){
+      view.innerHTML='<div class="msg">この選手の'+esc(matchupState.year)+'年対戦成績がありません<br><br>'+
+        '<button class="btn" onclick="closeMatchups()">選手一覧へ戻る</button></div>';
+    }
+  }
+  function matchupSetSeason(year){
+    matchupState.year=String(year||"");matchupState.entry=null;matchupState.data=null;matchupWriteUrl();loadMatchups();
+  }
+  function matchupFiltersChanged(){
+    var get=function(id){var el=document.getElementById(id);return el?el.value:"";};
+    matchupState.search=get("matchupSearch");matchupState.team=get("matchupTeam")||"all";
+    matchupState.hand=get("matchupHand")||"all";matchupState.minPa=Number(get("matchupMinPa"))||1;renderMatchups();
+  }
+  function matchupRate(value){
+    return value==null?"-":Number(value).toFixed(3).replace(/^0\./,".");
+  }
+  function matchupPct(value){return value==null?"-":(Number(value)*100).toFixed(1)+"%";}
+  function matchupKpi(label,item){
+    return '<div class="matchup-kpi"><span>'+esc(label)+'</span><b>'+esc(item?item.name:"-")+
+      (item?' '+teamBadge(item.team):'')+'</b><em>'+(item?matchupRate(item.ops)+" OPS / "+item.pa+"打席":"-")+'</em></div>';
+  }
+  function renderMatchups(){
+    var view=document.getElementById("matchupView"),data=matchupState.data;if(!view||!data)return;
+    var rows=(data.opponents||[]).slice(),wanted=normName(matchupState.search||"");
+    var teams={},hands={};rows.forEach(function(row){if(row.team)teams[row.team]=1;if(row.hand)hands[row.hand]=1;});
+    rows=rows.filter(function(row){
+      return row.pa>=matchupState.minPa&&(matchupState.team==="all"||row.team===matchupState.team)&&
+        (matchupState.hand==="all"||row.hand===matchupState.hand)&&
+        (!wanted||normName(row.name).indexOf(wanted)>=0||String(row.player_id||"").indexOf(wanted)>=0);
+    });
+    rows.sort(function(a,b){return b.pa-a.pa||String(a.name).localeCompare(String(b.name),"ja");});
+    var rankRows=rows.filter(function(row){return row.pa>=Math.max(5,matchupState.minPa)&&row.ops!=null;});
+    var high=rankRows.slice().sort(function(a,b){return b.ops-a.ops||b.pa-a.pa;})[0];
+    var low=rankRows.slice().sort(function(a,b){return a.ops-b.ops||b.pa-a.pa;})[0];
+    var most=rows[0],isPitcher=matchupState.kind==="pitcher",player=data.player||matchupState.entry||{};
+    function options(values,current){return Object.keys(values).sort().map(function(value){return '<option value="'+esc(value)+'"'+(value===current?' selected':'')+'>'+esc(value)+'</option>';}).join("");}
+    var h='<div class="dash-sec"><div class="matchup-hero"><button class="btn" onclick="closeMatchups()">◀ 選手一覧</button>'+
+      '<div class="matchup-hero-main"><div class="matchup-player">'+esc(player.name)+' '+teamBadge(player.team)+'</div>'+
+      '<div class="matchup-sub">'+esc(matchupState.year)+'年シーズン ／ '+(isPitcher?'対打者別の被打撃成績':'対投手別の打撃成績')+
+      ' ／ '+esc(data.updated_through||'-')+'時点</div></div></div>'+
+      '<div class="matchup-controls">'+
+      '<label class="ef"><span>相手選手</span><input id="matchupSearch" value="'+esc(matchupState.search)+'" placeholder="名前・選手ID" oninput="matchupFiltersChanged()"></label>'+
+      '<label class="ef"><span>シーズン</span><input type="number" min="2020" max="2099" value="'+esc(matchupState.year)+'" onchange="matchupSetSeason(this.value)"></label>'+
+      '<label class="ef"><span>相手球団</span><select id="matchupTeam" onchange="matchupFiltersChanged()"><option value="all">全球団</option>'+options(teams,matchupState.team)+'</select></label>'+
+      '<label class="ef"><span>相手の左右</span><select id="matchupHand" onchange="matchupFiltersChanged()"><option value="all">左右すべて</option>'+options(hands,matchupState.hand)+'</select></label>'+
+      '<label class="ef"><span>最低対戦打席</span><select id="matchupMinPa" onchange="matchupFiltersChanged()">'+[1,3,5,10,20].map(function(n){return '<option value="'+n+'"'+(matchupState.minPa===n?' selected':'')+'>'+n+'打席以上</option>';}).join("")+'</select></label></div>'+
+      '<div class="matchup-kpis">'+matchupKpi("最多対戦",most)+
+      matchupKpi(isPitcher?"最も抑えた相手（5打席以上）":"得意な相手（5打席以上）",isPitcher?low:high)+
+      matchupKpi("苦手な相手（5打席以上）",isPitcher?high:low)+'</div>'+
+      '<div class="exok" style="margin:8px 0">該当 '+rows.length+'人 ／ '+rows.reduce(function(sum,row){return sum+row.pa;},0)+'打席</div>';
+    if(!rows.length){
+      h+='<div class="msg">条件に合う対戦成績がありません</div>';
+    }else{
+      var labels=isPitcher?{h:"被安",d:"被二",t:"被三",hr:"被本",avg:"被打率",obp:"被出塁",slg:"被長打",ops:"被OPS"}:
+        {h:"安打",d:"二塁",t:"三塁",hr:"本塁打",avg:"打率",obp:"出塁",slg:"長打",ops:"OPS"};
+      h+='<div class="tblwrap"><table class="stbl matchup-table"><thead><tr><th>相手選手</th><th>球団</th><th>左右</th><th>試合</th><th>打席</th><th>打数</th>'+
+        '<th>'+labels.h+'</th><th>'+labels.d+'</th><th>'+labels.t+'</th><th>'+labels.hr+'</th><th>四球</th><th>死球</th><th>三振</th>'+
+        '<th>'+labels.avg+'</th><th>'+labels.obp+'</th><th>'+labels.slg+'</th><th>'+labels.ops+'</th><th>K%</th><th>BB%</th></tr></thead><tbody>';
+      rows.forEach(function(row){
+        h+='<tr><td class="nm">'+esc(row.name)+'</td><td>'+teamBadge(row.team)+'</td><td class="pos">'+esc(row.hand||'-')+'</td>'+
+          '<td class="num" data-sort-value="'+row.games+'">'+row.games+'</td><td class="num" data-sort-value="'+row.pa+'">'+row.pa+'</td>'+
+          '<td class="num" data-sort-value="'+row.ab+'">'+row.ab+'</td><td class="num" data-sort-value="'+row.hits+'">'+row.hits+'</td>'+
+          '<td class="num" data-sort-value="'+row.double+'">'+row.double+'</td><td class="num" data-sort-value="'+row.triple+'">'+row.triple+'</td>'+
+          '<td class="num" data-sort-value="'+row.hr+'">'+row.hr+'</td><td class="num" data-sort-value="'+row.bb+'">'+row.bb+'</td>'+
+          '<td class="num" data-sort-value="'+row.hbp+'">'+row.hbp+'</td><td class="num" data-sort-value="'+row.so+'">'+row.so+'</td>'+
+          '<td class="num" data-sort-value="'+(row.avg==null?'':row.avg)+'">'+matchupRate(row.avg)+'</td>'+
+          '<td class="num" data-sort-value="'+(row.obp==null?'':row.obp)+'">'+matchupRate(row.obp)+'</td>'+
+          '<td class="num" data-sort-value="'+(row.slg==null?'':row.slg)+'">'+matchupRate(row.slg)+'</td>'+
+          '<td class="num hi" data-sort-value="'+(row.ops==null?'':row.ops)+'">'+matchupRate(row.ops)+'</td>'+
+          '<td class="num" data-sort-value="'+(row.k_pct==null?'':row.k_pct)+'">'+matchupPct(row.k_pct)+'</td>'+
+          '<td class="num" data-sort-value="'+(row.bb_pct==null?'':row.bb_pct)+'">'+matchupPct(row.bb_pct)+'</td></tr>';
+      });
+      h+='</tbody></table></div>';
+    }
+    h+='<div class="matchup-note">打席結果から集計。OPS順位は5打席以上を対象とし、少数打席では数値が大きく振れるため参考値です。'+
+      (isPitcher?'投手の防御率・失点は個別打者へ正確に配分できないため表示しません。':'')+'</div></div>';
+    view.innerHTML=h;
   }
 
   /* ===== 選手スプリット（試合ログ・月別・対戦別など） ===== */
@@ -8233,7 +8398,7 @@
     motionTimers[key]=setTimeout(function(){motionRun(root);},45);
   }
   function motionSetup(){
-    var ids=["dashView","gameView","seasonView","playersView","compareView","dailyView","playerGraphView",
+    var ids=["dashView","gameView","seasonView","playersView","matchupView","compareView","dailyView","playerGraphView",
       "awardsView","awardsGuideView","sabermetricsView","glossaryView","warView",
       "warGuideView","impactView","impactGuideView","correlationView","teamstyleView","exportView","socialView"];
     ids.forEach(function(id){
@@ -8303,7 +8468,7 @@
   });
 
   dp.addEventListener("change",loadDay);
-  // 共有URLで選手グラフを直接開ける。それ以外はダッシュボード。
+  // 共有URLで選手グラフ・対戦成績を直接開ける。それ以外はダッシュボード。
   dp.value=todayJST();
   var personalPostingMode=initPersonalPostingMode();
   motionSetup();
@@ -8311,6 +8476,7 @@
   try{
     var initialParams=new URLSearchParams(location.search),requestedView=initialParams.get("view");
     if(requestedView==="playergraph")initialView="playergraph";
+    else if(requestedView==="matchup")initialView="matchup";
     else if(requestedView==="social"&&personalPostingMode)initialView="social";
   }catch(e){}
   setView(initialView);

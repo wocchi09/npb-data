@@ -9,6 +9,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "scraper"))
 
 import build_dataset
+import rebuild_stats
+import validate_data
 from lib.awards import (
     aggregate_batter_period,
     aggregate_pitcher_period,
@@ -25,6 +27,28 @@ class PeriodHitTypesTest(unittest.TestCase):
         self.assertFalse(build_dataset._is_game_file("data/2026/war.json"))
         self.assertFalse(build_dataset._is_game_file("data/2026/w_impact.json"))
         self.assertFalse(build_dataset._is_game_file("data/2026/w_impact_trends.json"))
+        self.assertFalse(build_dataset._is_game_file(
+            "data/2026/matchups/batters/p1400127.json"))
+        self.assertFalse(rebuild_stats._is_game_file(
+            "data/2026/matchups/pitchers/p2000079.json"))
+
+    def test_validator_ignores_matchup_json(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            matchup_dir = os.path.join(tmp, "2026", "matchups", "batters")
+            game_dir = os.path.join(tmp, "2026", "07", "31")
+            os.makedirs(matchup_dir)
+            os.makedirs(game_dir)
+            with open(os.path.join(matchup_dir, "p1.json"), "w", encoding="utf-8") as f:
+                json.dump({"kind": "batter"}, f)
+            with open(os.path.join(game_dir, "g1.json"), "w", encoding="utf-8") as f:
+                json.dump({"game_id": "g1"}, f)
+
+            files = validate_data.find_game_files(tmp, season="2026")
+
+            self.assertEqual(
+                [os.path.normpath(path) for path in files],
+                [os.path.normpath(os.path.join(game_dir, "g1.json"))],
+            )
 
     def test_batting_line_contains_hit_types(self):
         with tempfile.TemporaryDirectory() as tmp:
