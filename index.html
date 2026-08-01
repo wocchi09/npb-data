@@ -792,6 +792,13 @@
   .matchup-rank-name .rank{color:var(--accent);font:800 11px 'Roboto Mono',monospace;min-width:14px;}
   .matchup-rank-stats{font:600 10px/1.65 'Roboto Mono',var(--font-ui);color:var(--ink2);margin-top:2px;overflow-wrap:anywhere;}
   .matchup-rank-stats strong{color:var(--accent);font-weight:800;}
+  .matchup-rank-meta{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin-top:4px;}
+  .matchup-rank-pa{font:800 12px 'Roboto Mono',var(--font-ui);color:var(--ink);}
+  .matchup-rank-confidence{font:700 10px 'Roboto Mono',var(--font-ui);color:var(--muted);}
+  .matchup-verdict{display:inline-flex;align-items:center;border-radius:999px;padding:2px 7px;font-size:9px;font-weight:800;line-height:1.4;}
+  .matchup-verdict.good{background:#dcfce7;color:#166534;border:1px solid #86efac;}
+  .matchup-verdict.normal{background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;}
+  .matchup-verdict.bad{background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;}
   .matchup-note{font-size:10px;line-height:1.6;color:var(--muted);margin-top:7px;}
   @keyframes pg-stage-in{from{opacity:0;transform:translateY(7px) scale(.995)}to{opacity:1;transform:none}}
   @keyframes pg-sheen{from{transform:translateX(-65%)}to{transform:translateX(65%)}}
@@ -4770,7 +4777,8 @@
 
   /* ===== 選手別対戦成績（野手は対投手、投手は対打者） ===== */
   var matchupIndexCache={};
-  var matchupState={key:"",kind:"batter",year:"",entry:null,data:null,search:"",team:"all",hand:"all",minPa:1};
+  var MATCHUP_RANKING_DEFAULT_MIN_PA=10;
+  var matchupState={key:"",kind:"batter",year:"",entry:null,data:null,search:"",team:"all",hand:"all",minPa:1,rankingMinPa:MATCHUP_RANKING_DEFAULT_MIN_PA};
 
   function matchupPlayer(key){
     var all=buildPlayerList();
@@ -4853,8 +4861,45 @@
     return ((Number(row.single)||0)*.89+(Number(row.double)||0)*1.27+(Number(row.triple)||0)*1.62+
       (Number(row.hr)||0)*2.10+walks*.70+(Number(row.sb)||0)*.20-(Number(row.cs)||0)*.40)/Math.max(1,Number(row.pa)||0);
   }
+  function matchupRankingMinPa(){
+    return Math.max(1,Number(matchupState.rankingMinPa)||MATCHUP_RANKING_DEFAULT_MIN_PA);
+  }
+  function matchupConfidence(pa){
+    pa=Number(pa)||0;
+    if(pa>=30)return "★★★★★";
+    if(pa>=20)return "★★★★☆";
+    if(pa>=15)return "★★★☆☆";
+    if(pa>=10)return "★★☆☆☆";
+    if(pa>=5)return "★☆☆☆☆";
+    return "☆☆☆☆☆";
+  }
+  function matchupVerdict(row,isPitcher){
+    var pa=Number(row.pa)||0,ops=Number(row.ops)||0;
+    if(isPitcher){
+      if(pa>=15&&ops<.500)return {label:"かなり抑制",tone:"good"};
+      if(ops<.600)return {label:"抑制",tone:"good"};
+      if(ops>=1.000&&pa>=15)return {label:"超苦手",tone:"bad"};
+      if(ops>=.900)return {label:"苦手",tone:"bad"};
+      return {label:"普通",tone:"normal"};
+    }
+    if(pa>=15&&ops>=1.000)return {label:"超得意",tone:"good"};
+    if(ops>=.900)return {label:"得意",tone:"good"};
+    if(pa>=15&&ops<.500)return {label:"超苦手",tone:"bad"};
+    if(ops<.600)return {label:"苦手",tone:"bad"};
+    return {label:"普通",tone:"normal"};
+  }
   function matchupRanked(rows,isPitcher){
-    var eligible=rows.filter(function(row){return row.pa>=matchupState.minPa;});
+    var minPa=Math.max(matchupRankingMinPa(),Number(matchupState.minPa)||1);
+    var eligible=rows.filter(function(row){return row.pa>=minPa&&row.ops!=null&&isFinite(Number(row.ops));});
+    if(!isPitcher){
+      var byOpsDesc=eligible.slice().sort(function(a,b){return (Number(b.ops)||0)-(Number(a.ops)||0)||b.pa-a.pa||String(a.name).localeCompare(String(b.name),"ja");});
+      var byOpsAsc=eligible.slice().sort(function(a,b){return (Number(a.ops)||0)-(Number(b.ops)||0)||b.pa-a.pa||String(a.name).localeCompare(String(b.name),"ja");});
+      return {
+        good:byOpsDesc.filter(function(row){return Number(row.ops)>=.900;}).slice(0,5),
+        bad:byOpsAsc.filter(function(row){return Number(row.ops)<.600;}).slice(0,5),
+        minPa:minPa
+      };
+    }
     var totalPa=eligible.reduce(function(sum,row){return sum+row.pa;},0);
     var mean=totalPa?eligible.reduce(function(sum,row){return sum+matchupProduction(row)*row.pa;},0)/totalPa:0;
     var scored=eligible.map(function(row){
@@ -4865,15 +4910,17 @@
     var low=scored.slice().sort(function(a,b){return a.score-b.score||b.row.pa-a.row.pa||String(a.row.name).localeCompare(String(b.row.name),"ja");});
     var good=(isPitcher?low:high).filter(function(x){return isPitcher?x.score<0:x.score>0;});
     var bad=(isPitcher?high:low).filter(function(x){return isPitcher?x.score>0:x.score<0;});
-    return {good:good.slice(0,5).map(function(x){return x.row;}),bad:bad.slice(0,5).map(function(x){return x.row;})};
+    return {good:good.slice(0,5).map(function(x){return x.row;}),bad:bad.slice(0,5).map(function(x){return x.row;}),minPa:minPa};
   }
-  function matchupRankCard(label,items,isPitcher){
+  function matchupRankCard(label,items,isPitcher,showAssessment){
     var rows=(items||[]).map(function(item,index){
       var walks=(Number(item.bb)||0)+(Number(item.hbp)||0),steals=Number(item.sb)||0;
+      var verdict=matchupVerdict(item,isPitcher);
       var stats=isPitcher
-        ? item.pa+'打席 '+item.ab+'打数 被安'+item.hits+' 与四死'+walks+' 被本'+item.hr+' 奪三振'+item.so+' 許盗塁'+steals+' <strong>被OPS '+matchupRate(item.ops)+'</strong>'
-        : item.pa+'打席 '+item.ab+'打数 '+item.hits+'安打 '+walks+'四死球 '+item.hr+'本塁打 '+steals+'盗塁 <strong>OPS '+matchupRate(item.ops)+'</strong>';
-      return '<div class="matchup-rank-row"><div class="matchup-rank-name"><span class="rank">'+(index+1)+'</span>'+esc(item.name)+' '+teamBadge(item.team)+'</div><div class="matchup-rank-stats">'+stats+'</div></div>';
+        ? item.ab+'打数 被安'+item.hits+' 与四死'+walks+' 被本'+item.hr+' 奪三振'+item.so+' 許盗塁'+steals+' <strong>被OPS '+matchupRate(item.ops)+'</strong>'
+        : item.ab+'打数 '+item.hits+'安打 '+walks+'四死球 '+item.hr+'本塁打 '+steals+'盗塁 <strong>OPS '+matchupRate(item.ops)+'</strong>';
+      var assessment=showAssessment?'<div class="matchup-rank-meta"><b class="matchup-rank-pa">'+item.pa+'打席</b><span class="matchup-verdict '+verdict.tone+'">'+verdict.label+'</span><span class="matchup-rank-confidence">信頼度：'+matchupConfidence(item.pa)+'</span></div>':'<div class="matchup-rank-meta"><b class="matchup-rank-pa">'+item.pa+'打席</b></div>';
+      return '<div class="matchup-rank-row"><div class="matchup-rank-name"><span class="rank">'+(index+1)+'</span>'+esc(item.name)+' '+teamBadge(item.team)+'</div>'+assessment+'<div class="matchup-rank-stats">'+stats+'</div></div>';
     }).join("");
     return '<div class="matchup-kpi"><span>'+esc(label)+'</span><div class="matchup-rank-list">'+(rows||'<div class="matchup-rank-stats">条件に合う対象なし</div>')+'</div></div>';
   }
@@ -4888,7 +4935,7 @@
     });
     rows.sort(function(a,b){return b.pa-a.pa||String(a.name).localeCompare(String(b.name),"ja");});
     var isPitcher=matchupState.kind==="pitcher",ranked=matchupRanked(rows,isPitcher),player=data.player||matchupState.entry||{};
-    var most=rows.slice(0,5);
+    var most=rows.filter(function(row){return row.pa>=ranked.minPa;}).slice(0,5);
     function options(values,current){return Object.keys(values).sort().map(function(value){return '<option value="'+esc(value)+'"'+(value===current?' selected':'')+'>'+esc(value)+'</option>';}).join("");}
     var h='<div class="dash-sec"><div class="matchup-hero"><button class="btn" onclick="closeMatchups()">◀ 選手一覧</button>'+
       '<div class="matchup-hero-main"><div class="matchup-player">'+esc(player.name)+' '+teamBadge(player.team)+'</div>'+
@@ -4900,9 +4947,9 @@
       '<label class="ef"><span>相手球団</span><select id="matchupTeam" onchange="matchupFiltersChanged()"><option value="all">全球団</option>'+options(teams,matchupState.team)+'</select></label>'+
       '<label class="ef"><span>相手の左右</span><select id="matchupHand" onchange="matchupFiltersChanged()"><option value="all">左右すべて</option>'+options(hands,matchupState.hand)+'</select></label>'+
       '<label class="ef"><span>最低対戦打席</span><select id="matchupMinPa" onchange="matchupFiltersChanged()">'+[1,3,5,10,20].map(function(n){return '<option value="'+n+'"'+(matchupState.minPa===n?' selected':'')+'>'+n+'打席以上</option>';}).join("")+'</select></label></div>'+
-      '<div class="matchup-kpis">'+matchupRankCard(isPitcher?"対戦が多い打者 TOP5":"対戦が多い投手 TOP5",most,isPitcher)+
-      matchupRankCard(isPitcher?"抑えている打者 TOP5":"得意な投手 TOP5",ranked.good,isPitcher)+
-      matchupRankCard(isPitcher?"苦手な打者 TOP5":"苦手な投手 TOP5",ranked.bad,isPitcher)+'</div>'+
+      '<div class="matchup-kpis">'+matchupRankCard(isPitcher?"対戦が多い打者 TOP5":"対戦が多い投手 TOP5",most,isPitcher,true)+
+      matchupRankCard(isPitcher?"抑えている打者 TOP5":"得意な投手 TOP5",ranked.good,isPitcher,true)+
+      matchupRankCard(isPitcher?"苦手な打者 TOP5":"苦手な投手 TOP5",ranked.bad,isPitcher,true)+'</div>'+
       '<div class="exok" style="margin:8px 0">該当 '+rows.length+'人 ／ '+rows.reduce(function(sum,row){return sum+row.pa;},0)+'打席</div>';
     if(!rows.length){
       h+='<div class="msg">条件に合う対戦成績がありません</div>';
@@ -4928,7 +4975,7 @@
       });
       h+='</tbody></table></div>';
     }
-    h+='<div class="matchup-note">得意・苦手は、画面で指定した最低対戦打席を満たす相手について、単打・長打・四死球・本塁打・盗塁・盗塁死の得点価値を総合して分類しています。TOP5は総合値を優先し、対戦打席数は信頼度補正と同評価時の優先順位に使います。盗塁は打席と投手を正確に特定できた走塁イベントのみです。'+
+    h+='<div class="matchup-note">得意・苦手ランキングは最低'+ranked.minPa+'打席以上を対象とします。野手はOPS順（得意は降順、苦手は昇順）で、OPS .900以上を得意、.600未満を苦手と判定します。15打席以上かつOPS 1.000以上は超得意、15打席以上かつOPS .500未満は超苦手です。信頼度は対戦打席数に基づきます。盗塁は打席と投手を正確に特定できた走塁イベントのみです。'+
       (isPitcher?'投手の防御率・失点は個別打者へ正確に配分できないため表示しません。':'')+'</div></div>';
     view.innerHTML=h;
   }
