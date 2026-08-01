@@ -66,6 +66,61 @@ class PersonalSocialPostingTests(unittest.TestCase):
         self.assertIn('.social-controls{grid-template-columns:1fr 1fr;}', self.html)
         self.assertIn('.social-actions .btn{flex:1;}', self.html)
 
+    def test_daily_post_categories_are_available(self):
+        expected = [
+            "本日の本塁打",
+            "試合結果",
+            "勝敗・セーブ投手",
+            "注目打者・投手",
+            "先発投手成績",
+            "日刊MVP",
+            "日刊ベストメンバー",
+            "シーズン節目",
+        ]
+        for label in expected:
+            self.assertIn(label, self.html)
+        self.assertIn("function socialPitcherHighlightPosts()", self.html)
+        self.assertIn("num(row.so)>=10", self.html)
+
+    def test_detailed_games_and_daily_awards_are_loaded(self):
+        self.assertIn("gamePath(socialState.date,game.game_id)", self.html)
+        self.assertIn('"/awards/daily/"+socialState.date+".json', self.html)
+        self.assertIn('"/players/stats.json?t="', self.html)
+        self.assertIn("socialState.games=loaded[0].filter(Boolean)", self.html)
+
+    def test_abbreviated_decision_pitcher_names_resolve_to_full_names_and_teams(self):
+        self.assertIn("function socialPitcherInfo(game,name,decision)", self.html)
+        self.assertIn("rowName.indexOf(target)===0", self.html)
+        self.assertIn("info.decision===decision", self.html)
+        self.assertIn('parts.push(label+" "+info.name+(team?', self.html)
+
+    def test_data_completeness_warning_is_rendered(self):
+        self.assertIn("function socialCompletenessText()", self.html)
+        self.assertIn("未取得または試合途中のデータがあります", self.html)
+        self.assertIn("全試合終了", self.html)
+        self.assertIn('id="socialCompleteness"', self.html)
+
+    def test_posting_history_and_next_unposted_navigation_exist(self):
+        self.assertIn('var SOCIAL_HISTORY_KEY="npbPostingHistory"', self.html)
+        self.assertIn("function socialTogglePosted(index)", self.html)
+        self.assertIn("function socialNextUnposted()", self.html)
+        self.assertIn("投稿済みにする", self.html)
+        self.assertIn("この日をすべて未投稿に戻す", self.html)
+
+    def test_template_and_no_homer_option_are_saved_locally(self):
+        self.assertIn('var SOCIAL_TEMPLATE_KEY="npbPostingTemplate"', self.html)
+        self.assertIn("function socialSaveTemplate()", self.html)
+        self.assertIn('id="socialPrefix"', self.html)
+        self.assertIn('id="socialSuffix"', self.html)
+        self.assertIn('id="socialNoHr"', self.html)
+
+    def test_milestones_are_season_only_and_latest_day_only(self):
+        self.assertIn("socialState.date!==dashData.date", self.html)
+        self.assertIn("今季\"+v+\"本塁打", self.html)
+        self.assertIn("今季\"+v+\"安打", self.html)
+        self.assertIn("今季\"+v+\"奪三振", self.html)
+        self.assertIn("シーズン節目は最新日のみ判定", self.html)
+
 
 if __name__ == "__main__":
     unittest.main()

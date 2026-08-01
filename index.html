@@ -11,7 +11,7 @@
     --line:#F0D9B5;--line2:#E5C596;
     --ink:#3D2510;--ink2:#6B4A28;--muted:#9A7B57;
     --accent:#E8590C;--accent2:#F59F00;--gold:#FFC93C;
-    --hit:#D9480F;--out:#1C7ED6;
+    --hit:#D9480F;--out:#1C7ED6;--safe:#2F9E44;
     --board-bg:#2B1B0E;--board-ink:#FFD43B;--board-line:#5A4028;
     --field:#2F6B3A;--field2:#C9A227;--dirt:#B07C4A;
     --shadow:0 2px 10px rgba(120,70,20,.10);
@@ -21,7 +21,7 @@
     --line:#3D2A13;--line2:#54391B;
     --ink:#FFF0DB;--ink2:#E8CFA8;--muted:#A98858;
     --accent:#FF922B;--accent2:#FFC93C;--gold:#FFD43B;
-    --hit:#FFA94D;--out:#74C0FC;
+    --hit:#FFA94D;--out:#74C0FC;--safe:#69DB7C;
     --board-bg:#120C05;--board-ink:#FFD43B;--board-line:#3D2A13;
     --field:#1E4A28;--field2:#8A6415;--dirt:#7A5433;
     --shadow:0 2px 10px rgba(0,0,0,.35);
@@ -710,7 +710,7 @@
   /* ---- 個人用SNS投稿 ---- */
   .social-intro{font-size:12.5px;line-height:1.8;color:var(--ink2);background:var(--panel2);
     border:1px solid var(--line);border-radius:10px;padding:9px 11px;margin-bottom:10px;}
-  .social-controls{display:grid;grid-template-columns:minmax(170px,230px) minmax(150px,210px) auto;
+  .social-controls{display:grid;grid-template-columns:minmax(160px,220px) minmax(130px,190px) minmax(150px,210px) auto;
     gap:8px;align-items:end;margin-bottom:12px;}
   .social-field{display:flex;flex-direction:column;gap:3px;min-width:0;}
   .social-field label{font-size:10px;color:var(--muted);font-weight:700;}
@@ -720,6 +720,7 @@
   .social-posts{display:grid;gap:10px;}
   .social-post{border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:10px;
     background:var(--panel);padding:10px;}
+  .social-post.posted{border-left-color:var(--safe);opacity:.72;}
   .social-post-head{display:flex;align-items:center;justify-content:space-between;gap:8px;
     margin-bottom:6px;font-size:12px;font-weight:700;color:var(--accent);}
   .social-count{font:10px 'Roboto Mono',monospace;color:var(--muted);}
@@ -730,6 +731,17 @@
   .social-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:7px;}
   .social-note{font-size:10px;color:var(--muted);line-height:1.6;margin-top:8px;}
   .social-status{font-size:11px;color:var(--accent);min-height:18px;margin-top:5px;}
+  .social-progress{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;
+    border:1px solid var(--line);border-radius:9px;background:var(--panel2);padding:7px 9px;margin-bottom:9px;}
+  .social-progress b{color:var(--accent);}
+  .social-complete{font-size:11px;line-height:1.65;border:1px solid var(--safe);border-radius:9px;
+    color:var(--safe);background:color-mix(in srgb,var(--safe) 7%,var(--panel));padding:7px 9px;margin-bottom:9px;}
+  .social-complete.warn{color:var(--out);border-color:var(--out);
+    background:color-mix(in srgb,var(--out) 7%,var(--panel));font-weight:700;}
+  .social-template{border:1px solid var(--line);border-radius:9px;background:var(--panel2);padding:8px 10px;margin-bottom:10px;}
+  .social-template summary{cursor:pointer;font-size:11px;font-weight:700;color:var(--accent);}
+  .social-template-grid{display:grid;grid-template-columns:1fr 1fr auto;gap:7px;align-items:end;margin-top:8px;}
+  .social-posted-badge{font-size:9px;color:var(--safe);border:1px solid currentColor;border-radius:12px;padding:2px 6px;}
   @media(max-width:920px){
     .pg-controls{grid-template-columns:repeat(2,minmax(0,1fr));}
     .pg-layout{grid-template-columns:1fr;}
@@ -743,6 +755,7 @@
     .social-controls{grid-template-columns:1fr 1fr;}
     .social-controls .btn{grid-column:1/-1;width:100%;}
     .social-actions .btn{flex:1;}
+    .social-template-grid{grid-template-columns:1fr;}
   }
 
   /* ---- 規定到達マーク ---- */
@@ -1119,6 +1132,8 @@
     "広島":"#carp","ヤクルト":"#swallows"
   };
   var PERSONAL_POSTING_KEY="npbPersonalPosting";
+  var SOCIAL_TEMPLATE_KEY="npbPostingTemplate";
+  var SOCIAL_HISTORY_KEY="npbPostingHistory";
 
   function tMeta(t){return TEAM_META[t]||null;}
   function tMini(t){var m=tMeta(t);return m?m.mini:(t||"");}
@@ -3844,8 +3859,226 @@
       return socialHomeRunText(date,chunk,state,rows.length,index,chunks.length);
     });
   }
+  function socialPost(id,category,title,text){return {id:id,category:category,title:title,text:text};}
+  function socialEntry(text,teams){return {text:text,teams:teams||[]};}
+  function socialChunkEntries(id,category,title,heading,entries,footer){
+    if(!entries.length)return [];
+    function build(chunk,index,parts){
+      var teams=[];chunk.forEach(function(entry){teams=teams.concat(entry.teams||[]);});
+      var head=heading+(parts>1?"（"+(index+1)+"/"+parts+"）":"");
+      return head+"\n\n"+chunk.map(function(entry){return entry.text;}).join("\n")+
+        (footer?"\n\n"+footer:"")+"\n\n"+socialTags(teams);
+    }
+    var chunks=[],current=[];
+    entries.forEach(function(entry){
+      var candidate=current.concat([entry]),probe=build(candidate,8,8);
+      if(current.length&&socialWeightedLength(probe)>250){chunks.push(current);current=[entry];}
+      else current=candidate;
+    });
+    if(current.length)chunks.push(current);
+    return chunks.map(function(chunk,index){
+      return socialPost(id+"-"+index,category,title+(chunks.length>1?" "+(index+1)+"/"+chunks.length:""),build(chunk,index,chunks.length));
+    });
+  }
+  function socialTeamAllowed(team){return socialState.league==="all"||tLeague(team)===socialState.league;}
+  function socialGameTeam(game,side){
+    var result=game.result||{};return side==="home"?(result.home||game.home):(result.away||game.away);
+  }
+  function socialPitcherInfo(game,name,decision){
+    var pitching=(game.boxscore&&game.boxscore.pitching)||{};
+    var target=normName(name),fuzzy=[];
+    for(var i=0;i<["home","away"].length;i++){
+      var side=["home","away"][i],rows=pitching[side]||[];
+      for(var j=0;j<rows.length;j++){
+        var rowName=normName(rows[j].name);
+        if(rowName===target)return {team:socialGameTeam(game,side),name:rows[j].name||name};
+        if(rowName.indexOf(target)===0||target.indexOf(rowName)===0){
+          fuzzy.push({team:socialGameTeam(game,side),name:rows[j].name||name,decision:String(rows[j].decision||"").replace("Ｓ","S")});
+        }
+      }
+    }
+    if(fuzzy.length>1&&decision){
+      var decided=fuzzy.filter(function(info){return info.decision===decision;});
+      if(decided.length===1)return decided[0];
+    }
+    return fuzzy.length===1?fuzzy[0]:{team:"",name:name};
+  }
+  function socialPitcherTeam(game,name){
+    return socialPitcherInfo(game,name).team;
+  }
+  function socialResultPosts(){
+    var entries=[];
+    ((socialState.summary&&socialState.summary.games)||[]).forEach(function(game){
+      var result=game.result||{},home=result.home||game.home,away=result.away||game.away;
+      if(socialState.league!=="all"&&tLeague(home)!==socialState.league&&tLeague(away)!==socialState.league)return;
+      var state=String(result.state||game.state||""),score=result.away_score+"－"+result.home_score;
+      entries.push(socialEntry(tMini(away)+" "+score+" "+tMini(home)+(state&&!/試合終了/.test(state)?"（"+state+"）":""),[away,home]));
+    });
+    return socialChunkEntries("results","results","試合結果",socialDateLabel(socialState.date)+" 試合結果",entries,socialSummaryState(socialState.summary));
+  }
+  function socialDecisionPosts(){
+    var entries=[];
+    (socialState.games||[]).forEach(function(game){
+      var result=game.result||{},pairs=[["勝",result.win_pitcher],["敗",result.lose_pitcher],["S",result.save_pitcher]].filter(function(pair){return pair[1];});
+      var infos=pairs.map(function(pair){return socialPitcherInfo(game,pair[1],pair[0]);}),teams=infos.map(function(info){return info.team;}).filter(Boolean);
+      if(socialState.league!=="all"&&!teams.some(socialTeamAllowed))return;
+      var parts=[];
+      function addDecision(label,name){
+        if(!name)return;var info=socialPitcherInfo(game,name,label),team=tMini(info.team);
+        parts.push(label+" "+info.name+(team?"（"+team+"）":""));
+      }
+      addDecision("勝",result.win_pitcher);addDecision("敗",result.lose_pitcher);addDecision("S",result.save_pitcher);
+      if(parts.length)entries.push(socialEntry(parts.join(" / "),teams));
+    });
+    return socialChunkEntries("decisions","decisions","勝敗・セーブ投手",socialDateLabel(socialState.date)+" 勝敗・セーブ投手",entries,socialSummaryState(socialState.summary));
+  }
+  function socialHighlightPosts(){
+    var entries=[];
+    (socialState.games||[]).forEach(function(game){
+      var batting=(game.boxscore&&game.boxscore.batting)||{};
+      ["home","away"].forEach(function(side){
+        var team=socialGameTeam(game,side);if(!socialTeamAllowed(team))return;
+        (batting[side]||[]).forEach(function(row){
+          if(num(row.hits)<3&&num(row.hr)<2&&num(row.rbi)<5)return;
+          var parts=[num(row.ab)+"打数"+num(row.hits)+"安打"];
+          if(num(row.hr))parts.push(num(row.hr)+"本塁打");
+          if(num(row.rbi))parts.push(num(row.rbi)+"打点");
+          entries.push(socialEntry(row.name+"（"+tMini(team)+"）"+parts.join(" "),[team]));
+        });
+      });
+    });
+    return socialChunkEntries("highlights","highlights","今日の注目打者",socialDateLabel(socialState.date)+" 今日の注目打者",entries,socialSummaryState(socialState.summary));
+  }
+  function socialPitcherHighlightPosts(){
+    var entries=[];
+    (socialState.games||[]).forEach(function(game){
+      var pitching=(game.boxscore&&game.boxscore.pitching)||{};
+      ["home","away"].forEach(function(side){
+        var team=socialGameTeam(game,side);if(!socialTeamAllowed(team))return;
+        (pitching[side]||[]).forEach(function(row){
+          var notable=num(row.so)>=10||(num(row.outs)>=18&&num(row.runs_allowed)===0)||num(row.outs)>=27;
+          if(!notable)return;
+          var decision=row.decision?" ["+row.decision+"]":"";
+          entries.push(socialEntry(row.name+"（"+tMini(team)+"）"+row.innings+"回 "+num(row.hits_allowed)+"安打 "+
+            num(row.runs_allowed)+"失点 "+num(row.so)+"奪三振 "+num(row.pitches)+"球"+decision,[team]));
+        });
+      });
+    });
+    return socialChunkEntries("pitcher-highlights","highlights","今日の注目投手",socialDateLabel(socialState.date)+" 今日の注目投手",entries,socialSummaryState(socialState.summary));
+  }
+  function socialStarterPosts(){
+    var entries=[];
+    (socialState.games||[]).forEach(function(game){
+      var pitching=(game.boxscore&&game.boxscore.pitching)||{};
+      ["away","home"].forEach(function(side){
+        var team=socialGameTeam(game,side),rows=pitching[side]||[],row=rows[0];
+        if(!row||!socialTeamAllowed(team))return;
+        var decision=row.decision?" ["+row.decision+"]":"";
+        entries.push(socialEntry(row.name+"（"+tMini(team)+"）"+row.innings+"回 "+num(row.hits_allowed)+"安打 "+
+          num(row.runs_allowed)+"失点 "+num(row.so)+"奪三振 "+num(row.pitches)+"球"+decision,[team]));
+      });
+    });
+    return socialChunkEntries("starters","starters","先発投手成績",socialDateLabel(socialState.date)+" 先発投手成績",entries,socialSummaryState(socialState.summary));
+  }
+  function socialAwardPosts(){
+    var award=socialState.award,entries=[];
+    if(!award||!award.leagues)return [];
+    ["セ","パ"].forEach(function(league){
+      if(socialState.league!=="all"&&socialState.league!==league)return;
+      var data=award.leagues[league]||{},b=data.batter_mvp,p=data.pitcher_mvp;
+      if(b)entries.push(socialEntry(league+" 野手 "+b.name+"（"+tMini(b.team)+"） "+b.stat_line,[b.team]));
+      if(p)entries.push(socialEntry(league+" 投手 "+p.name+"（"+tMini(p.team)+"） "+p.stat_line,[p.team]));
+    });
+    return socialChunkEntries("mvp","mvp","日刊MVP",socialDateLabel(socialState.date)+" 日刊MVP",entries,"独自集計");
+  }
+  function socialBestMemberPosts(){
+    var award=socialState.award,posts=[];
+    if(!award||!award.leagues)return posts;
+    ["セ","パ"].forEach(function(league){
+      if(socialState.league!=="all"&&socialState.league!==league)return;
+      var data=award.leagues[league]||{},entries=[];
+      ["捕","一","二","三","遊","左","中","右","指"].forEach(function(pos){
+        var player=data.best_batters&&data.best_batters[pos];
+        if(player)entries.push(socialEntry(pos+" "+player.name+"（"+tMini(player.team)+"） "+player.stat_line,[player.team]));
+      });
+      ["先発","中継ぎ","抑え"].forEach(function(role){
+        var player=data.best_pitchers&&data.best_pitchers[role];
+        if(player)entries.push(socialEntry(role+" "+player.name+"（"+tMini(player.team)+"） "+player.stat_line,[player.team]));
+      });
+      posts=posts.concat(socialChunkEntries("best-"+league,"best","日刊ベストメンバー "+league,
+        socialDateLabel(socialState.date)+" 日刊ベストメンバー（"+league+"）",entries,"独自集計"));
+    });
+    return posts;
+  }
+  function socialMilestoneReached(total,daily,thresholds){
+    return thresholds.filter(function(value){return num(total)>=value&&num(total)-num(daily)<value;});
+  }
+  function socialMilestonePosts(){
+    if(!dashData||socialState.date!==dashData.date)return [];
+    var dailyBat={},dailyPit={};
+    (socialState.games||[]).forEach(function(game){
+      var batting=(game.boxscore&&game.boxscore.batting)||{},pitching=(game.boxscore&&game.boxscore.pitching)||{};
+      ["home","away"].forEach(function(side){
+        (batting[side]||[]).forEach(function(row){
+          if(!row.player_id)return;var d=dailyBat[row.player_id]||(dailyBat[row.player_id]={hits:0,hr:0,rbi:0,sb:0});
+          d.hits+=num(row.hits);d.hr+=num(row.hr);d.rbi+=num(row.rbi);d.sb+=num(row.sb);
+        });
+        (pitching[side]||[]).forEach(function(row){
+          if(!row.player_id)return;var d=dailyPit[row.player_id]||(dailyPit[row.player_id]={wins:0,saves:0,holds:0,so:0});
+          d.so+=num(row.so);if(/勝/.test(row.decision||""))d.wins++;if(/S|Ｓ/.test(row.decision||""))d.saves++;if(/H|Ｈ/.test(row.decision||""))d.holds++;
+        });
+      });
+    });
+    var entries=[];
+    (socialState.players||[]).forEach(function(player){
+      if(!socialTeamAllowed(player.team))return;
+      var labels=[],b=player.batting||{},q=player.pitching||{},db=dailyBat[player.player_id]||{},dpit=dailyPit[player.player_id]||{};
+      socialMilestoneReached(b.hits,db.hits,[50,100,150,200]).forEach(function(v){labels.push("今季"+v+"安打");});
+      socialMilestoneReached(b.hr,db.hr,[10,20,30,40,50]).forEach(function(v){labels.push("今季"+v+"本塁打");});
+      socialMilestoneReached(b.rbi,db.rbi,[50,100]).forEach(function(v){labels.push("今季"+v+"打点");});
+      socialMilestoneReached(b.sb,db.sb,[10,20,30,40,50]).forEach(function(v){labels.push("今季"+v+"盗塁");});
+      socialMilestoneReached(q.wins,dpit.wins,[5,10,15,20]).forEach(function(v){labels.push("今季"+v+"勝");});
+      socialMilestoneReached(q.saves,dpit.saves,[10,20,30,40]).forEach(function(v){labels.push("今季"+v+"セーブ");});
+      socialMilestoneReached(q.holds,dpit.holds,[10,20,30,40]).forEach(function(v){labels.push("今季"+v+"ホールド");});
+      socialMilestoneReached(q.so,dpit.so,[50,100,150,200]).forEach(function(v){labels.push("今季"+v+"奪三振");});
+      if(labels.length)entries.push(socialEntry(player.name+"（"+tMini(player.team)+"） "+labels.join("／")+"到達",[player.team]));
+    });
+    return socialChunkEntries("milestones","milestones","シーズン節目",socialDateLabel(socialState.date)+" シーズン節目",entries,"最新シーズン集計");
+  }
   function socialOpenText(text){
     window.open("https://x.com/intent/post?text="+encodeURIComponent(String(text||"")),"_blank","noopener,noreferrer");
+  }
+  function socialLoadStored(key,fallback){
+    try{return JSON.parse(localStorage.getItem(key)||"")||fallback;}catch(e){return fallback;}
+  }
+  function socialSaveStored(key,value){try{localStorage.setItem(key,JSON.stringify(value));}catch(e){}}
+  function socialApplyTemplate(text){
+    var prefix=String(socialState.prefix||"").trim(),suffix=String(socialState.suffix||"").trim(),base=String(text||"");
+    if(suffix){
+      var marker=base.lastIndexOf("\n\n#NPB");
+      base=marker>=0?base.slice(0,marker)+"\n\n"+suffix+base.slice(marker):base+"\n\n"+suffix;
+    }
+    return (prefix?prefix+"\n\n":"")+base;
+  }
+  function socialBuildPosts(){
+    var posts=[],homeRuns=socialHomeRunRows(socialState.summary,socialState.league);
+    if(homeRuns.length||socialState.includeNoHr){
+      socialBuildHomeRunPosts(socialState.summary,socialState.date,socialState.league).forEach(function(text,index){
+        posts.push(socialPost("homeruns-"+index,"homeruns","本日の本塁打"+(index?" "+(index+1):""),text));
+      });
+    }
+    posts=posts.concat(socialResultPosts(),socialDecisionPosts(),socialHighlightPosts(),socialPitcherHighlightPosts(),socialStarterPosts(),
+      socialAwardPosts(),socialBestMemberPosts(),socialMilestonePosts());
+    posts.forEach(function(post){post.text=socialApplyTemplate(post.text);});
+    return posts;
+  }
+  function socialHistory(){return socialLoadStored(SOCIAL_HISTORY_KEY,{});}
+  function socialHistoryId(post){return socialState.date+"|"+post.id;}
+  function socialIsPosted(post){return !!socialHistory()[socialHistoryId(post)];}
+  function socialCaptureEdits(){
+    socialState.posts.forEach(function(post,index){
+      var area=document.getElementById("socialPost"+index);if(area)post.text=area.value;
+    });
   }
   function socialTextareaValue(index){
     var area=document.getElementById("socialPost"+index);return area?area.value:"";
@@ -3860,7 +4093,33 @@
     var count=document.getElementById("socialCount"+index),length=socialWeightedLength(socialTextareaValue(index));
     if(count){count.textContent=length+" / 280";count.classList.toggle("warn",length>280);}
   }
-  var socialState={date:"",league:"all",summary:null,posts:[]};
+  function socialTogglePosted(index){
+    socialCaptureEdits();var post=socialState.posts[index];if(!post)return;
+    var history=socialHistory(),key=socialHistoryId(post);
+    if(history[key])delete history[key];else history[key]={at:new Date().toISOString(),title:post.title};
+    socialSaveStored(SOCIAL_HISTORY_KEY,history);socialRenderPosts(false);
+  }
+  function socialResetPosted(){
+    var history=socialHistory(),prefix=socialState.date+"|";
+    Object.keys(history).forEach(function(key){if(key.indexOf(prefix)===0)delete history[key];});
+    socialSaveStored(SOCIAL_HISTORY_KEY,history);socialRenderPosts(false);
+  }
+  function socialNextUnposted(){
+    var next=-1;socialState.posts.some(function(post,index){
+      if((socialState.category==="all"||post.category===socialState.category)&&!socialIsPosted(post)){next=index;return true;}return false;
+    });
+    var card=next>=0&&document.querySelector('.social-post[data-post-index="'+next+'"]');
+    if(card)card.scrollIntoView({behavior:"smooth",block:"center"});
+  }
+  function socialSaveTemplate(){
+    socialCaptureEdits();var prefix=document.getElementById("socialPrefix"),suffix=document.getElementById("socialSuffix"),noHr=document.getElementById("socialNoHr");
+    socialState.prefix=prefix?prefix.value:"";socialState.suffix=suffix?suffix.value:"";socialState.includeNoHr=!!(noHr&&noHr.checked);
+    socialSaveStored(SOCIAL_TEMPLATE_KEY,{prefix:socialState.prefix,suffix:socialState.suffix,includeNoHr:socialState.includeNoHr});
+    socialRenderPosts(true);var status=document.getElementById("socialStatus");if(status)status.textContent="テンプレートを保存しました";
+  }
+  var socialTemplate=socialLoadStored(SOCIAL_TEMPLATE_KEY,{prefix:"",suffix:"",includeNoHr:false});
+  var socialState={date:"",league:"all",category:"all",summary:null,games:[],award:null,players:[],posts:[],
+    prefix:socialTemplate.prefix||"",suffix:socialTemplate.suffix||"",includeNoHr:!!socialTemplate.includeNoHr};
   async function loadSocial(){
     var view=document.getElementById("socialView");if(!view)return;
     if(!personalPostingEnabled()){
@@ -3878,11 +4137,18 @@
       '<div class="social-intro">収集済みデータだけでX投稿文を作成します。本文は投稿前に自由に編集できます。'+
       '#NPBは必ず付き、投稿に登場する球団のハッシュタグだけを自動追加します。</div>'+
       '<div class="social-controls"><div class="social-field"><label>日付</label><input type="date" id="socialDate" value="'+esc(socialState.date)+'" onchange="socialLoadDate(this.value)"></div>'+
+      '<div class="social-field"><label>投稿内容</label><select id="socialCategory" onchange="socialSetCategory(this.value)">'+socialCategoryOptions()+'</select></div>'+
       '<div class="social-field"><label>リーグ</label><select id="socialLeague" onchange="socialSetLeague(this.value)">'+
       '<option value="all"'+(socialState.league==="all"?" selected":"")+'>セ・パ両リーグ</option>'+
       '<option value="パ"'+(socialState.league==="パ"?" selected":"")+'>パ・リーグ</option>'+
       '<option value="セ"'+(socialState.league==="セ"?" selected":"")+'>セ・リーグ</option></select></div>'+
       '<button class="btn" onclick="socialLoadDate(document.getElementById(\'socialDate\').value)">再読み込み</button></div>'+
+      '<details class="social-template"><summary>投稿テンプレート・本塁打なしの設定</summary><div class="social-template-grid">'+
+      '<div class="social-field"><label>全投稿の冒頭文</label><input id="socialPrefix" value="'+esc(socialState.prefix)+'" placeholder="例：今日のNPB"></div>'+
+      '<div class="social-field"><label>ハッシュタグ前の末尾文</label><input id="socialSuffix" value="'+esc(socialState.suffix)+'" placeholder="任意"></div>'+
+      '<button class="btn" onclick="socialSaveTemplate()">設定を保存</button></div>'+
+      '<label style="display:inline-flex;gap:6px;align-items:center;margin-top:8px;font-size:11px"><input type="checkbox" id="socialNoHr"'+(socialState.includeNoHr?' checked':'')+'> 本塁打なしの日も投稿文を作る</label></details>'+
+      '<div id="socialCompleteness"></div><div id="socialProgress"></div>'+
       '<div id="socialPosts" class="social-posts"><div class="msg">データを読み込み中…</div></div>'+
       '<div id="socialStatus" class="social-status"></div>'+
       '<div class="social-note">文字数が多い日は投稿を自動分割します。Xへの投稿は自動送信されず、確認画面が開きます。'+
@@ -3894,25 +4160,60 @@
     try{
       var response=await fetch(sumPath(socialState.date)+"?t="+Date.now());
       if(!response.ok) throw 0;
-      socialState.summary=await response.json();socialRenderPosts();
+      socialState.summary=await response.json();
+      var gameRequests=(socialState.summary.games||[]).map(async function(game){
+        try{var r=await fetch(gamePath(socialState.date,game.game_id)+"?t="+Date.now());return r.ok?await r.json():null;}catch(e){return null;}
+      });
+      var year=socialState.date.slice(0,4),awardRequest=(async function(){
+        try{var r=await fetch("data/"+year+"/awards/daily/"+socialState.date+".json?t="+Date.now());return r.ok?await r.json():null;}catch(e){return null;}
+      })(),playersRequest=(async function(){
+        try{var r=await fetch("data/"+year+"/players/stats.json?t="+Date.now());return r.ok?(await r.json()).players||[]:[];}catch(e){return [];}
+      })();
+      var loaded=await Promise.all([Promise.all(gameRequests),awardRequest,playersRequest]);
+      socialState.games=loaded[0].filter(Boolean);socialState.award=loaded[1];socialState.players=loaded[2];socialRenderPosts(true);
     }catch(e){
-      socialState.summary=null;socialState.posts=[];
+      socialState.summary=null;socialState.games=[];socialState.award=null;socialState.players=[];socialState.posts=[];
       container.innerHTML='<div class="msg">この日の試合データがありません</div>';
     }
   }
-  function socialSetLeague(league){socialState.league=league;socialRenderPosts();}
-  function socialRenderPosts(){
+  function socialCategoryOptions(){
+    var options=[["all","すべて"],["homeruns","本日の本塁打"],["results","試合結果"],["decisions","勝敗・セーブ投手"],
+      ["highlights","注目打者・投手"],["starters","先発投手成績"],["mvp","日刊MVP"],["best","日刊ベストメンバー"],["milestones","シーズン節目"]];
+    return options.map(function(option){return '<option value="'+option[0]+'"'+(socialState.category===option[0]?' selected':'')+'>'+option[1]+'</option>';}).join("");
+  }
+  function socialSetLeague(league){socialCaptureEdits();socialState.league=league;socialRenderPosts(true);}
+  function socialSetCategory(category){socialCaptureEdits();socialState.category=category;socialRenderPosts(false);}
+  function socialCompletenessText(){
+    var expected=num(socialState.summary&&socialState.summary.game_count),listed=((socialState.summary&&socialState.summary.games)||[]).length,
+      detailed=socialState.games.length,ended=socialState.games.filter(function(game){return /試合終了|中止|ノーゲーム/.test(String((game.result&&game.result.state)||""));}).length;
+    var complete=listed===detailed&&detailed===ended&&(!expected||listed===expected),text="試合データ "+detailed+"/"+(expected||listed)+"件取得";
+    text+=complete?"・全試合終了":"・未取得または試合途中のデータがあります";
+    if(!socialState.award)text+="／日刊表彰データなし";
+    if(!dashData||socialState.date!==dashData.date)text+="／シーズン節目は最新日のみ判定";
+    return {complete:complete,text:text};
+  }
+  function socialRenderPosts(rebuild){
     var container=document.getElementById("socialPosts");if(!container||!socialState.summary)return;
-    socialState.posts=socialBuildHomeRunPosts(socialState.summary,socialState.date,socialState.league);
-    container.innerHTML=socialState.posts.map(function(text,index){
-      var length=socialWeightedLength(text);
-      return '<div class="social-post"><div class="social-post-head"><span>本日の本塁打'+
-        (socialState.posts.length>1?' '+(index+1)+'/'+socialState.posts.length:'')+'</span>'+
+    if(rebuild!==false)socialState.posts=socialBuildPosts();
+    var visible=socialState.posts.map(function(post,index){return {post:post,index:index};}).filter(function(item){
+      return socialState.category==="all"||item.post.category===socialState.category;
+    });
+    container.innerHTML=visible.length?visible.map(function(item){
+      var post=item.post,index=item.index,text=post.text,length=socialWeightedLength(text),posted=socialIsPosted(post);
+      return '<div class="social-post'+(posted?' posted':'')+'" data-post-index="'+index+'"><div class="social-post-head"><span>'+esc(post.title)+
+        (posted?' <span class="social-posted-badge">投稿済み</span>':'')+'</span>'+
         '<span id="socialCount'+index+'" class="social-count'+(length>280?' warn':'')+'">'+length+' / 280</span></div>'+
         '<textarea id="socialPost'+index+'" class="social-text" oninput="socialRefreshCount('+index+')">'+esc(text)+'</textarea>'+
         '<div class="social-actions"><button class="btn primary" onclick="socialOpenPost('+index+')">Xで投稿</button>'+
-        '<button class="btn" onclick="socialCopyPost('+index+')">本文をコピー</button></div></div>';
-    }).join("");
+        '<button class="btn" onclick="socialCopyPost('+index+')">本文をコピー</button>'+
+        '<button class="btn" onclick="socialTogglePosted('+index+')">'+(posted?'未投稿に戻す':'投稿済みにする')+'</button></div></div>';
+    }).join(""):'<div class="msg">この条件で作成できる投稿はありません</div>';
+    var complete=socialCompletenessText(),completeEl=document.getElementById("socialCompleteness");
+    if(completeEl)completeEl.innerHTML='<div class="social-complete'+(complete.complete?'':' warn')+'">'+esc(complete.text)+'</div>';
+    var postedCount=socialState.posts.filter(socialIsPosted).length,progress=document.getElementById("socialProgress");
+    if(progress)progress.innerHTML='<div class="social-progress"><span><b>'+postedCount+' / '+socialState.posts.length+'</b> 投稿済み</span><span>'+
+      '<button class="btn" onclick="socialNextUnposted()">次の未投稿へ</button> '+
+      '<button class="btn" onclick="socialResetPosted()">この日をすべて未投稿に戻す</button></span></div>';
   }
   function pgPostPlayer(key){
     var player=pgPlayer(key),points=pgPoints(key),def=pgMetricDef(),latest=points[points.length-1];
