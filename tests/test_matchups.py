@@ -46,6 +46,40 @@ class MatchupBuilderTests(unittest.TestCase):
             self.assertEqual(payload["opponents"][0]["name"], "投手 二郎")
             self.assertTrue((Path(temp) / "2026" / "matchups" / "index.json").exists())
 
+    def test_high_confidence_baserunning_is_added_to_both_sides(self):
+        atbat = self.row()
+        atbat["atbat_index"] = "0820300"
+        buckets, _ = build_matchups.aggregate([atbat])
+        event = {
+            "game_id": atbat["game_id"],
+            "event_sequence": "0820300",
+            "player_key": atbat["batter_key"],
+            "event_type": "stolen_base",
+            "source": "result_detail_high_confidence",
+        }
+        added = build_matchups.add_baserunning_events(buckets, [atbat], [event])
+        batter = buckets["batter"][atbat["batter_key"]]["opponents"][atbat["pitcher_key"]]
+        pitcher = buckets["pitcher"][atbat["pitcher_key"]]["opponents"][atbat["batter_key"]]
+        self.assertEqual(added, 1)
+        self.assertEqual(batter["sb"], 1)
+        self.assertEqual(pitcher["sb"], 1)
+
+    def test_boxscore_only_steals_are_not_guessed_against_a_pitcher(self):
+        atbat = self.row()
+        atbat["atbat_index"] = "0820300"
+        buckets, _ = build_matchups.aggregate([atbat])
+        event = {
+            "game_id": atbat["game_id"],
+            "event_sequence": "1",
+            "player_key": atbat["batter_key"],
+            "event_type": "stolen_base",
+            "source": "official_boxscore",
+        }
+        added = build_matchups.add_baserunning_events(buckets, [atbat], [event])
+        batter = buckets["batter"][atbat["batter_key"]]["opponents"][atbat["pitcher_key"]]
+        self.assertEqual(added, 0)
+        self.assertEqual(batter["sb"], 0)
+
     @staticmethod
     def row(game_id="g1", result=None):
         row = {
