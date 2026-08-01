@@ -654,6 +654,71 @@
   .trend-axis{fill:var(--muted);font-size:9px;font-family:'Roboto Mono',monospace;}
   .trend-volume{font-size:10.5px;color:var(--muted);margin-top:4px;}
 
+  /* ---- 全選手グラフ ---- */
+  .pg-intro{font-size:12.5px;line-height:1.8;color:var(--ink2);background:var(--panel2);
+    border:1px solid var(--line);border-radius:10px;padding:9px 11px;margin-bottom:10px;}
+  .pg-controls{display:grid;grid-template-columns:repeat(5,minmax(130px,1fr));gap:8px;
+    align-items:end;margin-bottom:10px;}
+  .pg-control{display:flex;flex-direction:column;gap:3px;min-width:0;}
+  .pg-control label{font-size:10px;color:var(--muted);font-weight:700;}
+  .pg-control select,.pg-control input{width:100%;min-width:0;font-family:inherit;
+    font-size:13px;font-weight:700;background:var(--panel2);color:var(--ink);
+    border:2px solid var(--line2);border-radius:9px;padding:8px 9px;}
+  .pg-picker{display:grid;grid-template-columns:minmax(170px,1fr) auto;gap:7px;align-items:end;}
+  .pg-selected{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:8px 0 11px;}
+  .pg-selected-label{font-size:10px;color:var(--muted);font-weight:700;}
+  .pg-chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line2);
+    border-radius:999px;background:var(--panel2);padding:4px 6px 4px 9px;font-size:12px;
+    font-weight:700;box-shadow:var(--shadow);}
+  .pg-chip i{width:8px;height:8px;border-radius:50%;display:inline-block;}
+  .pg-chip button{border:0;background:transparent;color:var(--muted);cursor:pointer;
+    font-size:14px;line-height:1;padding:1px 3px;}
+  .pg-chip button:hover{color:var(--out);}
+  .pg-layout{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(250px,.65fr);
+    gap:11px;align-items:start;}
+  .pg-panel{background:linear-gradient(145deg,var(--panel2),var(--panel));
+    border:1px solid var(--line);border-radius:12px;padding:11px;min-width:0;}
+  .pg-panel-head{display:flex;align-items:flex-start;justify-content:space-between;
+    gap:8px;margin-bottom:6px;}
+  .pg-panel-title{font-size:13px;font-weight:700;color:var(--accent);}
+  .pg-panel-note{font-size:9.5px;color:var(--muted);text-align:right;}
+  .pg-chart-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .pg-svg{display:block;width:100%;height:auto;min-width:660px;min-height:350px;}
+  .pg-svg text{font:10px 'Roboto Mono',monospace;fill:var(--muted);}
+  .pg-svg .grid{stroke:var(--line);stroke-width:1;stroke-dasharray:3 6;}
+  .pg-svg .axis{stroke:var(--muted);stroke-width:1.2;}
+  .pg-svg .baseline{stroke:var(--ink2);stroke-width:1;stroke-dasharray:4 5;opacity:.55;}
+  .pg-svg .series{fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;
+    filter:drop-shadow(0 1px 2px rgba(70,35,10,.18));}
+  .pg-svg .dot{stroke:var(--panel);stroke-width:2;}
+  .pg-legend{display:flex;gap:8px;flex-wrap:wrap;margin-top:5px;font-size:10.5px;}
+  .pg-legend span{display:inline-flex;align-items:center;gap:4px;}
+  .pg-legend i{width:13px;height:4px;border-radius:4px;display:inline-block;}
+  .pg-profiles{display:grid;gap:8px;}
+  .pg-player-card{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:9px 10px;border-left:4px solid var(--accent);}
+  .pg-player-name{font-size:14px;font-weight:700;display:flex;align-items:center;gap:5px;}
+  .pg-player-meta{font-size:10px;color:var(--muted);margin:2px 0 6px;}
+  .pg-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;}
+  .pg-kpi{background:var(--panel2);border-radius:6px;padding:4px;text-align:center;}
+  .pg-kpi span{display:block;font-size:8.5px;color:var(--muted);}
+  .pg-kpi b{display:block;font:700 11.5px 'Roboto Mono',monospace;color:var(--accent);}
+  .pg-comment{font-size:11.5px;line-height:1.7;margin-top:7px;padding-top:6px;
+    border-top:1px dashed var(--line);}
+  .pg-table{margin-top:10px;}
+  .pg-share-result{font-size:10px;color:var(--accent);min-height:16px;margin-top:3px;}
+  @media(max-width:920px){
+    .pg-controls{grid-template-columns:repeat(2,minmax(0,1fr));}
+    .pg-layout{grid-template-columns:1fr;}
+    .pg-profiles{grid-template-columns:repeat(auto-fit,minmax(210px,1fr));}
+  }
+  @media(max-width:520px){
+    .pg-controls{grid-template-columns:1fr 1fr;}
+    .pg-picker{grid-template-columns:1fr;}
+    .pg-picker .btn{width:100%;}
+    .pg-svg{min-width:620px;}
+  }
+
   /* ---- 規定到達マーク ---- */
   .qmark{display:inline-block;margin-left:5px;font-size:9.5px;font-weight:700;
     line-height:1;padding:2px 4px;border-radius:3px;vertical-align:middle;
@@ -912,6 +977,7 @@
           onclick="toggleNavGroup('analysis',event)">分析 <span class="navcaret">▼</span></button>
         <div class="navmenu" role="menu">
           <button class="navitem" id="vb-daily" onclick="setView('daily')">日別分析</button>
+          <button class="navitem" id="vb-playergraph" onclick="setView('playergraph')">選手グラフ</button>
           <button class="navitem" id="vb-correlation" onclick="setView('correlation')">相関分析</button>
           <button class="navitem" id="vb-teamstyle" onclick="setView('teamstyle')">球団スタイル</button>
         </div>
@@ -952,6 +1018,7 @@
     <div id="compareView" style="display:none"></div>
 
     <div id="dailyView" style="display:none"></div>
+    <div id="playerGraphView" style="display:none"></div>
 
     <div id="awardsView" style="display:none"></div>
     <div id="awardsGuideView" style="display:none"></div>
@@ -2239,7 +2306,8 @@
     curView = v;
     closeNavGroups();
     var ids={dash:"dashView", games:"gameView", season:"seasonView",
-             players:"playersView", compare:"compareView", daily:"dailyView", awards:"awardsView",
+             players:"playersView", compare:"compareView", daily:"dailyView",
+             playergraph:"playerGraphView", awards:"awardsView",
              awardsGuide:"awardsGuideView", sabermetrics:"sabermetricsView",
              glossary:"glossaryView",
              war:"warView", warGuide:"warGuideView",
@@ -2253,7 +2321,7 @@
     }
     var navGroups={
       stats:["season","players","compare"],
-      analysis:["daily","correlation","teamstyle"],
+      analysis:["daily","playergraph","correlation","teamstyle"],
       metrics:["sabermetrics","glossary","war","warGuide","impact","impactGuide"]
     };
     Object.keys(navGroups).forEach(function(group){
@@ -2267,6 +2335,7 @@
     else if(v==="players") loadPlayers();
     else if(v==="compare") loadCompare();
     else if(v==="daily") loadDaily();
+    else if(v==="playergraph") loadPlayerGraph();
     else if(v==="awards") loadAwards();
     else if(v==="awardsGuide"){
       document.getElementById("awardsGuideView").innerHTML=renderAwardsGuide();
@@ -3436,6 +3505,248 @@
     renderPlayerTrends(containerId);
     await getImpactTrends(year);
     renderPlayerTrends(containerId);
+  }
+
+  /* ===== 全選手グラフ ===== */
+  var pgData=null,pgPlayers=[],pgYear="",pgKind="batter",pgTeam="all",pgPeriod=5,
+      pgMetric="ops",pgSelectedKeys=[],pgParamsApplied=false,pgLoading=null;
+  var PG_COLORS=["#e8590c","#1971c2","#2f9e44"];
+
+  function pgMetricDefs(){
+    return pgKind==="pitcher"
+      ?[{key:"era",label:"防御率",digits:2,baseline:null,reverse:true},
+        {key:"w_rating",label:"W-Rating",digits:1,baseline:100,reverse:false},
+        {key:"w_value",label:"W-Value",digits:2,baseline:0,reverse:false}]
+      :[{key:"ops",label:"OPS",digits:3,baseline:null,reverse:false},
+        {key:"w_rating",label:"W-Rating",digits:1,baseline:100,reverse:false},
+        {key:"w_value",label:"W-Value",digits:2,baseline:0,reverse:false}];
+  }
+  function pgMetricDef(){
+    return pgMetricDefs().find(function(x){return x.key===pgMetric;})||pgMetricDefs()[0];
+  }
+  function pgPlayer(key){
+    return pgPlayers.find(function(p){return p.key===key;})||null;
+  }
+  function pgTrend(player){
+    return player?findPlayerTrend(pgData,player.key,player.name,player.team):null;
+  }
+  function pgPoints(key){
+    var player=pgPlayer(key),trend=pgTrend(player);
+    return trend&&trend[pgKind]&&trend[pgKind][String(pgPeriod)]||[];
+  }
+  function pgCandidates(search){
+    var wanted=normName(search||"");
+    return pgPlayers.filter(function(p){
+      var hasKind=pgKind==="pitcher"?!!p.pitching:!!p.batting;
+      return hasKind&&(pgTeam==="all"||p.team===pgTeam)&&
+        (!wanted||normName(p.name).indexOf(wanted)>=0||String(p.number||"").indexOf(wanted)>=0);
+    }).sort(function(a,b){
+      var order=TEAM_ORDER_PA.concat(TEAM_ORDER_SE),ta=order.indexOf(a.team),tb=order.indexOf(b.team);
+      var na=parseInt(a.number,10),nb=parseInt(b.number,10);
+      return (ta<0?99:ta)-(tb<0?99:tb)||
+        (isFinite(na)?na:9999)-(isFinite(nb)?nb:9999)||a.name.localeCompare(b.name,"ja");
+    });
+  }
+  function pgDefaultKey(){
+    var ranked=pgCandidates("").map(function(p){
+      var points=pgPoints(p.key),last=points[points.length-1];
+      return {key:p.key,value:last&&Number(last.w_value)};
+    }).filter(function(x){return isFinite(x.value);})
+      .sort(function(a,b){return b.value-a.value;});
+    return ranked.length?ranked[0].key:(pgCandidates("")[0]||{}).key;
+  }
+  function pgEnsureSelection(){
+    pgSelectedKeys=pgSelectedKeys.filter(function(key){
+      var p=pgPlayer(key);return p&&(pgKind==="pitcher"?!!p.pitching:!!p.batting);
+    }).slice(0,3);
+    if(!pgSelectedKeys.length){var key=pgDefaultKey();if(key)pgSelectedKeys=[key];}
+  }
+  function pgApplyUrl(){
+    if(pgParamsApplied) return;
+    pgParamsApplied=true;
+    try{
+      var params=new URLSearchParams(location.search);
+      if(params.get("view")!=="playergraph") return;
+      if(params.get("kind")==="pitcher") pgKind="pitcher";
+      var period=Number(params.get("window"));
+      if((pgData.windows||[]).indexOf(period)>=0) pgPeriod=period;
+      var allowed=pgMetricDefs().map(function(x){return x.key;});
+      if(allowed.indexOf(params.get("metric"))>=0) pgMetric=params.get("metric");
+      pgSelectedKeys=(params.get("players")||"").split(",").filter(Boolean).slice(0,3);
+    }catch(e){}
+  }
+  async function loadPlayerGraph(){
+    var view=document.getElementById("playerGraphView"),year=(dp.value||todayJST()).split("-")[0];
+    if(pgData&&pgYear===year&&pgPlayers.length){renderPlayerGraph();return;}
+    view.innerHTML='<div class="msg">全選手の推移データを読み込み中…</div>';
+    if(pgLoading) return pgLoading;
+    pgLoading=(async function(){
+      try{
+        var trend=await getImpactTrends(year);
+        if(!seasonData){
+          var response=await fetch("data/"+year+"/players/stats.json?t="+Date.now());
+          if(!response.ok) throw 0;
+          seasonData=(await response.json()).players||[];
+        }
+        pgData=trend||{players:{},windows:[5,15]};pgPlayers=seasonData||[];pgYear=year;
+        if((pgData.windows||[]).indexOf(pgPeriod)<0) pgPeriod=(pgData.windows||[5])[0];
+        pgApplyUrl();pgEnsureSelection();renderPlayerGraph();
+      }catch(e){
+        view.innerHTML='<div class="msg">選手グラフを読み込めませんでした</div>';
+      }finally{pgLoading=null;}
+    })();
+    return pgLoading;
+  }
+  function pgPlayerOptions(search){
+    var candidates=pgCandidates(search);
+    return candidates.map(function(p){
+      return '<option value="'+esc(p.key)+'">'+esc(p.team)+' #'+esc(p.number||"-")+" "+esc(p.name)+'</option>';
+    }).join("");
+  }
+  function pgRefreshPlayerOptions(){
+    var input=document.getElementById("pgSearch"),select=document.getElementById("pgPlayerSelect");
+    if(!select) return;
+    select.innerHTML=pgPlayerOptions(input?input.value:"")||'<option value="">該当選手なし</option>';
+  }
+  function pgSetKind(kind){
+    pgKind=kind;pgMetric=kind==="pitcher"?"era":"ops";pgSelectedKeys=[];
+    pgEnsureSelection();renderPlayerGraph();
+  }
+  function pgSetTeam(team){pgTeam=team;renderPlayerGraph();}
+  function pgSetPeriod(period){pgPeriod=Number(period);renderPlayerGraph();}
+  function pgSetMetric(metric){pgMetric=metric;renderPlayerGraph();}
+  function pgAddPlayer(){
+    var select=document.getElementById("pgPlayerSelect"),notice=document.getElementById("pgNotice");
+    var key=select&&select.value;
+    if(!key) return;
+    if(pgSelectedKeys.indexOf(key)>=0){if(notice)notice.textContent="すでに比較中です";return;}
+    if(pgSelectedKeys.length>=3){if(notice)notice.textContent="比較は3選手までです";return;}
+    pgSelectedKeys.push(key);renderPlayerGraph();
+  }
+  function pgRemovePlayer(key){
+    pgSelectedKeys=pgSelectedKeys.filter(function(x){return x!==key;});
+    pgEnsureSelection();renderPlayerGraph();
+  }
+  function pgFormat(v,digits){return v==null||!isFinite(Number(v))?"-":Number(v).toFixed(digits);}
+  function pgChart(){
+    var def=pgMetricDef(),series=pgSelectedKeys.map(function(key,index){
+      return {player:pgPlayer(key),color:PG_COLORS[index],points:pgPoints(key).filter(function(p){
+        return p[def.key]!=null&&isFinite(Number(p[def.key]));
+      })};
+    }).filter(function(x){return x.player&&x.points.length;});
+    if(!series.length) return '<div class="msg">この期間の出場データがありません</div>';
+    var all=[];series.forEach(function(s){s.points.forEach(function(p){all.push(p);});});
+    var values=all.map(function(p){return Number(p[def.key]);});
+    var dates=all.map(function(p){return new Date(p.date+"T00:00:00").getTime();});
+    var min=Math.min.apply(null,values),max=Math.max.apply(null,values);
+    if(def.baseline!=null){min=Math.min(min,def.baseline);max=Math.max(max,def.baseline);}
+    var spread=max-min||Math.max(Math.abs(max)*.12,1);min-=spread*.12;max+=spread*.12;
+    var dmin=Math.min.apply(null,dates),dmax=Math.max.apply(null,dates);
+    if(dmin===dmax){dmin-=86400000;dmax+=86400000;}
+    var w=860,h=390,l=62,r=18,t=20,b=48,pw=w-l-r,ph=h-t-b;
+    function px(date){return l+(new Date(date+"T00:00:00").getTime()-dmin)/(dmax-dmin)*pw;}
+    function py(value){return t+(max-Number(value))/(max-min)*ph;}
+    var svg='<svg class="pg-svg" viewBox="0 0 '+w+' '+h+'" role="img" aria-label="'+esc(def.label)+'の選手比較グラフ">';
+    for(var i=0;i<=4;i++){
+      var y=t+ph*i/4,value=max-(max-min)*i/4;
+      svg+='<line class="grid" x1="'+l+'" y1="'+y+'" x2="'+(w-r)+'" y2="'+y+'"/>'+
+        '<text x="'+(l-7)+'" y="'+(y+4)+'" text-anchor="end">'+pgFormat(value,def.digits)+'</text>';
+    }
+    if(def.baseline!=null&&def.baseline>=min&&def.baseline<=max){
+      svg+='<line class="baseline" x1="'+l+'" y1="'+py(def.baseline)+'" x2="'+(w-r)+'" y2="'+py(def.baseline)+'"/>';
+    }
+    svg+='<line class="axis" x1="'+l+'" y1="'+(t+ph)+'" x2="'+(w-r)+'" y2="'+(t+ph)+'"/>';
+    series.forEach(function(s){
+      var coords=s.points.map(function(p){return px(p.date).toFixed(1)+","+py(p[def.key]).toFixed(1);});
+      svg+='<polyline class="series" stroke="'+s.color+'" points="'+coords.join(" ")+'"/>';
+      s.points.forEach(function(p){
+        var volume=pgKind==="pitcher"?(p.innings+"回"):(p.pa+"打席");
+        svg+='<circle class="dot" fill="'+s.color+'" cx="'+px(p.date)+'" cy="'+py(p[def.key])+'" r="4">'+
+          '<title>'+esc(s.player.name)+' '+esc(p.date)+' '+esc(def.label)+' '+pgFormat(p[def.key],def.digits)+' / '+esc(volume)+'</title></circle>';
+      });
+    });
+    var first=new Date(dmin).toISOString().slice(5,10).replace("-","/"),last=new Date(dmax).toISOString().slice(5,10).replace("-","/");
+    svg+='<text x="'+l+'" y="'+(h-14)+'">'+first+'</text><text x="'+(w-r)+'" y="'+(h-14)+'" text-anchor="end">'+last+'</text></svg>';
+    var legend=series.map(function(s){return '<span><i style="background:'+s.color+'"></i>'+esc(s.player.name)+'</span>';}).join("");
+    return '<div class="pg-chart-scroll">'+svg+'</div><div class="pg-legend">'+legend+'</div>';
+  }
+  function pgSeasonKpis(player){
+    var s=pgKind==="pitcher"?(player.pitching||{}):(player.batting||{});
+    var defs=pgKind==="pitcher"
+      ?[["防御率","era",2],["WHIP","whip",2],["FIP","fip",2],["K/9","k9",2],["K/BB","k_bb",2],["投球回","innings",1]]
+      :[["打率","avg",3],["出塁率","obp",3],["長打率","slg",3],["OPS","ops",3],["本塁打","hr",0],["盗塁","sb",0]];
+    return defs.map(function(d){
+      return '<div class="pg-kpi"><span>'+d[0]+'</span><b>'+pgFormat(s[d[1]],d[2])+'</b></div>';
+    }).join("");
+  }
+  function pgCommentary(player){
+    var points=pgPoints(player.key),def=pgMetricDef(),valid=points.filter(function(p){return p[def.key]!=null;});
+    if(!valid.length) return "選択期間の出場記録がないため、推移は評価していません。";
+    if(valid.length===1) return "比較できる出場が1試合のみです。サンプルが増えてから推移を確認してください。";
+    var first=Number(valid[0][def.key]),last=Number(valid[valid.length-1][def.key]),delta=last-first;
+    var threshold=def.key==="w_rating"?5:def.key==="w_value"?.08:def.key==="era"?.5:.05;
+    var improved=def.reverse?delta<=-threshold:delta>=threshold;
+    var declined=def.reverse?delta>=threshold:delta<=-threshold;
+    var direction=improved?"上向き":declined?"下降傾向":"おおむね横ばい";
+    var volume=pgKind==="pitcher"?(valid[valid.length-1].innings+"回"):(valid[valid.length-1].pa+"打席");
+    return "直近"+pgPeriod+"試合の"+def.label+"は"+direction+"です。最新窓は"+volume+
+      "。欠場は数えず、短期間の数値は対戦相手や出場量の影響も受けます。";
+  }
+  function pgProfiles(){
+    return '<div class="pg-profiles">'+pgSelectedKeys.map(function(key,index){
+      var p=pgPlayer(key);if(!p)return "";
+      return '<div class="pg-player-card" style="border-left-color:'+PG_COLORS[index]+'">'+
+        '<div class="pg-player-name">'+teamBadge(p.team)+' '+esc(p.name)+'</div>'+
+        '<div class="pg-player-meta">'+esc(p.team)+' ／ #'+esc(p.number||"-")+' ／ '+esc(p.position||(pgKind==="pitcher"?"投手":"野手"))+'</div>'+
+        '<div class="pg-kpis">'+pgSeasonKpis(p)+'</div><div class="pg-comment">'+esc(pgCommentary(p))+'</div></div>';
+    }).join("")+'</div>';
+  }
+  function pgLatestTable(){
+    var def=pgMetricDef(),rows=pgSelectedKeys.map(function(key){
+      var p=pgPlayer(key),points=pgPoints(key).filter(function(x){return x[def.key]!=null;}),latest=points[points.length-1];
+      if(!p) return "";
+      var delta=points.length>1?Number(latest[def.key])-Number(points[0][def.key]):null;
+      return '<tr><td class="nm">'+esc(p.name)+'</td><td>'+teamBadge(p.team)+'</td><td>'+esc(latest&&latest.date||"-")+'</td>'+
+        '<td class="num hi">'+(latest?pgFormat(latest[def.key],def.digits):"-")+'</td><td class="num">'+
+        (delta==null?"-":(delta>=0?"+":"")+pgFormat(delta,def.digits))+'</td><td class="num">'+
+        (latest?(pgKind==="pitcher"?latest.innings+"回":latest.pa+"打席"):"-")+'</td></tr>';
+    }).join("");
+    return '<div class="tblwrap pg-table"><table class="stbl"><thead><tr><th class="nm">選手</th><th>球団</th><th>最新日</th><th>'+esc(def.label)+'</th><th>期間差</th><th>出場量</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+  }
+  async function pgShare(){
+    var result=document.getElementById("pgShareResult");
+    var params=new URLSearchParams({view:"playergraph",kind:pgKind,window:String(pgPeriod),metric:pgMetric,players:pgSelectedKeys.join(",")});
+    var url=location.origin+location.pathname+"?"+params.toString();
+    try{await navigator.clipboard.writeText(url);if(result)result.textContent="比較URLをコピーしました";}
+    catch(e){if(result)result.textContent=url;}
+  }
+  function renderPlayerGraph(){
+    var view=document.getElementById("playerGraphView");if(!view||!pgData)return;
+    pgEnsureSelection();
+    var windows=pgData.windows||[5,15],teams=TEAM_ORDER_PA.concat(TEAM_ORDER_SE);
+    var teamOptions='<option value="all">全12球団</option>'+teams.map(function(team){
+      return '<option value="'+esc(team)+'"'+(pgTeam===team?" selected":"")+'>'+esc(team)+'</option>';
+    }).join("");
+    var metricOptions=pgMetricDefs().map(function(d){return '<option value="'+d.key+'"'+(pgMetric===d.key?" selected":"")+'>'+d.label+'</option>';}).join("");
+    var chips=pgSelectedKeys.map(function(key,index){var p=pgPlayer(key);return p?'<span class="pg-chip"><i style="background:'+PG_COLORS[index]+'"></i>'+esc(p.name)+
+      '<button type="button" onclick="pgRemovePlayer(\''+esc(key)+'\')" title="比較から外す">×</button></span>':"";}).join("");
+    var h='<div class="dash-sec"><div class="dash-h"><span class="dot"></span>選手グラフ'+
+      '<span class="dash-date">全'+pgPlayers.length+'選手対応</span></div>'+
+      '<div class="pg-intro">出場試合を基準に、選手の直近推移を比較します。欠場試合は数えず、最大3選手まで重ねられます。点に触れると日付と出場量を確認できます。</div>'+
+      '<div class="stabs"><button class="stab'+(pgKind==="batter"?" on":"")+'" onclick="pgSetKind(\'batter\')">野手</button>'+
+      '<button class="stab'+(pgKind==="pitcher"?" on":"")+'" onclick="pgSetKind(\'pitcher\')">投手</button></div>'+
+      '<div class="pg-controls"><div class="pg-control"><label>球団</label><select onchange="pgSetTeam(this.value)">'+teamOptions+'</select></div>'+
+      '<div class="pg-control"><label>期間</label><select onchange="pgSetPeriod(this.value)">'+windows.map(function(n){return '<option value="'+n+'"'+(pgPeriod===n?" selected":"")+'>直近'+n+'試合</option>';}).join("")+'</select></div>'+
+      '<div class="pg-control"><label>指標</label><select onchange="pgSetMetric(this.value)">'+metricOptions+'</select></div>'+
+      '<div class="pg-control"><label>選手名・背番号検索</label><input id="pgSearch" placeholder="例：近藤 / 3" oninput="pgRefreshPlayerOptions()"></div>'+
+      '<div class="pg-picker"><div class="pg-control"><label>比較へ追加</label><select id="pgPlayerSelect">'+pgPlayerOptions("")+'</select></div>'+
+      '<button class="btn primary" onclick="pgAddPlayer()">＋ 追加</button></div></div>'+
+      '<div class="pg-selected"><span class="pg-selected-label">比較中</span>'+chips+'<span id="pgNotice" class="dim"></span></div>'+
+      '<div class="pg-layout"><div class="pg-panel"><div class="pg-panel-head"><div class="pg-panel-title">'+esc(pgMetricDef().label)+' 推移</div>'+
+      '<div class="pg-panel-note">'+(pgMetricDef().reverse?"低いほど良い":"高いほど良い")+' ／ 直近'+pgPeriod+'試合窓</div></div>'+pgChart()+'</div>'+
+      '<div>'+pgProfiles()+'<button class="btn" style="width:100%;margin-top:8px" onclick="pgShare()">比較URLをコピー</button><div id="pgShareResult" class="pg-share-result"></div></div></div>'+
+      pgLatestTable()+'<div class="trend-volume">W-Ratingは各期間のリーグ・投手役割内で再標準化。記録のない項目は推測しません。データ基準日 '+esc(pgData.latest_date||"-")+'</div></div>';
+    view.innerHTML=h;
   }
 
   /* 選手詳細（選手一覧から開く） */
@@ -7320,7 +7631,7 @@
     root.classList.add("motion-enter");
     var selector=":scope > .dash-sec,:scope > .card2,.mvpgrid > .mvpcard,"+
       ".rankgrid > .rankcard,.dash-games > .dgame,.games > .game,"+
-      ".saber-kpis > *,.corr-kpis > *,.teamstyle-grid > *";
+      ".saber-kpis > *,.corr-kpis > *,.teamstyle-grid > *,.pg-player-card,.pg-panel";
     var items=Array.prototype.slice.call(root.querySelectorAll(selector),0,24);
     items.forEach(function(el,index){
       el.classList.remove("motion-rise");
@@ -7341,7 +7652,7 @@
     motionTimers[key]=setTimeout(function(){motionRun(root);},45);
   }
   function motionSetup(){
-    var ids=["dashView","gameView","seasonView","playersView","compareView","dailyView",
+    var ids=["dashView","gameView","seasonView","playersView","compareView","dailyView","playerGraphView",
       "awardsView","awardsGuideView","sabermetricsView","glossaryView","warView",
       "warGuideView","impactView","impactGuideView","correlationView","teamstyleView","exportView"];
     ids.forEach(function(id){
@@ -7411,10 +7722,12 @@
   });
 
   dp.addEventListener("change",loadDay);
-  // 初期表示はダッシュボード
+  // 共有URLで選手グラフを直接開ける。それ以外はダッシュボード。
   dp.value=todayJST();
   motionSetup();
-  setView("dash");
+  var initialView="dash";
+  try{if(new URLSearchParams(location.search).get("view")==="playergraph")initialView="playergraph";}catch(e){}
+  setView(initialView);
 </script>
 </body>
 </html>
