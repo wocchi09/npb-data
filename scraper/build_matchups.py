@@ -20,7 +20,7 @@ import sys
 
 COUNT_FIELDS = (
     "pa", "ab", "hit", "single", "double", "triple", "hr", "bb", "ibb",
-    "hbp", "so", "sf", "sh", "gidp", "error", "rbi",
+    "hbp", "so", "sf", "sh", "gidp", "error", "rbi", "sb", "cs",
 )
 
 
@@ -119,6 +119,40 @@ def aggregate(rows):
     return buckets, latest_date
 
 
+def add_baserunning_events(buckets, atbats, runner_events):
+    """打席へ正確に結び付く盗塁・盗塁死だけを対戦別に加える。"""
+    contexts = {
+        (row.get("game_id"), row.get("atbat_index")): row
+        for row in atbats
+        if row.get("game_id") and row.get("atbat_index")
+    }
+    added = 0
+    for event in runner_events:
+        event_type = event.get("event_type")
+        if event_type not in ("stolen_base", "caught_stealing"):
+            continue
+        # official_boxscore 行は投手・イニングを持たないため対戦別には使わない。
+        if event.get("source") != "result_detail_high_confidence":
+            continue
+        context = contexts.get((event.get("game_id"), event.get("event_sequence")))
+        runner_key = event.get("player_key")
+        pitcher_key = context and context.get("pitcher_key")
+        if not runner_key or not pitcher_key:
+            continue
+        field = "sb" if event_type == "stolen_base" else "cs"
+        batter_bucket = buckets["batter"].get(runner_key)
+        pitcher_bucket = buckets["pitcher"].get(pitcher_key)
+        batter_matchup = batter_bucket and batter_bucket["opponents"].get(pitcher_key)
+        pitcher_matchup = pitcher_bucket and pitcher_bucket["opponents"].get(runner_key)
+        if batter_matchup is not None:
+            batter_matchup[field] += 1
+        if pitcher_matchup is not None:
+            pitcher_matchup[field] += 1
+        if batter_matchup is not None or pitcher_matchup is not None:
+            added += 1
+    return added
+
+
 def _clear_json_files(directory):
     os.makedirs(directory, exist_ok=True)
     for name in os.listdir(directory):
@@ -166,11 +200,18 @@ def build(season, base="data"):
     if not os.path.exists(source):
         raise FileNotFoundError(f"打席データがありません: {source}")
     with open(source, encoding="utf-8-sig", newline="") as handle:
-        buckets, latest_date = aggregate(csv.DictReader(handle))
+        atbats = list(csv.DictReader(handle))
+    buckets, latest_date = aggregate(atbats)
+    runner_source = os.path.join(base, str(season), "dataset", "runner_events.csv")
+    baserunning_events = 0
+    if os.path.exists(runner_source):
+        with open(runner_source, encoding="utf-8-sig", newline="") as handle:
+            baserunning_events = add_baserunning_events(buckets, atbats, csv.DictReader(handle))
     index = write_matchups(season, buckets, latest_date, base)
     print(
         f"[INFO] matchups: 打者{len(index['batters']):,}人 / "
-        f"投手{len(index['pitchers']):,}人 / {latest_date or '-'}時点"
+        f"投手{len(index['pitchers']):,}人 / 走塁{baserunning_events:,}件 / "
+        f"{latest_date or '-'}時点"
     )
     return index
 
