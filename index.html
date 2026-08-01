@@ -1069,6 +1069,15 @@
   .roster-status.off{background:var(--panel2);color:var(--muted);border:1px solid var(--line);}
   [data-theme="dark"] .roster-status.on{background:#123923;color:#8ee0aa;border-color:#286c41;}
   .roster-periods{font-size:10px;line-height:1.6;color:var(--muted);}
+  .roster-team-groups{display:flex;flex-direction:column;gap:12px;margin-top:8px;}
+  .roster-league-title{display:flex;align-items:center;gap:7px;margin:5px 0 -3px;font-size:13px;font-weight:800;color:var(--ink);}
+  .roster-league-title::before{content:"";width:4px;height:18px;border-radius:4px;background:var(--accent);}
+  .roster-team-block{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--panel);}
+  .roster-team-head{display:flex;align-items:center;gap:7px;padding:8px 10px;border-left:5px solid var(--team-color,var(--accent));
+    background:var(--panel2);font-size:12px;font-weight:800;}
+  .roster-team-head .sub2{margin-left:auto;font-weight:500;}
+  .roster-team-block .tblwrap{border:0;border-radius:0;box-shadow:none;}
+  .roster-team-block table.stbl{margin:0;}
   @media(max-width:680px){
     .roster-kpis{grid-template-columns:1fr 1fr;}
     .roster-events{grid-template-columns:1fr;}
@@ -3075,15 +3084,32 @@
       '<label>球団<select onchange="setRosterTeam(this.value)">'+teamOptions+'</select></label></div>'+
       '<div class="roster-events">'+rosterEventCard("出場選手登録",daily.additions,"on")+rosterEventCard("出場選手登録抹消",daily.removals,"off")+'</div>'+
       '<div class="subttl">'+esc(rosterDateLabel(rosterSelectedDate))+'時点の登録選手 '+selected.length+'人</div>'+
-      '<div class="tblwrap"><table class="stbl"><thead><tr><th>球団</th><th>位置</th><th>背番号</th><th class="nm">選手</th><th>登録日数</th><th>登録回数</th><th>初回登録</th><th>直近抹消</th><th class="nm">登録期間</th></tr></thead><tbody>';
-    selected.forEach(function(row){
-      var summary=regIndex[row.npb_id],days=registeredDaysAt(summary,rosterSelectedDate);
-      h+='<tr><td>'+teamBadge(row.team)+'</td><td>'+esc(row.position||"-")+'</td><td class="num">'+esc(row.number||"-")+'</td><td class="nm">'+esc(row.name)+'</td>'+
-        '<td class="num hi">'+days+'日</td><td class="num">'+(summary?registrationCountAt(summary,rosterSelectedDate):"-")+'</td>'+
-        '<td>'+esc(summary?summary.first_registered:"-")+'</td><td>'+esc(summary?lastDeregisteredAt(summary,rosterSelectedDate):"-")+'</td>'+
-        '<td class="roster-periods">'+esc(rosterPeriodsText(summary,rosterSelectedDate)||"-")+'</td></tr>';
+      '<div class="roster-team-groups">';
+    var orderedTeams=TEAM_ORDER_PA.concat(TEAM_ORDER_SE).filter(function(team){
+      return teams[team]&&(rosterTeam==="all"||rosterTeam===team);
     });
-    h+='</tbody></table></div><div class="sub" style="margin-top:8px">出典：<a href="'+esc(daily.source)+'" target="_blank" rel="noopener">NPB公式 '+esc(daily.date)+' 公示</a> ／ 最終集計 '+esc(String(data.updated_at||"").slice(0,16).replace("T"," "))+'</div></div>';
+    var currentLeague="";
+    orderedTeams.forEach(function(team){
+      var league=tLeague(team)||"";
+      if(rosterTeam==="all"&&league!==currentLeague){
+        currentLeague=league;
+        h+='<div class="roster-league-title">'+esc(league)+'・リーグ</div>';
+      }
+      var teamRows=selected.filter(function(row){return row.team===team;});
+      var color=tColor(team)||"var(--accent)";
+      h+='<section class="roster-team-block" data-roster-team="'+esc(team)+'"><div class="roster-team-head" style="--team-color:'+color+'">'+
+        teamBadge(team)+'<span>'+esc(team)+'</span><span class="sub2">登録 '+teamRows.length+'人</span></div>'+
+        '<div class="tblwrap"><table class="stbl"><thead><tr><th>位置</th><th>背番号</th><th class="nm">選手</th><th>登録日数</th><th>登録回数</th><th>初回登録</th><th>直近抹消</th><th class="nm">登録期間</th></tr></thead><tbody>';
+      teamRows.forEach(function(row){
+        var summary=regIndex[row.npb_id],days=registeredDaysAt(summary,rosterSelectedDate);
+        h+='<tr><td>'+esc(row.position||"-")+'</td><td class="num">'+esc(row.number||"-")+'</td><td class="nm">'+esc(row.name)+'</td>'+
+          '<td class="num hi">'+days+'日</td><td class="num">'+(summary?registrationCountAt(summary,rosterSelectedDate):"-")+'</td>'+
+          '<td>'+esc(summary?summary.first_registered:"-")+'</td><td>'+esc(summary?lastDeregisteredAt(summary,rosterSelectedDate):"-")+'</td>'+
+          '<td class="roster-periods">'+esc(rosterPeriodsText(summary,rosterSelectedDate)||"-")+'</td></tr>';
+      });
+      h+='</tbody></table></div></section>';
+    });
+    h+='</div><div class="sub" style="margin-top:8px">出典：<a href="'+esc(daily.source)+'" target="_blank" rel="noopener">NPB公式 '+esc(daily.date)+' 公示</a> ／ 最終集計 '+esc(String(data.updated_at||"").slice(0,16).replace("T"," "))+'</div></div>';
     view.innerHTML=h;
   }
 

@@ -26,6 +26,12 @@ class RosterAnnouncementsPageTests(unittest.TestCase):
         self.assertIn("登録日は含み、抹消日は含みません", self.html)
         self.assertIn("missing_dates", self.html)
 
+    def test_registered_players_are_grouped_by_team(self):
+        self.assertIn('class="roster-team-groups"', self.html)
+        self.assertIn('class="roster-team-block"', self.html)
+        self.assertIn("TEAM_ORDER_PA.concat(TEAM_ORDER_SE)", self.html)
+        self.assertIn("data-roster-team", self.html)
+
     def test_daily_workflow_exists(self):
         workflow = (ROOT / ".github" / "workflows" / "roster_announcements.yml").read_text(encoding="utf-8")
         self.assertIn("scraper/roster_announcements.py", workflow)
