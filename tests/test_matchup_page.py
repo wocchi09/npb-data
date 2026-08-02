@@ -32,8 +32,8 @@ class MatchupPageTests(unittest.TestCase):
     def test_matchup_summary_uses_reliable_ops_rankings_for_batters(self):
         for label in (
             "対戦が多い打者 TOP5", "対戦が多い投手 TOP5",
-            "抑えている打者 TOP5", "得意な投手 TOP5",
-            "苦手な打者 TOP5", "苦手な投手 TOP5",
+            "抑えている打者 TOP5", "OPS上位投手 TOP5",
+            "苦手な打者 TOP5", "OPS下位投手 TOP5",
         ):
             self.assertIn(label, self.html)
         for label in ("打席", "打数", "安打", "四死球", "本塁打", "盗塁", "奪三振", "被OPS"):
@@ -44,8 +44,11 @@ class MatchupPageTests(unittest.TestCase):
         self.assertIn("row.pa>=ranked.minPa", self.html)
         self.assertIn("Number(b.ops)||0)-(Number(a.ops)||0", self.html)
         self.assertIn("Number(a.ops)||0)-(Number(b.ops)||0", self.html)
-        self.assertIn("Number(row.ops)>=.900", self.html)
-        self.assertIn("Number(row.ops)<.600", self.html)
+        self.assertIn("good:byOpsDesc.slice(0,5)", self.html)
+        self.assertIn("bad:byOpsAsc.slice(0,5)", self.html)
+        self.assertIn("Number(b.avg)||0", self.html)
+        self.assertIn("同OPSなら打率、対戦打席数", self.html)
+        self.assertIn("打率 '+matchupRate(item.avg)", self.html)
 
     def test_matchup_rankings_show_verdict_and_confidence(self):
         for label in ("超得意", "得意", "普通", "苦手", "超苦手"):
@@ -55,7 +58,7 @@ class MatchupPageTests(unittest.TestCase):
         self.assertIn("信頼度：", self.html)
         self.assertIn("matchup-rank-pa", self.html)
         self.assertIn(".matchup-verdict.good", self.html)
-        self.assertIn("matchupRankCard(isPitcher?\"抑えている打者 TOP5\":\"得意な投手 TOP5\",ranked.good,isPitcher,true)", self.html)
+        self.assertIn("matchupRankCard(isPitcher?\"抑えている打者 TOP5\":\"OPS上位投手 TOP5\",ranked.good,isPitcher,true)", self.html)
 
     def test_batter_and_pitcher_labels_are_distinct(self):
         self.assertIn('対打者別の被打撃成績', self.html)
