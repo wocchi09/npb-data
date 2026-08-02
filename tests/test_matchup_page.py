@@ -51,7 +51,7 @@ class MatchupPageTests(unittest.TestCase):
         self.assertIn("打率 '+matchupRate(item.avg)", self.html)
 
     def test_matchup_rankings_show_verdict_and_confidence(self):
-        for label in ("超得意", "得意", "普通", "苦手", "超苦手"):
+        for label in ("超得意", "得意", "普通", "苦手", "超苦手", "参考"):
             self.assertIn(label, self.html)
         for stars in ("★★★★★", "★★★★☆", "★★★☆☆", "★★☆☆☆", "★☆☆☆☆"):
             self.assertIn(stars, self.html)
@@ -59,6 +59,14 @@ class MatchupPageTests(unittest.TestCase):
         self.assertIn("matchup-rank-pa", self.html)
         self.assertIn(".matchup-verdict.good", self.html)
         self.assertIn("matchupRankCard(isPitcher?\"抑えている打者 TOP5\":\"OPS上位投手 TOP5\",ranked.good,isPitcher,true)", self.html)
+
+    def test_each_matchup_row_shows_verdict_and_confidence_with_documented_rules(self):
+        self.assertIn("<th>判定</th><th>信頼度</th>", self.html)
+        self.assertIn("var rowVerdict=matchupVerdict(row,isPitcher)", self.html)
+        self.assertIn("matchup-confidence-cell", self.html)
+        self.assertIn("成績の良し悪しではなく、対戦サンプルの多さ", self.html)
+        self.assertIn('if(pa<10)return {label:"参考",tone:"normal"}', self.html)
+        self.assertIn("被OPS .600未満＝得意", self.html)
 
     def test_batter_and_pitcher_labels_are_distinct(self):
         self.assertIn('対打者別の被打撃成績', self.html)

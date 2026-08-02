@@ -799,6 +799,10 @@
   .matchup-verdict.good{background:#dcfce7;color:#166534;border:1px solid #86efac;}
   .matchup-verdict.normal{background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;}
   .matchup-verdict.bad{background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;}
+  .matchup-criteria{display:grid;gap:5px;margin:9px 0;padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);font-size:10px;line-height:1.65;color:var(--ink2);}
+  .matchup-criteria b{color:var(--accent);font-size:10.5px;}
+  .matchup-table .matchup-verdict{white-space:nowrap;}
+  .matchup-table .matchup-confidence-cell{font:700 10px 'Roboto Mono',var(--font-ui);color:var(--muted);white-space:nowrap;}
   .matchup-note{font-size:10px;line-height:1.6;color:var(--muted);margin-top:7px;}
   @keyframes pg-stage-in{from{opacity:0;transform:translateY(7px) scale(.995)}to{opacity:1;transform:none}}
   @keyframes pg-sheen{from{transform:translateX(-65%)}to{transform:translateX(65%)}}
@@ -4875,9 +4879,10 @@
   }
   function matchupVerdict(row,isPitcher){
     var pa=Number(row.pa)||0,ops=Number(row.ops)||0;
+    if(pa<10)return {label:"参考",tone:"normal"};
     if(isPitcher){
-      if(pa>=15&&ops<.500)return {label:"かなり抑制",tone:"good"};
-      if(ops<.600)return {label:"抑制",tone:"good"};
+      if(pa>=15&&ops<.500)return {label:"超得意",tone:"good"};
+      if(ops<.600)return {label:"得意",tone:"good"};
       if(ops>=1.000&&pa>=15)return {label:"超苦手",tone:"bad"};
       if(ops>=.900)return {label:"苦手",tone:"bad"};
       return {label:"普通",tone:"normal"};
@@ -4950,18 +4955,21 @@
       '<div class="matchup-kpis">'+matchupRankCard(isPitcher?"対戦が多い打者 TOP5":"対戦が多い投手 TOP5",most,isPitcher,true)+
       matchupRankCard(isPitcher?"抑えている打者 TOP5":"OPS上位投手 TOP5",ranked.good,isPitcher,true)+
       matchupRankCard(isPitcher?"苦手な打者 TOP5":"OPS下位投手 TOP5",ranked.bad,isPitcher,true)+'</div>'+
+      '<div class="matchup-criteria"><div><b>判定基準</b>　'+(isPitcher?'被OPS .600未満＝得意 ／ .600〜.899＝普通 ／ .900以上＝苦手。15打席以上かつ被OPS .500未満＝超得意、1.000以上＝超苦手':'OPS .900以上＝得意 ／ .600〜.899＝普通 ／ .600未満＝苦手。15打席以上かつOPS 1.000以上＝超得意、.500未満＝超苦手')+'。10打席未満は判定せず「参考」です。</div><div><b>信頼度</b>　★★★★★ 30打席以上 ／ ★★★★☆ 20〜29打席 ／ ★★★☆☆ 15〜19打席 ／ ★★☆☆☆ 10〜14打席 ／ ★☆☆☆☆ 5〜9打席。成績の良し悪しではなく、対戦サンプルの多さを表します。</div></div>'+
       '<div class="exok" style="margin:8px 0">該当 '+rows.length+'人 ／ '+rows.reduce(function(sum,row){return sum+row.pa;},0)+'打席</div>';
     if(!rows.length){
       h+='<div class="msg">条件に合う対戦成績がありません</div>';
     }else{
       var labels=isPitcher?{h:"被安",d:"被二",t:"被三",hr:"被本",avg:"被打率",obp:"被出塁",slg:"被長打",ops:"被OPS"}:
         {h:"安打",d:"二塁",t:"三塁",hr:"本塁打",avg:"打率",obp:"出塁",slg:"長打",ops:"OPS"};
-      h+='<div class="tblwrap"><table class="stbl matchup-table"><thead><tr><th>相手選手</th><th>球団</th><th>左右</th><th>試合</th><th>打席</th><th>打数</th>'+
+      h+='<div class="tblwrap"><table class="stbl matchup-table"><thead><tr><th>相手選手</th><th>球団</th><th>左右</th><th>試合</th><th>打席</th><th>判定</th><th>信頼度</th><th>打数</th>'+
         '<th>'+labels.h+'</th><th>'+labels.d+'</th><th>'+labels.t+'</th><th>'+labels.hr+'</th><th>四球</th><th>死球</th><th>三振</th>'+
         '<th>'+labels.avg+'</th><th>'+labels.obp+'</th><th>'+labels.slg+'</th><th>'+labels.ops+'</th><th>K%</th><th>BB%</th></tr></thead><tbody>';
       rows.forEach(function(row){
+        var rowVerdict=matchupVerdict(row,isPitcher);
         h+='<tr><td class="nm">'+esc(row.name)+'</td><td>'+teamBadge(row.team)+'</td><td class="pos">'+esc(row.hand||'-')+'</td>'+
           '<td class="num" data-sort-value="'+row.games+'">'+row.games+'</td><td class="num" data-sort-value="'+row.pa+'">'+row.pa+'</td>'+
+          '<td data-sort-value="'+esc(rowVerdict.label)+'"><span class="matchup-verdict '+rowVerdict.tone+'">'+rowVerdict.label+'</span></td><td class="matchup-confidence-cell" data-sort-value="'+row.pa+'">'+matchupConfidence(row.pa)+'</td>'+
           '<td class="num" data-sort-value="'+row.ab+'">'+row.ab+'</td><td class="num" data-sort-value="'+row.hits+'">'+row.hits+'</td>'+
           '<td class="num" data-sort-value="'+row.double+'">'+row.double+'</td><td class="num" data-sort-value="'+row.triple+'">'+row.triple+'</td>'+
           '<td class="num" data-sort-value="'+row.hr+'">'+row.hr+'</td><td class="num" data-sort-value="'+row.bb+'">'+row.bb+'</td>'+
@@ -4975,7 +4983,7 @@
       });
       h+='</tbody></table></div>';
     }
-    h+='<div class="matchup-note">得意・苦手ランキングは最低'+ranked.minPa+'打席以上を対象とし、その中からOPS上位・下位を最大5人表示します。野手はOPS順（得意は降順、苦手は昇順）で、同OPSなら打率、対戦打席数の順に決定します。OPS .900以上を得意、.600未満を苦手と判定します。15打席以上かつOPS 1.000以上は超得意、15打席以上かつOPS .500未満は超苦手です。信頼度は対戦打席数に基づきます。盗塁は打席と投手を正確に特定できた走塁イベントのみです。'+
+    h+='<div class="matchup-note">得意・苦手ランキングは最低'+ranked.minPa+'打席以上を対象とし、その中からOPS上位・下位を最大5人表示します。野手はOPS順（得意は降順、苦手は昇順）で、同OPSなら打率、対戦打席数の順に決定します。信頼度は判定の優劣ではなく対戦打席数によるサンプル量です。盗塁は打席と投手を正確に特定できた走塁イベントのみです。'+
       (isPitcher?'投手の防御率・失点は個別打者へ正確に配分できないため表示しません。':'')+'</div></div>';
     view.innerHTML=h;
   }
