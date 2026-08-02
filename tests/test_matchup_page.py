@@ -26,10 +26,10 @@ class MatchupPageTests(unittest.TestCase):
     def test_filters_and_sample_size_warning_exist(self):
         for label in ("相手選手", "シーズン", "相手球団", "相手の左右", "最低対戦打席"):
             self.assertIn(label, self.html)
-        self.assertIn("対戦打席数を第一優先", self.html)
+        self.assertIn("最低'+ranked.minPa+'打席以上", self.html)
         self.assertIn("row.pa>=matchupState.minPa", self.html)
 
-    def test_matchup_summary_uses_composite_top_five_lists(self):
+    def test_matchup_summary_uses_reliable_ops_rankings_for_batters(self):
         for label in (
             "対戦が多い打者 TOP5", "対戦が多い投手 TOP5",
             "抑えている打者 TOP5", "得意な投手 TOP5",
@@ -38,10 +38,24 @@ class MatchupPageTests(unittest.TestCase):
             self.assertIn(label, self.html)
         for label in ("打席", "打数", "安打", "四死球", "本塁打", "盗塁", "奪三振", "被OPS"):
             self.assertIn(label, self.html)
-        self.assertIn("function matchupProduction(row)", self.html)
-        self.assertIn("row.pa/(row.pa+12)", self.html)
-        self.assertIn("x.score<0:x.score>0", self.html)
-        self.assertIn("b.row.pa-a.row.pa", self.html)
+        self.assertIn("MATCHUP_RANKING_DEFAULT_MIN_PA=10", self.html)
+        self.assertIn("function matchupRankingMinPa()", self.html)
+        self.assertIn("row.pa>=minPa", self.html)
+        self.assertIn("row.pa>=ranked.minPa", self.html)
+        self.assertIn("Number(b.ops)||0)-(Number(a.ops)||0", self.html)
+        self.assertIn("Number(a.ops)||0)-(Number(b.ops)||0", self.html)
+        self.assertIn("Number(row.ops)>=.900", self.html)
+        self.assertIn("Number(row.ops)<.600", self.html)
+
+    def test_matchup_rankings_show_verdict_and_confidence(self):
+        for label in ("超得意", "得意", "普通", "苦手", "超苦手"):
+            self.assertIn(label, self.html)
+        for stars in ("★★★★★", "★★★★☆", "★★★☆☆", "★★☆☆☆", "★☆☆☆☆"):
+            self.assertIn(stars, self.html)
+        self.assertIn("信頼度：", self.html)
+        self.assertIn("matchup-rank-pa", self.html)
+        self.assertIn(".matchup-verdict.good", self.html)
+        self.assertIn("matchupRankCard(isPitcher?\"抑えている打者 TOP5\":\"得意な投手 TOP5\",ranked.good,isPitcher,true)", self.html)
 
     def test_batter_and_pitcher_labels_are_distinct(self):
         self.assertIn('対打者別の被打撃成績', self.html)
