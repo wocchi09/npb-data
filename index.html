@@ -4892,11 +4892,11 @@
     var minPa=Math.max(matchupRankingMinPa(),Number(matchupState.minPa)||1);
     var eligible=rows.filter(function(row){return row.pa>=minPa&&row.ops!=null&&isFinite(Number(row.ops));});
     if(!isPitcher){
-      var byOpsDesc=eligible.slice().sort(function(a,b){return (Number(b.ops)||0)-(Number(a.ops)||0)||b.pa-a.pa||String(a.name).localeCompare(String(b.name),"ja");});
-      var byOpsAsc=eligible.slice().sort(function(a,b){return (Number(a.ops)||0)-(Number(b.ops)||0)||b.pa-a.pa||String(a.name).localeCompare(String(b.name),"ja");});
+      var byOpsDesc=eligible.slice().sort(function(a,b){return (Number(b.ops)||0)-(Number(a.ops)||0)||(Number(b.avg)||0)-(Number(a.avg)||0)||b.pa-a.pa||String(a.name).localeCompare(String(b.name),"ja");});
+      var byOpsAsc=eligible.slice().sort(function(a,b){return (Number(a.ops)||0)-(Number(b.ops)||0)||(Number(a.avg)||0)-(Number(b.avg)||0)||b.pa-a.pa||String(a.name).localeCompare(String(b.name),"ja");});
       return {
-        good:byOpsDesc.filter(function(row){return Number(row.ops)>=.900;}).slice(0,5),
-        bad:byOpsAsc.filter(function(row){return Number(row.ops)<.600;}).slice(0,5),
+        good:byOpsDesc.slice(0,5),
+        bad:byOpsAsc.slice(0,5),
         minPa:minPa
       };
     }
@@ -4918,7 +4918,7 @@
       var verdict=matchupVerdict(item,isPitcher);
       var stats=isPitcher
         ? item.ab+'打数 被安'+item.hits+' 与四死'+walks+' 被本'+item.hr+' 奪三振'+item.so+' 許盗塁'+steals+' <strong>被OPS '+matchupRate(item.ops)+'</strong>'
-        : item.ab+'打数 '+item.hits+'安打 '+walks+'四死球 '+item.hr+'本塁打 '+steals+'盗塁 <strong>OPS '+matchupRate(item.ops)+'</strong>';
+        : item.ab+'打数 '+item.hits+'安打 '+walks+'四死球 '+item.hr+'本塁打 '+steals+'盗塁 打率 '+matchupRate(item.avg)+' <strong>OPS '+matchupRate(item.ops)+'</strong>';
       var assessment=showAssessment?'<div class="matchup-rank-meta"><b class="matchup-rank-pa">'+item.pa+'打席</b><span class="matchup-verdict '+verdict.tone+'">'+verdict.label+'</span><span class="matchup-rank-confidence">信頼度：'+matchupConfidence(item.pa)+'</span></div>':'<div class="matchup-rank-meta"><b class="matchup-rank-pa">'+item.pa+'打席</b></div>';
       return '<div class="matchup-rank-row"><div class="matchup-rank-name"><span class="rank">'+(index+1)+'</span>'+esc(item.name)+' '+teamBadge(item.team)+'</div>'+assessment+'<div class="matchup-rank-stats">'+stats+'</div></div>';
     }).join("");
@@ -4948,8 +4948,8 @@
       '<label class="ef"><span>相手の左右</span><select id="matchupHand" onchange="matchupFiltersChanged()"><option value="all">左右すべて</option>'+options(hands,matchupState.hand)+'</select></label>'+
       '<label class="ef"><span>最低対戦打席</span><select id="matchupMinPa" onchange="matchupFiltersChanged()">'+[1,3,5,10,20].map(function(n){return '<option value="'+n+'"'+(matchupState.minPa===n?' selected':'')+'>'+n+'打席以上</option>';}).join("")+'</select></label></div>'+
       '<div class="matchup-kpis">'+matchupRankCard(isPitcher?"対戦が多い打者 TOP5":"対戦が多い投手 TOP5",most,isPitcher,true)+
-      matchupRankCard(isPitcher?"抑えている打者 TOP5":"得意な投手 TOP5",ranked.good,isPitcher,true)+
-      matchupRankCard(isPitcher?"苦手な打者 TOP5":"苦手な投手 TOP5",ranked.bad,isPitcher,true)+'</div>'+
+      matchupRankCard(isPitcher?"抑えている打者 TOP5":"OPS上位投手 TOP5",ranked.good,isPitcher,true)+
+      matchupRankCard(isPitcher?"苦手な打者 TOP5":"OPS下位投手 TOP5",ranked.bad,isPitcher,true)+'</div>'+
       '<div class="exok" style="margin:8px 0">該当 '+rows.length+'人 ／ '+rows.reduce(function(sum,row){return sum+row.pa;},0)+'打席</div>';
     if(!rows.length){
       h+='<div class="msg">条件に合う対戦成績がありません</div>';
@@ -4975,7 +4975,7 @@
       });
       h+='</tbody></table></div>';
     }
-    h+='<div class="matchup-note">得意・苦手ランキングは最低'+ranked.minPa+'打席以上を対象とします。野手はOPS順（得意は降順、苦手は昇順）で、OPS .900以上を得意、.600未満を苦手と判定します。15打席以上かつOPS 1.000以上は超得意、15打席以上かつOPS .500未満は超苦手です。信頼度は対戦打席数に基づきます。盗塁は打席と投手を正確に特定できた走塁イベントのみです。'+
+    h+='<div class="matchup-note">得意・苦手ランキングは最低'+ranked.minPa+'打席以上を対象とし、その中からOPS上位・下位を最大5人表示します。野手はOPS順（得意は降順、苦手は昇順）で、同OPSなら打率、対戦打席数の順に決定します。OPS .900以上を得意、.600未満を苦手と判定します。15打席以上かつOPS 1.000以上は超得意、15打席以上かつOPS .500未満は超苦手です。信頼度は対戦打席数に基づきます。盗塁は打席と投手を正確に特定できた走塁イベントのみです。'+
       (isPitcher?'投手の防御率・失点は個別打者へ正確に配分できないため表示しません。':'')+'</div></div>';
     view.innerHTML=h;
   }
