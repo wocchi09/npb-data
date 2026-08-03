@@ -16,8 +16,8 @@ from typing import Any, Iterable
 JST = timezone(timedelta(hours=9))
 REQUIRED = (
     "batting.csv", "pitching.csv", "teams.csv", "games_latest.csv",
-    "matchups.csv", "roster.csv", "form_players.csv", "metadata.csv",
-    "glossary.csv",
+    "games_season.csv", "matchups.csv", "roster.csv", "roster_season.csv",
+    "form_players.csv", "metadata.csv", "glossary.csv",
 )
 
 HEADERS = {
@@ -25,8 +25,10 @@ HEADERS = {
     "pitching.csv": ["シーズン", "集計基準日", "選手名", "球団", "背番号", "投手役割", "登板数", "投球回", "打者数", "勝", "敗", "セーブ", "ホールド", "防御率", "FIP", "WHIP", "奪三振率", "与四球率", "W-Impact", "直近5登板W-Impact", "一軍登録日数", "サンプル不足フラグ", "データの説明"],
     "teams.csv": ["シーズン", "集計基準日", "リーグ", "順位", "球団", "試合数", "勝", "敗", "引分", "勝率", "ゲーム差", "得点", "失点", "得失点差", "本塁打", "盗塁", "チーム打率", "チーム防御率", "残り試合", "データの説明"],
     "games_latest.csv": ["シーズン", "集計基準日", "試合日", "試合ID", "ビジター", "ホーム", "球場", "ビジター得点", "ホーム得点", "勝者", "試合状態", "勝利投手", "敗戦投手", "セーブ投手", "データの説明"],
+    "games_season.csv": ["シーズン", "集計基準日", "試合日", "試合ID", "ビジター", "ホーム", "球場", "ビジター得点", "ホーム得点", "勝者", "試合状態", "勝利投手", "敗戦投手", "セーブ投手", "データの説明"],
     "matchups.csv": ["シーズン", "集計基準日", "打者名", "打者球団", "投手名", "投手球団", "対戦打席", "対戦打数", "安打", "本塁打", "四球", "三振", "打率", "出塁率", "長打率", "OPS", "サンプル不足フラグ", "データの説明"],
     "roster.csv": ["シーズン", "集計基準日", "選手名", "球団", "背番号", "守備位置", "一軍登録状況", "一軍登録日数", "直近登録日", "直近抹消日", "データの説明"],
+    "roster_season.csv": ["シーズン", "集計基準日", "選手名", "球団", "背番号", "守備位置", "一軍登録状況", "一軍登録日数", "直近登録日", "直近抹消日", "データの説明"],
     "form_players.csv": ["シーズン", "集計基準日", "選手名", "球団", "区分", "期間", "期間終了日", "試合数または登板数", "打席数", "投球回", "OPS", "防御率", "W-Impact", "W-Value", "調子判定", "サンプル不足フラグ", "データの説明"],
     "metadata.csv": ["項目", "値", "説明"],
     "glossary.csv": ["指標", "対象", "意味", "注意点"],
@@ -186,11 +188,11 @@ def build_teams(standings: dict[str, Any], season: str, cutoff: str) -> list[dic
     return rows
 
 
-def build_games(season_dir: Path, season: str, cutoff: str, days: int = 7) -> list[dict[str, Any]]:
+def build_games(season_dir: Path, season: str, cutoff: str, days: int | None = 7) -> list[dict[str, Any]]:
     path = season_dir / "dataset" / "games.csv"
     if not path.exists():
         raise FileNotFoundError(f"必須データがありません: {path}")
-    floor = datetime.fromisoformat(cutoff).date() - timedelta(days=days - 1) if cutoff else None
+    floor = datetime.fromisoformat(cutoff).date() - timedelta(days=days - 1) if cutoff and days else None
     rows = []
     seen = set()
     with path.open(encoding="utf-8-sig", newline="") as fh:
@@ -206,12 +208,13 @@ def build_games(season_dir: Path, season: str, cutoff: str, days: int = 7) -> li
                 "ビジター": g.get("away", ""), "ホーム": g.get("home", ""), "球場": g.get("stadium", ""),
                 "ビジター得点": g.get("away_score", ""), "ホーム得点": g.get("home_score", ""), "勝者": g.get("winner", ""),
                 "試合状態": g.get("state", ""), "勝利投手": g.get("win_pitcher", ""), "敗戦投手": g.get("lose_pitcher", ""),
-                "セーブ投手": g.get("save_pitcher", ""), "データの説明": f"集計基準日までの直近{days}日間の試合。",
+                "セーブ投手": g.get("save_pitcher", ""),
+                "データの説明": f"集計基準日までの直近{days}日間の試合。" if days else "2026シーズンの収集済み全試合。",
             })
     return sorted(rows, key=lambda x: (str(x["試合日"]), str(x["試合ID"])), reverse=True)
 
 
-def build_matchups(season_dir: Path, season: str, cutoff: str, minimum_pa: int = 5, per_batter: int = 3) -> list[dict[str, Any]]:
+def build_matchups(season_dir: Path, season: str, cutoff: str, minimum_pa: int = 5, per_batter: int | None = None) -> list[dict[str, Any]]:
     root = season_dir / "matchups" / "batters"
     if not root.exists():
         return []
@@ -221,7 +224,8 @@ def build_matchups(season_dir: Path, season: str, cutoff: str, minimum_pa: int =
         data = read_json(path)
         batter = data.get("player") or {}
         opponents = sorted(data.get("opponents", []), key=lambda x: int(x.get("pa") or 0), reverse=True)
-        for p in [x for x in opponents if int(x.get("pa") or 0) >= minimum_pa][:per_batter]:
+        qualified = [x for x in opponents if int(x.get("pa") or 0) >= minimum_pa]
+        for p in (qualified[:per_batter] if per_batter else qualified):
             pa = int(p.get("pa") or 0)
             pair = (str(batter.get("key") or batter.get("name")), str(p.get("player_key") or p.get("name")))
             if pair in seen:
@@ -238,7 +242,7 @@ def build_matchups(season_dir: Path, season: str, cutoff: str, minimum_pa: int =
     return rows
 
 
-def build_roster(current: list[dict[str, Any]], summary: dict[str, Any], season: str, cutoff: str) -> list[dict[str, Any]]:
+def build_roster(current: list[dict[str, Any]], summary: dict[str, Any], season: str, cutoff: str, recent_only: bool = True) -> list[dict[str, Any]]:
     history = summary.get("players") or summary.get("player_days") or []
     if history:
         source = history
@@ -251,7 +255,7 @@ def build_roster(current: list[dict[str, Any]], summary: dict[str, Any], season:
         key = str(p.get("npb_id") or p.get("player_id") or p.get("name"))
         is_current = bool(p.get("current_registered", key in current_ids))
         removed = p.get("last_deregistered")
-        if not is_current and recent_floor and (not removed or datetime.fromisoformat(removed).date() < recent_floor):
+        if recent_only and not is_current and recent_floor and (not removed or datetime.fromisoformat(removed).date() < recent_floor):
             continue
         rows.append({
             "シーズン": season, "集計基準日": cutoff, "選手名": p.get("name", ""), "球団": p.get("team", ""),
@@ -348,8 +352,10 @@ def build(base: Path, out_dir: Path, season_arg: str | None = None) -> dict[str,
         "pitching.csv": build_pitching(players, season, cutoff, trends, pit_impact, roster_index),
         "teams.csv": build_teams(standings, season, cutoff),
         "games_latest.csv": build_games(season_dir, season, cutoff),
+        "games_season.csv": build_games(season_dir, season, cutoff, days=None),
         "matchups.csv": build_matchups(season_dir, season, cutoff),
         "roster.csv": build_roster(current_roster, roster_summary, season, cutoff),
+        "roster_season.csv": build_roster(current_roster, roster_summary, season, cutoff, recent_only=False),
         "form_players.csv": build_form(trends, season, cutoff),
         "metadata.csv": [
             {"項目": "シーズン", "値": season, "説明": "対象シーズン"},
@@ -358,7 +364,7 @@ def build(base: Path, out_dir: Path, season_arg: str | None = None) -> dict[str,
             {"項目": "公開元", "値": "https://github.com/wocchi09/npb-data", "説明": "データと生成コードのリポジトリ"},
             {"項目": "欠損方針", "値": "空欄", "説明": "取得できない値は推測せず空欄にする"},
             {"項目": "選手データ制限", "値": "野手20打席以上・投手3登板以上", "説明": "Google Sheetsソースのトークン上限を考慮"},
-            {"項目": "対戦データ制限", "値": "各打者の対戦打席上位3投手（5打席以上）", "説明": "Google Sheetsソースのトークン上限を考慮"},
+            {"項目": "対戦データ制限", "値": "5打席以上の全打者・投手組み合わせ", "説明": "対戦専用スプレッドシートへ分離"},
             {"項目": "登録データ制限", "値": "現在登録中または直近30日以内に抹消", "説明": "直近の登録・抹消を優先"},
             {"項目": "調子データ制限", "値": "区分・期間ごとの上位25人と下位25人", "説明": "好調・不調を質問しやすくしつつデータ量を抑制"},
             {"項目": "試合データ期間", "値": "直近7日", "説明": "Google Sheetsソースのトークン上限を考慮"},

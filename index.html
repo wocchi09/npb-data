@@ -774,6 +774,13 @@
   .social-template summary{cursor:pointer;font-size:11px;font-weight:700;color:var(--accent);}
   .social-template-grid{display:grid;grid-template-columns:1fr 1fr auto;gap:7px;align-items:end;margin-top:8px;}
   .social-posted-badge{font-size:9px;color:var(--safe);border:1px solid currentColor;border-radius:12px;padding:2px 6px;}
+  .note-article{border:1px solid var(--line);border-left:4px solid #41c9a5;border-radius:12px;background:var(--panel);padding:14px;margin:12px 0;}
+  .note-article-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:9px;}
+  .note-article-head h3{margin:0;font-size:16px;color:var(--ink);}
+  .note-article-title{width:100%;box-sizing:border-box;font-family:inherit;font-size:14px;font-weight:700;color:var(--ink);background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:9px 10px;margin-bottom:8px;}
+  .note-article-text{width:100%;min-height:460px;box-sizing:border-box;resize:vertical;font-family:inherit;font-size:13px;line-height:1.85;color:var(--ink);background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:12px;}
+  .note-article-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px;}
+  .note-article-meta{font-size:10px;color:var(--muted);line-height:1.6;margin-top:7px;}
   /* ---- 選手別対戦成績 ---- */
   .matchup-hero{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px;}
   .matchup-hero-main{min-width:220px;flex:1;}
@@ -823,6 +830,8 @@
     .social-controls .btn{grid-column:1/-1;width:100%;}
     .social-actions .btn{flex:1;}
     .social-template-grid{grid-template-columns:1fr;}
+    .note-article-actions .btn{flex:1;min-width:120px;}
+    .note-article-text{min-height:420px;}
     .matchup-controls{grid-template-columns:1fr 1fr;}
     .matchup-kpis{grid-template-columns:1fr;}
     .pg-svg .area{display:none;}
@@ -1172,7 +1181,7 @@
         </div>
       </div>
       <button class="vbtn" id="vb-export" onclick="setView('export')">データ出力</button>
-      <button class="vbtn" id="vb-social" style="display:none" onclick="setView('social')">投稿文作成</button>
+      <button class="vbtn" id="vb-social" style="display:none" onclick="setView('social')">SNS・note作成</button>
     </div>
 
     <div id="dashView"></div>
@@ -4493,6 +4502,63 @@
   var socialTemplate=socialLoadStored(SOCIAL_TEMPLATE_KEY,{prefix:"",suffix:"",includeNoHr:false});
   var socialState={date:"",league:"all",category:"all",summary:null,games:[],award:null,players:[],posts:[],
     prefix:socialTemplate.prefix||"",suffix:socialTemplate.suffix||"",includeNoHr:!!socialTemplate.includeNoHr};
+  function noteArticleDateLabel(date){
+    var p=String(date||"").split("-");return p.length===3?p[0]+"年"+Number(p[1])+"月"+Number(p[2])+"日":String(date||"");
+  }
+  function noteArticleGameTeams(game){
+    var result=game.result||{},box=game.boxscore||{},score=box.scoreboard||{};
+    return {away:game.away||result.away||(score.away&&score.away.team)||"ビジター",
+      home:game.home||result.home||(score.home&&score.home.team)||"ホーム"};
+  }
+  function noteArticleHighlights(game){
+    var box=game.boxscore||{},batting=box.batting||{},pitching=box.pitching||{},teams=noteArticleGameTeams(game),items=[];
+    [["away",teams.away],["home",teams.home]].forEach(function(pair){
+      (batting[pair[0]]||[]).forEach(function(row){
+        var stats=[];if(num(row.hr)>0)stats.push(num(row.hr)+"本塁打");if(num(row.hits)>=3)stats.push(num(row.hits)+"安打");if(num(row.rbi)>=3)stats.push(num(row.rbi)+"打点");
+        if(stats.length)items.push(row.name+"（"+pair[1]+"）が"+stats.join("、"));
+      });
+      var starter=(pitching[pair[0]]||[])[0];
+      if(starter&&num(starter.outs)>=18&&num(starter.earned_runs)<=2){
+        items.push(starter.name+"（"+pair[1]+"）が"+starter.innings+"回"+num(starter.earned_runs)+"自責点、"+num(starter.so)+"奪三振");
+      }
+    });
+    return items.slice(0,4);
+  }
+  function noteArticleGameSection(game){
+    var result=game.result||{},teams=noteArticleGameTeams(game),awayScore=result.away_score,homeScore=result.home_score;
+    var title="## "+teams.away+" "+(awayScore==null?"-":awayScore)+"－"+(homeScore==null?"-":homeScore)+" "+teams.home;
+    var lines=[title,"",teams.away+"対"+teams.home+"は、"+teams.away+"が"+awayScore+"点、"+teams.home+"が"+homeScore+"点でした。"];
+    var decisions=[];if(result.win_pitcher)decisions.push("勝利投手は"+result.win_pitcher);if(result.lose_pitcher)decisions.push("敗戦投手は"+result.lose_pitcher);if(result.save_pitcher)decisions.push("セーブは"+result.save_pitcher);
+    if(decisions.length)lines.push(decisions.join("、")+"です。");
+    var hrs=result.homeruns||[];
+    if(hrs.length)lines.push("本塁打は、"+hrs.map(function(hr){return hr.batter+"の"+hr.number+"号（"+(hr.detail||"詳細記録なし")+"）";}).join("、")+"でした。");
+    var highlights=noteArticleHighlights(game);if(highlights.length)lines.push("データ上の注目は、"+highlights.join("、")+"です。");
+    return lines.join("\n\n");
+  }
+  function noteArticleBuild(){
+    var games=(socialState.games||[]).filter(function(game){return game&&game.result&&/試合終了/.test(String(game.result.state||""));});
+    var dateLabel=noteArticleDateLabel(socialState.date),title=dateLabel+" NPB全"+games.length+"試合まとめ｜試合結果と注目記録をデータで振り返る";
+    var intro=dateLabel+"のプロ野球は、セ・パ合わせて"+games.length+"試合が行われました。\n\nこの記事では、収集済みの試合結果と個人成績をもとに全試合を振り返ります。";
+    var results=games.map(function(game){var t=noteArticleGameTeams(game),r=game.result||{};return "- "+t.away+" "+r.away_score+"－"+r.home_score+" "+t.home;});
+    var body=[intro,"## この日の試合結果",results.join("\n")].concat(games.map(noteArticleGameSection));
+    body.push("## まとめ\n\n以上、"+dateLabel+"のNPB全試合でした。試合数の少ない対戦成績や直近成績は変動が大きいため、シーズン累計と合わせて確認することが大切です。");
+    body.push("※この記事は収集済みの試合結果・公式記録データをもとに自動生成しています。取得できていない情報は推測していません。\n\n#プロ野球 #NPB #野球データ");
+    return {title:title,body:body.join("\n\n")};
+  }
+  function noteArticleRender(){
+    var title=document.getElementById("noteArticleTitle"),body=document.getElementById("noteArticleText"),status=document.getElementById("noteArticleStatus");if(!title||!body)return;
+    var article=noteArticleBuild();title.value=article.title;body.value=article.body;if(status)status.textContent="記事案を生成しました（"+article.body.length.toLocaleString()+"文字）";
+  }
+  function noteArticleMarkdown(){
+    var title=document.getElementById("noteArticleTitle"),body=document.getElementById("noteArticleText");return "# "+(title?title.value:"")+"\n\n"+(body?body.value:"");
+  }
+  async function noteArticleCopy(){
+    var status=document.getElementById("noteArticleStatus");try{await navigator.clipboard.writeText(noteArticleMarkdown());if(status)status.textContent="タイトルと本文をコピーしました";}catch(e){if(status)status.textContent="コピーできませんでした。本文を選択してコピーしてください";}
+  }
+  function noteArticleDownload(){
+    var blob=new Blob([noteArticleMarkdown()],{type:"text/markdown;charset=utf-8"}),link=document.createElement("a");link.href=URL.createObjectURL(blob);link.download="npb-note-"+socialState.date+".md";link.click();setTimeout(function(){URL.revokeObjectURL(link.href);},1000);
+  }
+  async function noteArticleOpen(){await noteArticleCopy();window.open("https://note.com/notes/new","_blank","noopener");}
   async function loadSocial(){
     var view=document.getElementById("socialView");if(!view)return;
     if(!personalPostingEnabled()){
@@ -4521,6 +4587,12 @@
       '<div class="social-field"><label>ハッシュタグ前の末尾文</label><input id="socialSuffix" value="'+esc(socialState.suffix)+'" placeholder="任意"></div>'+
       '<button class="btn" onclick="socialSaveTemplate()">設定を保存</button></div>'+
       '<label style="display:inline-flex;gap:6px;align-items:center;margin-top:8px;font-size:11px"><input type="checkbox" id="socialNoHr"'+(socialState.includeNoHr?' checked':'')+'> 本塁打なしの日も投稿文を作る</label></details>'+
+      '<div class="note-article"><div class="note-article-head"><h3>note記事作成</h3><span class="dash-date">全試合まとめ・Markdown</span></div>'+
+      '<input class="note-article-title" id="noteArticleTitle" aria-label="note記事タイトル" placeholder="データ読込後にタイトルを生成します">'+
+      '<textarea class="note-article-text" id="noteArticleText" aria-label="note記事本文" placeholder="データ読込後に記事本文を生成します"></textarea>'+
+      '<div class="note-article-actions"><button class="btn primary" onclick="noteArticleRender()">記事を再生成</button><button class="btn" onclick="noteArticleCopy()">Markdownをコピー</button>'+
+      '<button class="btn" onclick="noteArticleDownload()">.mdで保存</button><button class="btn" onclick="noteArticleOpen()">コピーしてnoteを開く</button></div>'+
+      '<div id="noteArticleStatus" class="note-article-meta">日付のデータを読み込んでいます。生成後も自由に編集できます。</div></div>'+
       '<div id="socialCompleteness"></div><div id="socialProgress"></div>'+
       '<div id="socialPosts" class="social-posts"><div class="msg">データを読み込み中…</div></div>'+
       '<div id="socialStatus" class="social-status"></div>'+
@@ -4543,10 +4615,11 @@
         try{var r=await fetch("data/"+year+"/players/stats.json?t="+Date.now());return r.ok?(await r.json()).players||[]:[];}catch(e){return [];}
       })();
       var loaded=await Promise.all([Promise.all(gameRequests),awardRequest,playersRequest]);
-      socialState.games=loaded[0].filter(Boolean);socialState.award=loaded[1];socialState.players=loaded[2];socialRenderPosts(true);
+      socialState.games=loaded[0].filter(Boolean);socialState.award=loaded[1];socialState.players=loaded[2];socialRenderPosts(true);noteArticleRender();
     }catch(e){
       socialState.summary=null;socialState.games=[];socialState.award=null;socialState.players=[];socialState.posts=[];
       container.innerHTML='<div class="msg">この日の試合データがありません</div>';
+      var noteStatus=document.getElementById("noteArticleStatus");if(noteStatus)noteStatus.textContent="この日の試合データがないため記事を生成できません";
     }
   }
   function socialCategoryOptions(){

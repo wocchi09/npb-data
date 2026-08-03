@@ -7,16 +7,40 @@ const NPB_CONFIG = Object.freeze({
   baseUrl: 'https://raw.githubusercontent.com/wocchi09/npb-data/main/data/notebooklm/',
   triggerHourJst: 6,
   lockTimeoutMs: 30000,
-  sources: [
-    { file: 'games_latest.csv', sheet: '今日の試合' },
-    { file: 'batting.csv', sheet: '野手成績' },
-    { file: 'pitching.csv', sheet: '投手成績' },
-    { file: 'teams.csv', sheet: '球団成績' },
-    { file: 'matchups.csv', sheet: '対戦成績' },
-    { file: 'roster.csv', sheet: '登録・抹消' },
-    { file: 'form_players.csv', sheet: '好調・不調' },
-    { file: 'glossary.csv', sheet: '指標説明' },
-    { file: 'metadata.csv', sheet: 'データ情報' }
+  workbooks: [
+    {
+      key: 'season',
+      title: 'NPB 2026 シーズン全体',
+      sources: [
+        { file: 'batting.csv', sheet: '野手成績' },
+        { file: 'pitching.csv', sheet: '投手成績' },
+        { file: 'teams.csv', sheet: '球団成績' },
+        { file: 'games_season.csv', sheet: '全試合結果' },
+        { file: 'roster_season.csv', sheet: '全登録・抹消' },
+        { file: 'glossary.csv', sheet: '指標説明' },
+        { file: 'metadata.csv', sheet: 'データ情報' }
+      ]
+    },
+    {
+      key: 'matchups',
+      title: 'NPB 2026 対戦データ',
+      sources: [
+        { file: 'matchups.csv', sheet: '打者対投手' },
+        { file: 'glossary.csv', sheet: '指標説明' },
+        { file: 'metadata.csv', sheet: 'データ情報' }
+      ]
+    },
+    {
+      key: 'recent',
+      title: 'NPB 2026 直近データ',
+      sources: [
+        { file: 'games_latest.csv', sheet: '最近の試合' },
+        { file: 'form_players.csv', sheet: '好調・不調' },
+        { file: 'roster.csv', sheet: '最近の登録・抹消' },
+        { file: 'glossary.csv', sheet: '指標説明' },
+        { file: 'metadata.csv', sheet: 'データ情報' }
+      ]
+    }
   ]
 });
 
@@ -36,10 +60,12 @@ function onOpen() {
 function initialSetup() {
   ensureControlSheets_();
   writeUsage_();
+  const books = ensureDestinationBooks_();
+  writeBookLinks_(books);
   updateAllData_({ interactive: true });
   installDailyTrigger();
   SpreadsheetApp.getUi().alert(
-    '初期設定が完了しました。\nNotebookLMで、このスプレッドシートを情報源として追加してください。'
+    '初期設定が完了しました。\n「追加する3冊」タブのリンクを開き、3冊をNotebookLMの情報源として追加してください。'
   );
 }
 
@@ -66,25 +92,34 @@ function updateAllData_(options) {
     ensureControlSheets_();
     recordStatus_('更新中', '公開CSVを取得しています。', started);
 
+    const books = ensureDestinationBooks_();
+    writeBookLinks_(books);
+
     // 全ファイルを先に取得・検証する。1つでも失敗したら既存データに触れない。
-    const datasets = NPB_CONFIG.sources.map(function(source) {
-      return { source: source, values: fetchCsv_(source.file) };
+    const fetched = {};
+    allSources_().forEach(function(source) {
+      if (!fetched[source.file]) fetched[source.file] = fetchCsv_(source.file);
     });
 
-    // 一時タブへの書き込みがすべて成功してから本番タブへ反映する。
-    const tempSheets = prepareTemporarySheets_(datasets);
-    try {
-      datasets.forEach(function(dataset, index) {
-        replaceSheetFromTemporary_(dataset.source.sheet, tempSheets[index]);
+    // 3冊それぞれで、一時タブへの書き込み成功後に本番タブへ反映する。
+    books.forEach(function(book) {
+      const datasets = book.config.sources.map(function(source) {
+        return { source: source, values: fetched[source.file] };
       });
-    } finally {
-      deleteTemporarySheets_(tempSheets);
-    }
+      const tempSheets = prepareTemporarySheets_(book.spreadsheet, datasets);
+      try {
+        datasets.forEach(function(dataset, index) {
+          replaceSheetFromTemporary_(book.spreadsheet, dataset.source.sheet, tempSheets[index]);
+        });
+      } finally {
+        deleteTemporarySheets_(book.spreadsheet, tempSheets);
+      }
+    });
 
     const finished = new Date();
     PropertiesService.getDocumentProperties().setProperty('NPB_LAST_SUCCESS', finished.toISOString());
-    recordStatus_('成功', datasets.length + 'ファイルを更新しました。', finished);
-    formatDataSheets_();
+    recordStatus_('成功', books.length + '冊・' + Object.keys(fetched).length + 'ファイルを更新しました。', finished);
+    formatDataSheets_(books);
     SpreadsheetApp.flush();
     if (interactive) SpreadsheetApp.getActive().toast('NPBデータを更新しました。', 'NPBデータ', 5);
   } catch (error) {
@@ -127,8 +162,7 @@ function fetchCsv_(fileName) {
   throw new Error('取得失敗 ' + fileName + ': ' + String(lastError));
 }
 
-function prepareTemporarySheets_(datasets) {
-  const spreadsheet = SpreadsheetApp.getActive();
+function prepareTemporarySheets_(spreadsheet, datasets) {
   const created = [];
   try {
     datasets.forEach(function(dataset, index) {
@@ -142,13 +176,12 @@ function prepareTemporarySheets_(datasets) {
     SpreadsheetApp.flush();
     return created;
   } catch (error) {
-    deleteTemporarySheets_(created);
+    deleteTemporarySheets_(spreadsheet, created);
     throw error;
   }
 }
 
-function replaceSheetFromTemporary_(targetName, tempSheet) {
-  const spreadsheet = SpreadsheetApp.getActive();
+function replaceSheetFromTemporary_(spreadsheet, targetName, tempSheet) {
   let target = spreadsheet.getSheetByName(targetName);
   if (!target) target = spreadsheet.insertSheet(targetName);
   const rows = tempSheet.getLastRow();
@@ -162,8 +195,7 @@ function replaceSheetFromTemporary_(targetName, tempSheet) {
   }
 }
 
-function deleteTemporarySheets_(sheets) {
-  const spreadsheet = SpreadsheetApp.getActive();
+function deleteTemporarySheets_(spreadsheet, sheets) {
   (sheets || []).forEach(function(sheet) {
     try {
       if (spreadsheet.getSheetByName(sheet.getName())) spreadsheet.deleteSheet(sheet);
@@ -173,8 +205,7 @@ function deleteTemporarySheets_(sheets) {
   });
 }
 
-function cleanupTemporarySheets_() {
-  const spreadsheet = SpreadsheetApp.getActive();
+function cleanupTemporarySheets_(spreadsheet) {
   spreadsheet.getSheets().forEach(function(sheet) {
     if (sheet.getName().indexOf('__NPB_TMP_') === 0) spreadsheet.deleteSheet(sheet);
   });
@@ -182,10 +213,65 @@ function cleanupTemporarySheets_() {
 
 function ensureControlSheets_() {
   const spreadsheet = SpreadsheetApp.getActive();
-  ['使い方', '更新状況'].concat(NPB_CONFIG.sources.map(function(x) { return x.sheet; })).forEach(function(name) {
+  ['使い方', '更新状況', '追加する3冊'].forEach(function(name) {
     if (!spreadsheet.getSheetByName(name)) spreadsheet.insertSheet(name);
   });
-  cleanupTemporarySheets_();
+  cleanupTemporarySheets_(spreadsheet);
+}
+
+function allSources_() {
+  const byFile = {};
+  NPB_CONFIG.workbooks.forEach(function(book) {
+    book.sources.forEach(function(source) { byFile[source.file] = source; });
+  });
+  return Object.keys(byFile).map(function(file) { return byFile[file]; });
+}
+
+function ensureDestinationBooks_() {
+  const properties = PropertiesService.getDocumentProperties();
+  return NPB_CONFIG.workbooks.map(function(config) {
+    const property = 'NPB_BOOK_' + config.key.toUpperCase();
+    let spreadsheet = null;
+    const savedId = properties.getProperty(property);
+    if (savedId) {
+      try {
+        spreadsheet = SpreadsheetApp.openById(savedId);
+      } catch (ignored) {
+        properties.deleteProperty(property);
+      }
+    }
+    if (!spreadsheet) {
+      spreadsheet = SpreadsheetApp.create(config.title);
+      properties.setProperty(property, spreadsheet.getId());
+    }
+    config.sources.forEach(function(source) {
+      if (!spreadsheet.getSheetByName(source.sheet)) spreadsheet.insertSheet(source.sheet);
+    });
+    const defaultSheet = spreadsheet.getSheetByName('シート1') || spreadsheet.getSheetByName('Sheet1');
+    if (defaultSheet && defaultSheet.getLastRow() === 0 && spreadsheet.getSheets().length > 1) {
+      spreadsheet.deleteSheet(defaultSheet);
+    }
+    cleanupTemporarySheets_(spreadsheet);
+    return { config: config, spreadsheet: spreadsheet };
+  });
+}
+
+function writeBookLinks_(books) {
+  const sheet = SpreadsheetApp.getActive().getSheetByName('追加する3冊');
+  const values = [['用途', 'スプレッドシート', 'NotebookLMでの操作']];
+  books.forEach(function(book) {
+    values.push([
+      book.config.title,
+      '=HYPERLINK("' + book.spreadsheet.getUrl() + '","開く")',
+      'NotebookLMの「ソースを追加」→Googleドライブからこのファイルを選択'
+    ]);
+  });
+  sheet.clear();
+  ensureSize_(sheet, values.length, 3);
+  sheet.getRange(1, 1, values.length, 3).setValues(values);
+  sheet.getRange(1, 1, 1, 3).setFontWeight('bold').setBackground('#1a73e8').setFontColor('#ffffff');
+  sheet.setColumnWidths(1, 3, 260);
+  sheet.getDataRange().setWrap(true).setVerticalAlignment('top');
 }
 
 function ensureSize_(sheet, rows, columns) {
@@ -199,7 +285,7 @@ function writeUsage_() {
     ['NPBデータ × NotebookLM', ''],
     ['使い方', 'このスプレッドシートはGitHubで毎日生成されるNPBデータを自動取得します。'],
     ['1', '「NPBデータ → 初期設定」を一度実行し、Googleのアクセス許可を承認します。'],
-    ['2', 'NotebookLMを開き、このスプレッドシートを情報源として追加します。'],
+    ['2', '「追加する3冊」タブから3冊を開き、NotebookLMへ情報源として追加します。'],
     ['3', '以後は毎朝6時ごろ（日本時間）に自動更新します。必要なら「今すぐ更新」を使えます。'],
     ['注意', 'NotebookLM側のソース同期にはGoogle側の都合で時間差が生じる場合があります。'],
     ['注意', '取得できない値は空欄です。サンプル不足フラグが「はい」の値は慎重に解釈してください。'],
@@ -230,15 +316,17 @@ function recordStatus_(status, message, at, detail) {
   sheet.setColumnWidth(4, 500);
 }
 
-function formatDataSheets_() {
-  NPB_CONFIG.sources.forEach(function(source) {
-    const sheet = SpreadsheetApp.getActive().getSheetByName(source.sheet);
-    if (!sheet || sheet.getLastRow() === 0) return;
-    sheet.setFrozenRows(1);
-    sheet.getRange(1, 1, 1, sheet.getLastColumn()).setFontWeight('bold').setBackground('#d9ead3');
-    if (sheet.getFilter()) sheet.getFilter().remove();
-    sheet.getDataRange().createFilter();
-    sheet.autoResizeColumns(1, sheet.getLastColumn());
+function formatDataSheets_(books) {
+  books.forEach(function(book) {
+    book.config.sources.forEach(function(source) {
+      const sheet = book.spreadsheet.getSheetByName(source.sheet);
+      if (!sheet || sheet.getLastRow() === 0) return;
+      sheet.setFrozenRows(1);
+      sheet.getRange(1, 1, 1, sheet.getLastColumn()).setFontWeight('bold').setBackground('#d9ead3');
+      if (sheet.getFilter()) sheet.getFilter().remove();
+      sheet.getDataRange().createFilter();
+      sheet.autoResizeColumns(1, sheet.getLastColumn());
+    });
   });
 }
 
