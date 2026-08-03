@@ -15,6 +15,7 @@ class NotebookLmExportTest(unittest.TestCase):
         (self.season / "players").mkdir(parents=True)
         (self.season / "dataset").mkdir(parents=True)
         (self.season / "matchups" / "batters").mkdir(parents=True)
+        (self.season / "roster" / "daily").mkdir(parents=True)
         self.out = Path(self.tmp.name) / "out"
 
         (self.season / "players" / "stats.json").write_text(json.dumps({
@@ -31,7 +32,18 @@ class NotebookLmExportTest(unittest.TestCase):
         with (self.season / "dataset" / "games.csv").open("w", encoding="utf-8", newline="") as fh:
             writer = csv.DictWriter(fh, fieldnames=["date", "game_id", "away", "home", "stadium", "away_score", "home_score", "winner", "state", "win_pitcher", "lose_pitcher", "save_pitcher"])
             writer.writeheader()
+            writer.writerow({"date": "2026-03-01", "game_id": "g0", "away": "球団A", "home": "球団B"})
             writer.writerow({"date": "2026-04-01", "game_id": "g1", "away": "球団B", "home": "球団A"})
+        (self.season / "roster" / "registration.json").write_text(json.dumps({
+            "latest_date": "2026-04-01",
+            "players": [
+                {"npb_id": "1", "name": "選手A", "team": "球団A", "current_registered": True, "registered_days": 7},
+                {"npb_id": "2", "name": "選手B", "team": "球団B", "current_registered": False, "registered_days": 2, "last_deregistered": "2026-02-01"},
+            ]
+        }, ensure_ascii=False), encoding="utf-8")
+        (self.season / "roster" / "daily" / "2026-04-01.json").write_text(json.dumps({
+            "registered": [{"npb_id": "1", "name": "選手A", "team": "球団A"}]
+        }, ensure_ascii=False), encoding="utf-8")
 
     def tearDown(self):
         self.tmp.cleanup()
@@ -65,6 +77,21 @@ class NotebookLmExportTest(unittest.TestCase):
         (self.out / "teams.csv").unlink()
         with self.assertRaisesRegex(ValueError, "不足: teams.csv"):
             exporter.validate_outputs(self.out)
+
+    def test_season_files_keep_old_games_and_old_roster_players(self):
+        exporter.build(self.base, self.out, "2026")
+        with (self.out / "games_latest.csv").open(encoding="utf-8-sig", newline="") as fh:
+            latest_games = list(csv.DictReader(fh))
+        with (self.out / "games_season.csv").open(encoding="utf-8-sig", newline="") as fh:
+            season_games = list(csv.DictReader(fh))
+        with (self.out / "roster.csv").open(encoding="utf-8-sig", newline="") as fh:
+            recent_roster = list(csv.DictReader(fh))
+        with (self.out / "roster_season.csv").open(encoding="utf-8-sig", newline="") as fh:
+            season_roster = list(csv.DictReader(fh))
+        self.assertEqual([r["試合ID"] for r in latest_games], ["g1"])
+        self.assertEqual({r["試合ID"] for r in season_games}, {"g0", "g1"})
+        self.assertEqual([r["選手名"] for r in recent_roster], ["選手A"])
+        self.assertEqual({r["選手名"] for r in season_roster}, {"選手A", "選手B"})
 
 
 if __name__ == "__main__":
