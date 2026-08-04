@@ -746,7 +746,7 @@
     gap:8px;align-items:end;margin-bottom:12px;}
   .social-field{display:flex;flex-direction:column;gap:3px;min-width:0;}
   .social-field label{font-size:10px;color:var(--muted);font-weight:700;}
-  .social-field input,.social-field select{width:100%;font-family:inherit;font-size:13px;
+  .social-field input,.social-field select{width:100%;box-sizing:border-box;font-family:inherit;font-size:13px;
     color:var(--ink);background:var(--panel);border:1px solid var(--line2);border-radius:8px;padding:7px 9px;}
   .social-field input[type=date]{flex:none;min-width:0;font-weight:700;}
   .social-posts{display:grid;gap:10px;}
@@ -838,6 +838,10 @@
     .pg-svg .series{filter:none;animation-duration:.62s;}
     .pg-svg .latest-halo{animation-iteration-count:1;}
     .pg-chart-stage::before{display:none;}
+  }
+  @media(max-width:900px){
+    .social-controls{grid-template-columns:repeat(2,minmax(0,1fr));}
+    .social-controls .btn{grid-column:1/-1;width:100%;}
   }
 
   /* ---- 規定到達マーク ---- */
@@ -4185,9 +4189,26 @@
     });
     return ["#NPB"].concat(ordered.map(function(team){return TEAM_HASHTAGS[team];}).filter(Boolean)).join(" ");
   }
+  function socialDateCompact(date){
+    var digits=String(date||"").replace(/\D/g,"");
+    return digits.length===8?digits:String(date||"");
+  }
+  function socialDateISO(value){
+    var digits=String(value||"").replace(/\D/g,"");
+    if(digits.length!==8)return "";
+    var year=Number(digits.slice(0,4)),month=Number(digits.slice(4,6)),day=Number(digits.slice(6,8));
+    var probe=new Date(Date.UTC(year,month-1,day));
+    if(probe.getUTCFullYear()!==year||probe.getUTCMonth()!==month-1||probe.getUTCDate()!==day)return "";
+    return digits.slice(0,4)+"-"+digits.slice(4,6)+"-"+digits.slice(6,8);
+  }
+  function socialLoadDateInput(value){
+    var input=document.getElementById("socialDate"),date=socialDateISO(value);
+    if(!date){if(input)input.value=socialDateCompact(socialState.date);return;}
+    if(input)input.value=socialDateCompact(date);
+    socialLoadDate(date);
+  }
   function socialDateLabel(date){
-    var p=String(date||"").split("-");
-    return p.length===3?(Number(p[1])+"月"+Number(p[2])+"日"):String(date||"");
+    return socialDateCompact(date);
   }
   function socialSummaryState(summary){
     var games=(summary&&summary.games)||[];
@@ -4503,7 +4524,7 @@
   var socialState={date:"",league:"all",category:"all",summary:null,games:[],award:null,players:[],posts:[],
     prefix:socialTemplate.prefix||"",suffix:socialTemplate.suffix||"",includeNoHr:!!socialTemplate.includeNoHr};
   function noteArticleDateLabel(date){
-    var p=String(date||"").split("-");return p.length===3?p[0]+"年"+Number(p[1])+"月"+Number(p[2])+"日":String(date||"");
+    return socialDateCompact(date);
   }
   function noteArticleGameTeams(game){
     var result=game.result||{},box=game.boxscore||{},score=box.scoreboard||{};
@@ -4556,7 +4577,7 @@
     var status=document.getElementById("noteArticleStatus");try{await navigator.clipboard.writeText(noteArticleMarkdown());if(status)status.textContent="タイトルと本文をコピーしました";}catch(e){if(status)status.textContent="コピーできませんでした。本文を選択してコピーしてください";}
   }
   function noteArticleDownload(){
-    var blob=new Blob([noteArticleMarkdown()],{type:"text/markdown;charset=utf-8"}),link=document.createElement("a");link.href=URL.createObjectURL(blob);link.download="npb-note-"+socialState.date+".md";link.click();setTimeout(function(){URL.revokeObjectURL(link.href);},1000);
+    var blob=new Blob([noteArticleMarkdown()],{type:"text/markdown;charset=utf-8"}),link=document.createElement("a");link.href=URL.createObjectURL(blob);link.download="npb-note-"+socialDateCompact(socialState.date)+".md";link.click();setTimeout(function(){URL.revokeObjectURL(link.href);},1000);
   }
   async function noteArticleOpen(){await noteArticleCopy();window.open("https://note.com/notes/new","_blank","noopener");}
   async function loadSocial(){
@@ -4575,13 +4596,13 @@
       '<span class="dash-date">この端末のみ表示</span></div>'+
       '<div class="social-intro">収集済みデータだけでX投稿文を作成します。本文は投稿前に自由に編集できます。'+
       '#NPBは必ず付き、投稿に登場する球団のハッシュタグだけを自動追加します。</div>'+
-      '<div class="social-controls"><div class="social-field"><label>日付</label><input type="date" id="socialDate" value="'+esc(socialState.date)+'" onchange="socialLoadDate(this.value)"></div>'+
+      '<div class="social-controls"><div class="social-field"><label>日付（yyyymmdd）</label><input type="text" inputmode="numeric" maxlength="8" pattern="[0-9]{8}" id="socialDate" value="'+esc(socialDateCompact(socialState.date))+'" onchange="socialLoadDateInput(this.value)" placeholder="20260803"></div>'+
       '<div class="social-field"><label>投稿内容</label><select id="socialCategory" onchange="socialSetCategory(this.value)">'+socialCategoryOptions()+'</select></div>'+
       '<div class="social-field"><label>リーグ</label><select id="socialLeague" onchange="socialSetLeague(this.value)">'+
       '<option value="all"'+(socialState.league==="all"?" selected":"")+'>セ・パ両リーグ</option>'+
       '<option value="パ"'+(socialState.league==="パ"?" selected":"")+'>パ・リーグ</option>'+
       '<option value="セ"'+(socialState.league==="セ"?" selected":"")+'>セ・リーグ</option></select></div>'+
-      '<button class="btn" onclick="socialLoadDate(document.getElementById(\'socialDate\').value)">再読み込み</button></div>'+
+      '<button class="btn" onclick="socialLoadDateInput(document.getElementById(\'socialDate\').value)">再読み込み</button></div>'+
       '<details class="social-template"><summary>投稿テンプレート・本塁打なしの設定</summary><div class="social-template-grid">'+
       '<div class="social-field"><label>全投稿の冒頭文</label><input id="socialPrefix" value="'+esc(socialState.prefix)+'" placeholder="例：今日のNPB"></div>'+
       '<div class="social-field"><label>ハッシュタグ前の末尾文</label><input id="socialSuffix" value="'+esc(socialState.suffix)+'" placeholder="任意"></div>'+

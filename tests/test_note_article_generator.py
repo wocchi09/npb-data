@@ -32,13 +32,17 @@ class NoteArticleGeneratorTests(unittest.TestCase):
         self.assertIn("function noteArticleMarkdown()", self.html)
         self.assertIn("navigator.clipboard.writeText(noteArticleMarkdown())", self.html)
         self.assertIn('type:"text/markdown;charset=utf-8"', self.html)
-        self.assertIn('link.download="npb-note-"+socialState.date+".md"', self.html)
+        self.assertIn('link.download="npb-note-"+socialDateCompact(socialState.date)+".md"', self.html)
         self.assertIn('window.open("https://note.com/notes/new"', self.html)
         self.assertIn("コピーしてnoteを開く", self.html)
 
     def test_note_is_not_posted_automatically(self):
         self.assertNotIn("note.com/api", self.html)
         self.assertNotIn("noteToken", self.html)
+
+    def test_note_dates_use_yyyymmdd(self):
+        self.assertIn("return socialDateCompact(date);", self.html)
+        self.assertIn("noteArticleDateLabel(socialState.date)", self.html)
 
 
 if __name__ == "__main__":
