@@ -63,8 +63,19 @@ class PersonalSocialPostingTests(unittest.TestCase):
         self.assertIn('socialTags([player.team])', self.html)
 
     def test_mobile_social_layout_is_present(self):
-        self.assertIn('.social-controls{grid-template-columns:1fr 1fr;}', self.html)
+        self.assertIn('.social-controls{grid-template-columns:repeat(2,minmax(0,1fr));}', self.html)
         self.assertIn('.social-actions .btn{flex:1;}', self.html)
+
+    def test_social_date_is_fixed_to_yyyymmdd(self):
+        self.assertIn('label>日付（yyyymmdd）</label>', self.html)
+        self.assertIn('input type="text" inputmode="numeric" maxlength="8"', self.html)
+        self.assertIn('function socialDateCompact(date)', self.html)
+        self.assertIn('function socialDateISO(value)', self.html)
+        self.assertIn('socialLoadDateInput(this.value)', self.html)
+
+    def test_social_fields_do_not_overlap(self):
+        self.assertIn('width:100%;box-sizing:border-box;', self.html)
+        self.assertIn('@media(max-width:900px)', self.html)
 
     def test_daily_post_categories_are_available(self):
         expected = [
