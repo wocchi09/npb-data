@@ -43,7 +43,7 @@ MANAGED_FILES = {
     "war.json", "w_impact.json", "w_impact_trends.json",
 }
 MANAGED_DIRS = (
-    "/players/", "/teams/", "/dataset/", "/masters/", "/awards/", "/matchups/",
+    "/players/", "/teams/", "/dataset/", "/masters/", "/awards/", "/matchups/", "/pitch_heatmaps/",
 )
 
 

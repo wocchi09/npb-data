@@ -74,9 +74,26 @@ class MatchupPageTests(unittest.TestCase):
         self.assertIn('投手の防御率・失点は個別打者へ正確に配分できない', self.html)
         self.assertIn('被OPS', self.html)
 
+    def test_pitcher_page_has_selectable_pitch_heatmap(self):
+        for label in (
+            "投球コース・ヒートマップ", "集計範囲", "シーズン", "対チーム", "1試合",
+            "対戦球団", "打者の左右", "球種", "表示指標", "投球数", "投球割合", "空振り率",
+        ):
+            self.assertIn(label, self.html)
+        self.assertIn('"/pitch_heatmaps/index.json?t="', self.html)
+        self.assertIn('"/pitch_heatmaps/"+entry.file', self.html)
+        self.assertIn('id="pitchHeatmapView"', self.html)
+        self.assertIn('function pitchHeatmapChanged()', self.html)
+        self.assertIn('pitchHeatmapState.scope==="team"', self.html)
+        self.assertIn('pitchHeatmapState.scope==="game"', self.html)
+        self.assertIn('item.misses/item.swings', self.html)
+        self.assertIn("公式のトラッキング座標", self.html)
+
     def test_matchup_layout_is_mobile_responsive(self):
         self.assertIn('.matchup-controls{grid-template-columns:1fr 1fr;}', self.html)
         self.assertIn('.matchup-kpis{grid-template-columns:1fr;}', self.html)
+        self.assertIn('.pitch-heatmap-controls{grid-template-columns:1fr 1fr;}', self.html)
+        self.assertIn('.pitch-heatmap-layout{grid-template-columns:1fr;}', self.html)
 
     def test_readable_japanese_typography_is_applied(self):
         self.assertIn("family=Noto+Sans+JP:wght@400;500;600;700;800", self.html)

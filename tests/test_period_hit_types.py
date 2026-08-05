@@ -31,15 +31,23 @@ class PeriodHitTypesTest(unittest.TestCase):
             "data/2026/matchups/batters/p1400127.json"))
         self.assertFalse(rebuild_stats._is_game_file(
             "data/2026/matchups/pitchers/p2000079.json"))
+        self.assertFalse(build_dataset._is_game_file(
+            "data/2026/pitch_heatmaps/pitchers/p2000055.json"))
+        self.assertFalse(rebuild_stats._is_game_file(
+            "data/2026/pitch_heatmaps/pitchers/p2000055.json"))
 
     def test_validator_ignores_matchup_json(self):
         with tempfile.TemporaryDirectory() as tmp:
             matchup_dir = os.path.join(tmp, "2026", "matchups", "batters")
+            heatmap_dir = os.path.join(tmp, "2026", "pitch_heatmaps", "pitchers")
             game_dir = os.path.join(tmp, "2026", "07", "31")
             os.makedirs(matchup_dir)
+            os.makedirs(heatmap_dir)
             os.makedirs(game_dir)
             with open(os.path.join(matchup_dir, "p1.json"), "w", encoding="utf-8") as f:
                 json.dump({"kind": "batter"}, f)
+            with open(os.path.join(heatmap_dir, "p2.json"), "w", encoding="utf-8") as f:
+                json.dump({"games": []}, f)
             with open(os.path.join(game_dir, "g1.json"), "w", encoding="utf-8") as f:
                 json.dump({"game_id": "g1"}, f)
 

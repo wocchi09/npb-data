@@ -43,7 +43,7 @@ def find_game_files(base="data", season=None, date=None):
         "war.json", "w_impact.json", "w_impact_trends.json",
     }
     managed_dirs = (
-        "/players/", "/teams/", "/dataset/", "/masters/", "/awards/", "/matchups/",
+        "/players/", "/teams/", "/dataset/", "/masters/", "/awards/", "/matchups/", "/pitch_heatmaps/",
     )
     for p in glob.glob(pat, recursive=True):
         norm = p.replace("\\", "/")

@@ -811,6 +811,19 @@
   .matchup-table .matchup-verdict{white-space:nowrap;}
   .matchup-table .matchup-confidence-cell{font:700 10px 'Roboto Mono',var(--font-ui);color:var(--muted);white-space:nowrap;}
   .matchup-note{font-size:10px;line-height:1.6;color:var(--muted);margin-top:7px;}
+  .pitch-heatmap-sec{margin:14px 0;border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:12px;}
+  .pitch-heatmap-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:9px;}
+  .pitch-heatmap-title{font-size:15px;font-weight:800;color:var(--ink);}
+  .pitch-heatmap-title small{display:block;margin-top:3px;font-size:10px;font-weight:500;color:var(--muted);}
+  .pitch-heatmap-controls{display:grid;grid-template-columns:repeat(6,minmax(105px,1fr));gap:7px;margin-bottom:11px;}
+  .pitch-heatmap-layout{display:grid;grid-template-columns:minmax(260px,390px) 1fr;gap:14px;align-items:center;}
+  .pitch-heatmap-grid{max-width:390px;width:100%;}
+  .pitch-heatmap-grid .hcell{position:relative;font-size:15px;transition:background-color .2s ease,transform .2s ease;}
+  .pitch-heatmap-grid .hcell small{display:block;font-size:8px;font-weight:600;opacity:.76;margin-left:2px;}
+  .pitch-heatmap-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
+  .pitch-heatmap-summary .stat{min-width:0;}
+  .pitch-heatmap-guide{display:grid;grid-template-columns:repeat(3,1fr);font-size:9px;color:var(--muted);text-align:center;margin:0 0 5px;}
+  .pitch-heatmap-note{font-size:10px;line-height:1.65;color:var(--muted);margin-top:9px;}
   @keyframes pg-stage-in{from{opacity:0;transform:translateY(7px) scale(.995)}to{opacity:1;transform:none}}
   @keyframes pg-sheen{from{transform:translateX(-65%)}to{transform:translateX(65%)}}
   @keyframes pg-grid-in{from{opacity:0}to{opacity:1}}
@@ -838,6 +851,9 @@
     .note-article-text{min-height:420px;}
     .matchup-controls{grid-template-columns:1fr 1fr;}
     .matchup-kpis{grid-template-columns:1fr;}
+    .pitch-heatmap-controls{grid-template-columns:1fr 1fr;}
+    .pitch-heatmap-layout{grid-template-columns:1fr;}
+    .pitch-heatmap-grid{max-width:340px;margin:0 auto;}
     .pg-svg .area{display:none;}
     .pg-svg .series{filter:none;animation-duration:.62s;}
     .pg-svg .latest-halo{animation-iteration-count:1;}
@@ -4877,6 +4893,12 @@
   var matchupIndexCache={};
   var MATCHUP_RANKING_DEFAULT_MIN_PA=10;
   var matchupState={key:"",kind:"batter",year:"",entry:null,data:null,search:"",team:"all",hand:"all",minPa:1,rankingMinPa:MATCHUP_RANKING_DEFAULT_MIN_PA};
+  var pitchHeatmapIndexCache={};
+  var pitchHeatmapState={key:"",year:"",data:null,error:"",scope:"season",opponent:"all",game:"all",hand:"all",pitchType:"all",metric:"count"};
+
+  function resetPitchHeatmap(){
+    pitchHeatmapState={key:matchupState.key,year:matchupState.year,data:null,error:"",scope:"season",opponent:"all",game:"all",hand:"all",pitchType:"all",metric:"count"};
+  }
 
   function matchupPlayer(key){
     var all=buildPlayerList();
@@ -4912,6 +4934,7 @@
     matchupState.key=key;matchupState.kind=kind==="pitcher"?"pitcher":"batter";
     matchupState.year=(dp.value||todayJST()).slice(0,4);matchupState.entry=null;matchupState.data=null;
     matchupState.search="";matchupState.team="all";matchupState.hand="all";matchupState.minPa=1;
+    resetPitchHeatmap();
     matchupWriteUrl();setView("matchup");
   }
   async function matchupIndex(year){
@@ -4943,7 +4966,7 @@
     }
   }
   function matchupSetSeason(year){
-    matchupState.year=String(year||"");matchupState.entry=null;matchupState.data=null;matchupWriteUrl();loadMatchups();
+    matchupState.year=String(year||"");matchupState.entry=null;matchupState.data=null;resetPitchHeatmap();matchupWriteUrl();loadMatchups();
   }
   function matchupFiltersChanged(){
     var get=function(id){var el=document.getElementById(id);return el?el.value:"";};
@@ -5023,6 +5046,118 @@
     }).join("");
     return '<div class="matchup-kpi"><span>'+esc(label)+'</span><div class="matchup-rank-list">'+(rows||'<div class="matchup-rank-stats">条件に合う対象なし</div>')+'</div></div>';
   }
+  async function pitchHeatmapIndex(year){
+    if(pitchHeatmapIndexCache[year])return pitchHeatmapIndexCache[year];
+    var response=await fetch("data/"+year+"/pitch_heatmaps/index.json?t="+Date.now());
+    if(!response.ok)throw new Error("notfound");
+    pitchHeatmapIndexCache[year]=await response.json();return pitchHeatmapIndexCache[year];
+  }
+  async function loadPitchHeatmap(){
+    if(matchupState.kind!=="pitcher")return;
+    var box=document.getElementById("pitchHeatmapView");if(!box)return;
+    var requestKey=matchupState.key,requestYear=matchupState.year;
+    if(pitchHeatmapState.key!==requestKey||pitchHeatmapState.year!==requestYear)resetPitchHeatmap();
+    box.innerHTML='<div class="msg">配球ヒートマップを読み込み中…</div>';
+    try{
+      var index=await pitchHeatmapIndex(requestYear),selected=matchupState.data&&matchupState.data.player;
+      var entry=(index.pitchers||[]).find(function(item){return item.key===requestKey;});
+      if(!entry&&selected&&selected.player_id){
+        entry=(index.pitchers||[]).find(function(item){return String(item.player_id)===String(selected.player_id);});
+      }
+      if(!entry)throw new Error("player-notfound");
+      var response=await fetch("data/"+requestYear+"/pitch_heatmaps/"+entry.file+"?t="+Date.now());
+      if(!response.ok)throw new Error("data-notfound");
+      var payload=await response.json();
+      if(matchupState.key!==requestKey||matchupState.year!==requestYear)return;
+      pitchHeatmapState.key=requestKey;pitchHeatmapState.year=requestYear;pitchHeatmapState.data=payload;pitchHeatmapState.error="";
+    }catch(e){
+      if(matchupState.key!==requestKey||matchupState.year!==requestYear)return;
+      pitchHeatmapState.error="この投手のコースデータがありません";
+    }
+    renderPitchHeatmap();
+  }
+  function pitchHeatmapOptions(items,current,labeler){
+    return (items||[]).map(function(item){
+      var value=String(item.value),label=labeler?labeler(item):item.label;
+      return '<option value="'+esc(value)+'"'+(String(current)===value?' selected':'')+'>'+esc(label)+'</option>';
+    }).join("");
+  }
+  function pitchHeatmapChanged(){
+    function val(id,fallback){var el=document.getElementById(id);return el?el.value:fallback;}
+    pitchHeatmapState.scope=val("pitchHeatScope","season");
+    pitchHeatmapState.opponent=val("pitchHeatOpponent","all");
+    pitchHeatmapState.game=val("pitchHeatGame","all");
+    pitchHeatmapState.hand=val("pitchHeatHand","all");
+    pitchHeatmapState.pitchType=val("pitchHeatType","all");
+    pitchHeatmapState.metric=val("pitchHeatMetric","count");
+    var data=pitchHeatmapState.data||{},games=data.games||[];
+    if(pitchHeatmapState.scope==="team"&&pitchHeatmapState.opponent==="all"){
+      var firstTeam=Array.from(new Set(games.map(function(game){return game.opponent;}).filter(Boolean))).sort()[0];
+      pitchHeatmapState.opponent=firstTeam||"all";
+    }
+    if(pitchHeatmapState.scope==="game"&&pitchHeatmapState.game==="all"){
+      var latest=games.slice().sort(function(a,b){return String(b.date).localeCompare(String(a.date))||String(b.id).localeCompare(String(a.id));})[0];
+      pitchHeatmapState.game=latest?latest.id:"all";
+    }
+    renderPitchHeatmap();
+  }
+  function renderPitchHeatmap(){
+    var box=document.getElementById("pitchHeatmapView");if(box)box.innerHTML=pitchHeatmapMarkup();
+  }
+  function pitchHeatmapMarkup(){
+    if(pitchHeatmapState.error)return '<div class="msg">'+esc(pitchHeatmapState.error)+'</div>';
+    var data=pitchHeatmapState.data;
+    if(!data)return '<div class="msg">配球ヒートマップを準備中…</div>';
+    var games=(data.games||[]).slice(),teams=Array.from(new Set(games.map(function(game){return game.opponent;}).filter(Boolean))).sort();
+    var gameList=games.slice().sort(function(a,b){return String(b.date).localeCompare(String(a.date))||String(b.id).localeCompare(String(a.id));});
+    var types=(data.pitch_types||[]).map(function(name,index){return {value:index,label:name};});
+    if(pitchHeatmapState.scope==="team")games=games.filter(function(game){return game.opponent===pitchHeatmapState.opponent;});
+    if(pitchHeatmapState.scope==="game")games=games.filter(function(game){return String(game.id)===String(pitchHeatmapState.game);});
+    var zones=Array.from({length:25},function(){return {count:0,swings:0,misses:0};}),usedGames=0;
+    games.forEach(function(game){
+      var used=false;
+      (game.p||[]).forEach(function(pitch){
+        if(pitchHeatmapState.hand!=="all"&&String(pitch[2])!==pitchHeatmapState.hand)return;
+        if(pitchHeatmapState.pitchType!=="all"&&String(pitch[1])!==pitchHeatmapState.pitchType)return;
+        var zone=Number(pitch[0]);if(zone<0||zone>24)return;
+        zones[zone].count++;zones[zone].swings+=Number(pitch[3])||0;zones[zone].misses+=Number(pitch[4])||0;used=true;
+      });
+      if(used)usedGames++;
+    });
+    var total=zones.reduce(function(sum,item){return sum+item.count;},0);
+    var swings=zones.reduce(function(sum,item){return sum+item.swings;},0);
+    var misses=zones.reduce(function(sum,item){return sum+item.misses;},0);
+    var metric=pitchHeatmapState.metric,max=0;
+    zones.forEach(function(item){
+      item.value=metric==="whiff"?(item.swings?item.misses/item.swings:null):(metric==="share"?(total?item.count/total:0):item.count);
+      if(item.value!=null&&item.value>max)max=item.value;
+    });
+    var cells="";
+    zones.forEach(function(item,index){
+      var row=Math.floor(index/5),col=index%5,inZone=row>=1&&row<=3&&col>=1&&col<=3;
+      var ratio=item.value==null?0:(metric==="whiff"?item.value:(max?item.value/max:0));
+      var alpha=item.count?(.10+ratio*.78):.03;
+      var color=metric==="whiff"?"14,116,144":"232,89,12";
+      var label=metric==="count"?(item.count||""):(item.value==null?"-":(item.value*100).toFixed(metric==="share"?1:0)+"%");
+      var title=item.count+"球 / 投球割合 "+(total?(item.count/total*100).toFixed(1):"0.0")+"% / 空振り "+item.misses+"／スイング "+item.swings;
+      cells+='<div class="hcell'+(inZone?' zone':'')+'" style="background:rgba('+color+','+alpha.toFixed(2)+')" title="'+esc(title)+'" aria-label="'+esc(title)+'">'+label+'</div>';
+    });
+    var metricName=metric==="share"?"投球割合":metric==="whiff"?"空振り率":"投球数";
+    var scopeItems=[{value:"season",label:"シーズン"},{value:"team",label:"対チーム"},{value:"game",label:"1試合"}];
+    var teamItems=[{value:"all",label:"対戦球団を選択"}].concat(teams.map(function(team){return {value:team,label:team};}));
+    var gameItems=[{value:"all",label:"試合を選択"}].concat(gameList.map(function(game){return {value:game.id,label:game.date+" vs "+game.opponent};}));
+    return '<div class="pitch-heatmap-head"><div class="pitch-heatmap-title">投球コース・ヒートマップ<small>集計範囲や条件を選んで配球傾向を比較できます</small></div><span class="sub">投手から見た位置 ／ '+esc(data.updated_through||"-")+'時点</span></div>'+
+      '<div class="pitch-heatmap-controls">'+
+      '<label class="ef"><span>集計範囲</span><select id="pitchHeatScope" onchange="pitchHeatmapChanged()">'+pitchHeatmapOptions(scopeItems,pitchHeatmapState.scope)+'</select></label>'+
+      '<label class="ef"><span>対戦球団</span><select id="pitchHeatOpponent" onchange="pitchHeatmapChanged()"'+(pitchHeatmapState.scope!=="team"?' disabled':'')+'>'+pitchHeatmapOptions(teamItems,pitchHeatmapState.opponent)+'</select></label>'+
+      '<label class="ef"><span>試合</span><select id="pitchHeatGame" onchange="pitchHeatmapChanged()"'+(pitchHeatmapState.scope!=="game"?' disabled':'')+'>'+pitchHeatmapOptions(gameItems,pitchHeatmapState.game)+'</select></label>'+
+      '<label class="ef"><span>打者の左右</span><select id="pitchHeatHand" onchange="pitchHeatmapChanged()"><option value="all">左右すべて</option><option value="1"'+(pitchHeatmapState.hand==="1"?' selected':'')+'>右打者</option><option value="2"'+(pitchHeatmapState.hand==="2"?' selected':'')+'>左打者</option></select></label>'+
+      '<label class="ef"><span>球種</span><select id="pitchHeatType" onchange="pitchHeatmapChanged()"><option value="all">全球種</option>'+pitchHeatmapOptions(types,pitchHeatmapState.pitchType)+'</select></label>'+
+      '<label class="ef"><span>表示指標</span><select id="pitchHeatMetric" onchange="pitchHeatmapChanged()"><option value="count"'+(metric==="count"?' selected':'')+'>投球数</option><option value="share"'+(metric==="share"?' selected':'')+'>投球割合</option><option value="whiff"'+(metric==="whiff"?' selected':'')+'>空振り率</option></select></label></div>'+
+      '<div class="pitch-heatmap-layout"><div class="pitch-heatmap-grid"><div class="pitch-heatmap-guide"><span>左打席側</span><b>高め</b><span>右打席側</span></div><div class="heat">'+cells+'</div><div class="heat-lg"><span>低</span><span class="hgrad"></span><span>高</span><span style="margin-left:auto">枠内＝ストライクゾーン</span></div></div>'+
+      '<div><div class="pitch-heatmap-summary"><div class="stat"><div class="sv">'+usedGames+'</div><div class="sl">対象試合</div></div><div class="stat"><div class="sv">'+total+'</div><div class="sl">コース付き投球</div></div><div class="stat"><div class="sv">'+swings+'</div><div class="sl">スイング</div></div><div class="stat"><div class="sv">'+misses+'</div><div class="sl">空振り</div></div></div><div class="pitch-heatmap-note"><b>'+metricName+'</b>をセルに表示しています。空振り率は各コースの「空振り数÷スイング数」で、スイングがない場所は「-」です。対象球数が少ない条件は参考値として見てください。</div></div></div>'+
+      '<div class="pitch-heatmap-note">このヒートマップは当サイトで取得した5×5のコース区分による集計です。公式のトラッキング座標や捕手視点の精密な投球位置ではありません。</div>';
+  }
   function renderMatchups(){
     var view=document.getElementById("matchupView"),data=matchupState.data;if(!view||!data)return;
     var rows=(data.opponents||[]).slice(),wanted=normName(matchupState.search||"");
@@ -5050,6 +5185,7 @@
       matchupRankCard(isPitcher?"抑えている打者 TOP5":"OPS上位投手 TOP5",ranked.good,isPitcher,true)+
       matchupRankCard(isPitcher?"苦手な打者 TOP5":"OPS下位投手 TOP5",ranked.bad,isPitcher,true)+'</div>'+
       '<div class="matchup-criteria"><div><b>判定基準</b>　'+(isPitcher?'被OPS .600未満＝得意 ／ .600〜.899＝普通 ／ .900以上＝苦手。15打席以上かつ被OPS .500未満＝超得意、1.000以上＝超苦手':'OPS .900以上＝得意 ／ .600〜.899＝普通 ／ .600未満＝苦手。15打席以上かつOPS 1.000以上＝超得意、.500未満＝超苦手')+'。10打席未満は判定せず「参考」です。</div><div><b>信頼度</b>　★★★★★ 30打席以上 ／ ★★★★☆ 20〜29打席 ／ ★★★☆☆ 15〜19打席 ／ ★★☆☆☆ 10〜14打席 ／ ★☆☆☆☆ 5〜9打席。成績の良し悪しではなく、対戦サンプルの多さを表します。</div></div>'+
+      (isPitcher?'<div id="pitchHeatmapView" class="pitch-heatmap-sec">'+pitchHeatmapMarkup()+'</div>':'')+
       '<div class="exok" style="margin:8px 0">該当 '+rows.length+'人 ／ '+rows.reduce(function(sum,row){return sum+row.pa;},0)+'打席</div>';
     if(!rows.length){
       h+='<div class="msg">条件に合う対戦成績がありません</div>';
@@ -5080,6 +5216,7 @@
     h+='<div class="matchup-note">得意・苦手ランキングは最低'+ranked.minPa+'打席以上を対象とし、その中からOPS上位・下位を最大5人表示します。野手はOPS順（得意は降順、苦手は昇順）で、同OPSなら打率、対戦打席数の順に決定します。信頼度は判定の優劣ではなく対戦打席数によるサンプル量です。盗塁は打席と投手を正確に特定できた走塁イベントのみです。'+
       (isPitcher?'投手の防御率・失点は個別打者へ正確に配分できないため表示しません。':'')+'</div></div>';
     view.innerHTML=h;
+    if(isPitcher&&!pitchHeatmapState.data&&!pitchHeatmapState.error)loadPitchHeatmap();
   }
 
   /* ===== 選手スプリット（試合ログ・月別・対戦別など） ===== */

@@ -91,6 +91,7 @@ jobs:
           fi
           if [ -z "$SEASON" ]; then SEASON=$(date +%Y); fi
           python scraper/build_matchups.py --season "$SEASON"
+          python scraper/build_pitch_heatmaps.py --season "$SEASON"
 
       - name: Build awards
         run: |
