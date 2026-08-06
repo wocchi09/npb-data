@@ -25,8 +25,11 @@ class PitchHeatmapBuilderTests(unittest.TestCase):
         self.assertEqual(latest, "2026-08-01")
         self.assertEqual(item["pitch_types"], ["ストレート", "フォーク"])
         self.assertEqual(len(item["games"]), 2)
-        self.assertEqual(item["games"]["g1"]["p"][0], [7, 0, 2, 1, 1])
-        self.assertEqual(item["games"]["g2"]["p"][0], [21, 1, 1, 0, 0])
+        self.assertEqual(item["batters"][0]["name"], "打者 一郎")
+        self.assertEqual(item["games"]["g1"]["home"], "日本ハム")
+        self.assertEqual(item["games"]["g1"]["stadium"], "エスコン")
+        self.assertEqual(item["games"]["g1"]["p"][0], [7, 0, 2, 1, 1, 7, 1, 2, 2, 5, 3, 148, 0])
+        self.assertEqual(item["games"]["g2"]["p"][0], [21, 1, 1, 0, 0, 7, 1, 2, 2, 5, 2, 148, 0])
 
     def test_build_writes_lightweight_player_file_and_index(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -47,6 +50,7 @@ class PitchHeatmapBuilderTests(unittest.TestCase):
             self.assertEqual(entry["pitches"], 2)
             self.assertEqual(payload["player"]["name"], "投手 二郎")
             self.assertEqual(payload["games"][1]["opponent"], "阪神")
+            self.assertEqual(payload["batters"][0]["name"], "打者 一郎")
             self.assertTrue((Path(temp) / "2026" / "pitch_heatmaps" / "index.json").exists())
 
     @staticmethod
@@ -56,7 +60,12 @@ class PitchHeatmapBuilderTests(unittest.TestCase):
             "game_id": game_id,
             "batting_team": opponent,
             "fielding_team": "日本ハム",
+            "home": "日本ハム",
+            "away": opponent,
+            "stadium": "エスコン",
             "batter": "打者 一郎",
+            "batter_id": "1",
+            "batter_key": "p1",
             "bat_hand": hand,
             "pitcher": "投手 二郎",
             "pitcher_id": "2",
@@ -67,6 +76,18 @@ class PitchHeatmapBuilderTests(unittest.TestCase):
             "zone_col": col,
             "is_swing": swing,
             "is_miss": miss,
+            "is_called": "True" if str(miss).lower() == "false" else "False",
+            "is_foul": "False",
+            "is_ball": "False",
+            "is_inplay": "False",
+            "inning": "7",
+            "balls_before": "1",
+            "strikes_before": "2",
+            "outs": "2",
+            "r1": "True",
+            "r2": "False",
+            "r3": "True",
+            "speed_kmh": "148",
         }
 
 
