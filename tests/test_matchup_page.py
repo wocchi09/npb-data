@@ -78,6 +78,9 @@ class MatchupPageTests(unittest.TestCase):
         for label in (
             "投球コース・ヒートマップ", "集計範囲", "シーズン", "対チーム", "1試合",
             "対戦球団", "打者の左右", "球種", "表示指標", "投球数", "投球割合", "空振り率",
+            "等高線", "5×5数値", "詳細条件", "開始日", "終了日", "対戦打者",
+            "イニング", "投球前カウント", "アウト", "走者状況", "投球結果",
+            "最低球速", "最高球速", "スイング率", "見逃しストライク率", "平均球速",
         ):
             self.assertIn(label, self.html)
         self.assertIn('"/pitch_heatmaps/index.json?t="', self.html)
@@ -87,12 +90,18 @@ class MatchupPageTests(unittest.TestCase):
         self.assertIn('pitchHeatmapState.scope==="team"', self.html)
         self.assertIn('pitchHeatmapState.scope==="game"', self.html)
         self.assertIn('item.misses/item.swings', self.html)
-        self.assertIn("公式のトラッキング座標", self.html)
+        self.assertIn('function drawPitchHeatmapSurface()', self.html)
+        self.assertIn('id="pitchHeatCanvas"', self.html)
+        self.assertIn("5×5のコース区分を滑らかに補間", self.html)
+        self.assertIn("実際の投球座標を直接描いたものではなく", self.html)
+        self.assertIn('pitchHeatmapState.runners==="risp"', self.html)
+        self.assertIn('pitchHeatmapState.speedMin', self.html)
 
     def test_matchup_layout_is_mobile_responsive(self):
         self.assertIn('.matchup-controls{grid-template-columns:1fr 1fr;}', self.html)
         self.assertIn('.matchup-kpis{grid-template-columns:1fr;}', self.html)
-        self.assertIn('.pitch-heatmap-controls{grid-template-columns:1fr 1fr;}', self.html)
+        self.assertIn('.pitch-heatmap-controls{grid-template-columns:1fr;}', self.html)
+        self.assertIn('.pitch-heatmap-advanced-grid{grid-template-columns:1fr;}', self.html)
         self.assertIn('.pitch-heatmap-layout{grid-template-columns:1fr;}', self.html)
 
     def test_readable_japanese_typography_is_applied(self):
