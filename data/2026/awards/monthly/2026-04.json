@@ -4,7 +4,7 @@
   "date_from": "2026-04-01",
   "date_to": "2026-04-30",
   "scoreVersion": "1.2.0",
-  "generated_at": "2026-08-07T00:02:47.722734+09:00",
+  "generated_at": "2026-08-07T23:21:38.769603+09:00",
   "note": "利用可能データのみで算出。期間内のチーム試合数を基準に、野手は試合数・打席、投手は登板数・投球回で出場量補正",
   "leagues": {
     "セ": {
@@ -403,54 +403,57 @@
           "under_min_pa": false
         },
         "中": {
-          "name": "近本 光司",
-          "team": "阪神",
+          "name": "佐々木 俊輔",
+          "team": "巨人",
           "position": "中",
-          "raw": 41.83,
-          "score": 44.98,
+          "raw": 42.49,
+          "score": 45.69,
           "available_max": 93,
           "team_games": 23,
-          "sample_coverage": 0.961,
-          "sample_multiplier": 0.986,
+          "sample_coverage": 0.9,
+          "sample_multiplier": 0.965,
           "breakdown": {
-            "battingContent": 29.26,
-            "runProduction": 4.05,
+            "battingContent": 31.69,
+            "runProduction": 5.78,
             "clutch": 0,
-            "playingTime": 9.35,
+            "playingTime": 8.57,
             "defenseBaser": 3,
             "teamWin": 0,
-            "penalty": -3.25
+            "penalty": -5.0
           },
           "stats": {
             "games": 20,
-            "pa": 91,
-            "ab": 80,
-            "hits": 22,
-            "singles": 18,
+            "pa": 63,
+            "ab": 60,
+            "hits": 17,
+            "singles": 11,
             "doubles": 4,
             "triples": 0,
-            "hr": 0,
+            "hr": 2,
             "rbi": 5,
-            "runs": 13,
+            "runs": 8,
             "bb": 0,
             "hbp": 0,
-            "so": 14,
-            "sb": 6,
-            "caught_stealing": 0,
+            "so": 20,
+            "sb": 1,
+            "caught_stealing": 2,
             "baserunning_outs": 0,
             "baserunning_runs": 0,
-            "avg": 0.275,
-            "obp": 0.363,
-            "slg": 0.325,
-            "ops": 0.688
+            "avg": 0.283,
+            "obp": 0.317,
+            "slg": 0.45,
+            "ops": 0.767
           },
-          "stat_line": "20試合 91打席 80打数22安打 打率.275 OPS.688 0本 5点",
+          "stat_line": "20試合 63打席 60打数17安打 打率.283 OPS.767 2本 5点",
           "reasons": [
-            "OPS .688",
+            "OPS .767",
+            "2本塁打",
             "5打点",
-            "盗塁6"
+            "盗塁1"
           ],
-          "minus_reasons": [],
+          "minus_reasons": [
+            "盗塁失敗2"
+          ],
           "under_min_pa": false
         },
         "右": {
@@ -1004,7 +1007,7 @@
         {
           "name": "佐々木 俊輔",
           "team": "巨人",
-          "position": "右",
+          "position": "中",
           "raw": 42.49,
           "score": 45.69,
           "available_max": 93,
