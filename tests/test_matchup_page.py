@@ -95,6 +95,28 @@ class MatchupPageTests(unittest.TestCase):
         self.assertIn('.pitch-heatmap-controls{grid-template-columns:1fr 1fr;}', self.html)
         self.assertIn('.pitch-heatmap-layout{grid-template-columns:1fr;}', self.html)
 
+    def test_player_splits_include_selectable_inning_analysis(self):
+        for label in (
+            '["inning","回別"]', "集計範囲", "1試合", "対戦球団", "ホーム/ビジター",
+            "相手の左右", "グラフ指標", "開始日", "終了日", "回別比較",
+        ):
+            self.assertIn(label, self.html)
+        self.assertIn('data.inning_events||[]', self.html)
+        self.assertIn('data.games||[]', self.html)
+        self.assertIn('function renderInningSplit()', self.html)
+        self.assertIn('id="plInnings"', self.html)
+        self.assertIn("回別防御率は表示しません", self.html)
+        self.assertIn("標本「少数」は20打席未満", self.html)
+
+    def test_inning_analysis_has_batter_and_pitcher_metrics(self):
+        for label in (
+            "OPS", "打率", "本塁打", "三振率", "被OPS", "被打率", "K%", "BB%",
+            "記録回", "投球数", "打点",
+        ):
+            self.assertIn(label, self.html)
+        self.assertIn('.inning-split-controls{grid-template-columns:1fr 1fr;}', self.html)
+        self.assertIn('@keyframes inning-bar-in', self.html)
+
     def test_readable_japanese_typography_is_applied(self):
         self.assertIn("family=Noto+Sans+JP:wght@400;500;600;700;800", self.html)
         self.assertIn("--font-ui:'Noto Sans JP'", self.html)
