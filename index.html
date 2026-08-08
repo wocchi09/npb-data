@@ -824,6 +824,19 @@
   .pitch-heatmap-summary .stat{min-width:0;}
   .pitch-heatmap-guide{display:grid;grid-template-columns:repeat(3,1fr);font-size:9px;color:var(--muted);text-align:center;margin:0 0 5px;}
   .pitch-heatmap-note{font-size:10px;line-height:1.65;color:var(--muted);margin-top:9px;}
+  .inning-split{margin-top:10px;}
+  .inning-split-controls{display:grid;grid-template-columns:repeat(6,minmax(110px,1fr));gap:7px;margin:8px 0 12px;}
+  .inning-split-controls input[type=date]{flex:none;min-width:0;width:100%;box-sizing:border-box;font-size:14px;font-weight:500;padding:8px 10px;}
+  .inning-split-chart{display:grid;gap:7px;border:1px solid var(--line);border-radius:11px;background:var(--panel2);padding:11px;margin-bottom:11px;}
+  .inning-chart-row{display:grid;grid-template-columns:38px minmax(100px,1fr) 64px;gap:8px;align-items:center;}
+  .inning-chart-label{font-size:11px;font-weight:800;color:var(--ink);text-align:right;}
+  .inning-chart-track{height:18px;border:1px solid var(--line);border-radius:999px;background:var(--panel);overflow:hidden;}
+  .inning-chart-bar{height:100%;min-width:2px;border-radius:999px;background:linear-gradient(90deg,var(--accent),var(--accent2));animation:inning-bar-in .45s ease-out both;transform-origin:left;}
+  .inning-chart-value{font:700 11px 'Roboto Mono',var(--font-ui);color:var(--accent);text-align:right;}
+  .inning-split-note{font-size:10px;line-height:1.65;color:var(--muted);margin-top:8px;}
+  .inning-sample{display:inline-block;border-radius:999px;padding:2px 6px;font-size:9px;font-weight:700;white-space:nowrap;background:var(--panel2);border:1px solid var(--line);color:var(--muted);}
+  .inning-sample.ok{background:#dcfce7;border-color:#86efac;color:#166534;}
+  @keyframes inning-bar-in{from{transform:scaleX(0);opacity:.35}to{transform:scaleX(1);opacity:1}}
   @keyframes pg-stage-in{from{opacity:0;transform:translateY(7px) scale(.995)}to{opacity:1;transform:none}}
   @keyframes pg-sheen{from{transform:translateX(-65%)}to{transform:translateX(65%)}}
   @keyframes pg-grid-in{from{opacity:0}to{opacity:1}}
@@ -854,6 +867,8 @@
     .pitch-heatmap-controls{grid-template-columns:1fr 1fr;}
     .pitch-heatmap-layout{grid-template-columns:1fr;}
     .pitch-heatmap-grid{max-width:340px;margin:0 auto;}
+    .inning-split-controls{grid-template-columns:1fr 1fr;}
+    .inning-chart-row{grid-template-columns:34px minmax(80px,1fr) 58px;}
     .pg-svg .area{display:none;}
     .pg-svg .series{filter:none;animation-duration:.62s;}
     .pg-svg .latest-halo{animation-iteration-count:1;}
@@ -5223,6 +5238,95 @@
   var splitCache={};        // 'batting_lines' -> {header, rows}
   var curSplitPlayer=null;  // 表示中の選手
   var splitTab="log";
+  var inningSplitState={data:null,loading:false,error:"",scope:"season",game:"all",opponent:"all",venue:"all",hand:"all",from:"",to:"",metric:"ops"};
+
+  function resetInningSplit(){
+    inningSplitState={data:null,loading:false,error:"",scope:"season",game:"all",opponent:"all",venue:"all",hand:"all",from:"",to:"",metric:"ops"};
+  }
+
+  async function loadInningSplit(){
+    if(inningSplitState.loading||inningSplitState.data||!curSplitPlayer)return;
+    inningSplitState.loading=true;inningSplitState.error="";
+    try{
+      var year=(dp.value||todayJST()).split("-")[0],kind=playerRows(splitCache["pitching_lines"],curSplitPlayer).length?"pitcher":"batter";
+      var index=await matchupIndex(year),list=kind==="pitcher"?index.pitchers:index.batters;
+      var entry=(list||[]).find(function(item){
+        return (curSplitPlayer.key&&item.key===curSplitPlayer.key)||(curSplitPlayer.player_id&&String(item.player_id||"")===String(curSplitPlayer.player_id));
+      });
+      if(!entry)throw new Error("player-not-found");
+      var response=await fetch("data/"+year+"/matchups/"+entry.file+"?t="+Date.now());
+      if(!response.ok)throw new Error("matchup-not-found");
+      inningSplitState.data=await response.json();
+      if(!(inningSplitState.data.inning_events||[]).length)throw new Error("inning-events-not-found");
+    }catch(e){inningSplitState.error="回別集計データがまだありません。Actionsで対戦成績データを再生成してください。";}
+    inningSplitState.loading=false;renderInningSplit();
+  }
+
+  function inningSplitChanged(){
+    function val(id,fallback){var node=document.getElementById(id);return node?node.value:fallback;}
+    inningSplitState.scope=val("inningScope",inningSplitState.scope);
+    inningSplitState.game=val("inningGame",inningSplitState.game);
+    inningSplitState.opponent=val("inningOpponent",inningSplitState.opponent);
+    inningSplitState.venue=val("inningVenue",inningSplitState.venue);
+    inningSplitState.hand=val("inningHand",inningSplitState.hand);
+    inningSplitState.from=val("inningFrom",inningSplitState.from);
+    inningSplitState.to=val("inningTo",inningSplitState.to);
+    inningSplitState.metric=val("inningMetric",inningSplitState.metric);
+    renderInningSplit();
+  }
+
+  function inningRate(n,d){return d?n/d:null;}
+  function inningRateText(v){return v==null?"-":v.toFixed(3).replace(/^0/,"");}
+  function inningPctText(v){return v==null?"-":(v*100).toFixed(1)+"%";}
+  function inningOption(value,label,current){return '<option value="'+esc(value)+'"'+(String(value)===String(current)?' selected':'')+'>'+esc(label)+'</option>';}
+
+  function renderInningSplit(){
+    var box=document.getElementById("plInnings");if(!box)return;
+    if(inningSplitState.loading){box.innerHTML='<div class="msg">回別データを読み込み中…</div>';return;}
+    if(inningSplitState.error){box.innerHTML='<div class="msg">'+esc(inningSplitState.error)+'</div>';return;}
+    var data=inningSplitState.data;if(!data){box.innerHTML='<div class="msg">回別データを読み込み中…</div>';loadInningSplit();return;}
+    var games=data.games||[],events=data.inning_events||[],isP=data.kind==="pitcher",opponents={};
+    games.forEach(function(game){if(game.opponent)opponents[game.opponent]=1;});
+    var selectedGames={};
+    games.forEach(function(game,index){
+      var use=(inningSplitState.scope!=="game"||String(index)===String(inningSplitState.game))&&
+        (inningSplitState.opponent==="all"||game.opponent===inningSplitState.opponent)&&
+        (inningSplitState.venue==="all"||(inningSplitState.venue==="home"&&game.is_home)||(inningSplitState.venue==="away"&&!game.is_home))&&
+        (!inningSplitState.from||game.date>=inningSplitState.from)&&(!inningSplitState.to||game.date<=inningSplitState.to);
+      if(use)selectedGames[index]=1;
+    });
+    var grouped={};
+    events.forEach(function(e){
+      if(!selectedGames[e[0]]||(inningSplitState.hand!=="all"&&String(e[2])!==inningSplitState.hand))return;
+      var inn=Number(e[1])||0;if(!inn)return;
+      var a=grouped[inn]||(grouped[inn]={inning:inn,gameSet:{},pa:0,ab:0,h:0,single:0,double:0,triple:0,hr:0,bb:0,hbp:0,so:0,sf:0,sh:0,gidp:0,error:0,rbi:0,pitches:0,outs:0});
+      a.gameSet[e[0]]=1;a.pa+=Number(e[3])||0;a.ab+=Number(e[4])||0;a.h+=Number(e[5])||0;a.single+=Number(e[6])||0;a.double+=Number(e[7])||0;a.triple+=Number(e[8])||0;a.hr+=Number(e[9])||0;a.bb+=Number(e[10])||0;a.hbp+=Number(e[11])||0;a.so+=Number(e[12])||0;a.sf+=Number(e[13])||0;a.sh+=Number(e[14])||0;a.gidp+=Number(e[15])||0;a.error+=Number(e[16])||0;a.rbi+=Number(e[17])||0;a.pitches+=Number(e[18])||0;a.outs+=Number(e[19])||0;
+    });
+    var rows=Object.keys(grouped).map(function(key){
+      var a=grouped[key];a.games=Object.keys(a.gameSet).length;a.avg=inningRate(a.h,a.ab);a.obp=inningRate(a.h+a.bb+a.hbp,a.ab+a.bb+a.hbp+a.sf);a.slg=inningRate(a.single+2*a.double+3*a.triple+4*a.hr,a.ab);a.ops=a.obp==null||a.slg==null?null:a.obp+a.slg;a.kpct=inningRate(a.so,a.pa);a.bbpct=inningRate(a.bb,a.pa);return a;
+    }).sort(function(a,b){return a.inning-b.inning;});
+    var gameItems=games.map(function(game,index){return inningOption(index,(game.date||"-")+" "+(game.is_home?"vs ":"@ ")+(game.opponent||"-")+(game.stadium?" / "+game.stadium:""),inningSplitState.game);}).join("");
+    var opponentItems=Object.keys(opponents).sort().map(function(team){return inningOption(team,team,inningSplitState.opponent);}).join("");
+    var metricItems=isP?[["ops","被OPS"],["avg","被打率"],["kpct","K%"],["bbpct","BB%"],["pitches","投球数"]]:[["ops","OPS"],["avg","打率"],["hr","本塁打"],["kpct","三振率"]];
+    if(!metricItems.some(function(item){return item[0]===inningSplitState.metric;}))inningSplitState.metric="ops";
+    var controls='<div class="inning-split-controls">'+
+      '<label class="ef"><span>集計範囲</span><select id="inningScope" onchange="inningSplitChanged()">'+inningOption("season","シーズン",inningSplitState.scope)+inningOption("game","1試合",inningSplitState.scope)+'</select></label>'+
+      '<label class="ef"><span>試合</span><select id="inningGame" onchange="inningSplitChanged()"'+(inningSplitState.scope!=="game"?' disabled':'')+'>'+gameItems+'</select></label>'+
+      '<label class="ef"><span>対戦球団</span><select id="inningOpponent" onchange="inningSplitChanged()">'+inningOption("all","全球団",inningSplitState.opponent)+opponentItems+'</select></label>'+
+      '<label class="ef"><span>ホーム/ビジター</span><select id="inningVenue" onchange="inningSplitChanged()">'+inningOption("all","すべて",inningSplitState.venue)+inningOption("home","ホーム",inningSplitState.venue)+inningOption("away","ビジター",inningSplitState.venue)+'</select></label>'+
+      '<label class="ef"><span>相手の左右</span><select id="inningHand" onchange="inningSplitChanged()">'+inningOption("all","左右すべて",inningSplitState.hand)+inningOption("1",isP?"右打者":"右投手",inningSplitState.hand)+inningOption("2",isP?"左打者":"左投手",inningSplitState.hand)+'</select></label>'+
+      '<label class="ef"><span>グラフ指標</span><select id="inningMetric" onchange="inningSplitChanged()">'+metricItems.map(function(item){return inningOption(item[0],item[1],inningSplitState.metric);}).join("")+'</select></label>'+
+      '<label class="ef"><span>開始日</span><input id="inningFrom" type="date" value="'+esc(inningSplitState.from)+'" onchange="inningSplitChanged()"></label>'+
+      '<label class="ef"><span>終了日</span><input id="inningTo" type="date" value="'+esc(inningSplitState.to)+'" onchange="inningSplitChanged()"></label></div>';
+    if(!rows.length){box.innerHTML='<div class="inning-split">'+controls+'<div class="msg">条件に合う回別成績がありません</div></div>';return;}
+    var metric=inningSplitState.metric,max=Math.max.apply(null,rows.map(function(row){return Number(row[metric])||0;}))||1;
+    var metricLabel=(metricItems.find(function(item){return item[0]===metric;})||[metric,metric])[1];
+    var chart='<div class="subttl">'+esc(metricLabel)+'の回別比較</div><div class="inning-split-chart">';
+    rows.forEach(function(row){var value=Number(row[metric])||0,display=(metric==="kpct"||metric==="bbpct")?inningPctText(row[metric]):((metric==="ops"||metric==="avg")?inningRateText(row[metric]):String(value));chart+='<div class="inning-chart-row"><div class="inning-chart-label">'+row.inning+'回</div><div class="inning-chart-track"><div class="inning-chart-bar" style="width:'+Math.max(1,value/max*100).toFixed(1)+'%"></div></div><div class="inning-chart-value">'+display+'</div></div>';});chart+='</div>';
+    var h='<div class="inning-split">'+controls+chart+'<div class="tblwrap"><table class="stbl"><thead><tr><th>回</th><th>試合</th><th>'+(isP?'打者':'打席')+'</th>'+(isP?'<th>記録回</th><th>球数</th>':'')+'<th>打数</th><th>'+(isP?'被安':'安打')+'</th><th>二塁</th><th>三塁</th><th>'+(isP?'被本':'本塁打')+'</th><th>四球</th><th>死球</th><th>三振</th>'+(isP?'':'<th>打点</th>')+'<th>'+(isP?'被打率':'打率')+'</th><th>'+(isP?'被出塁':'出塁率')+'</th><th>'+(isP?'被長打':'長打率')+'</th><th>'+(isP?'被OPS':'OPS')+'</th><th>K%</th><th>BB%</th><th>標本</th></tr></thead><tbody>';
+    rows.forEach(function(row){var sample=row.pa>=20?'<span class="inning-sample ok">十分</span>':'<span class="inning-sample">少数</span>';h+='<tr><td class="num hi">'+row.inning+'回</td><td class="num">'+row.games+'</td><td class="num">'+row.pa+'</td>'+(isP?'<td class="num">'+outsToIp(row.outs)+'</td><td class="num">'+row.pitches+'</td>':'')+'<td class="num">'+row.ab+'</td><td class="num">'+row.h+'</td><td class="num">'+row.double+'</td><td class="num">'+row.triple+'</td><td class="num">'+row.hr+'</td><td class="num">'+row.bb+'</td><td class="num">'+row.hbp+'</td><td class="num">'+row.so+'</td>'+(isP?'':'<td class="num">'+row.rbi+'</td>')+'<td class="num">'+inningRateText(row.avg)+'</td><td class="num">'+inningRateText(row.obp)+'</td><td class="num">'+inningRateText(row.slg)+'</td><td class="num hi">'+inningRateText(row.ops)+'</td><td class="num">'+inningPctText(row.kpct)+'</td><td class="num">'+inningPctText(row.bbpct)+'</td><td>'+sample+'</td></tr>';});
+    h+='</tbody></table></div><div class="inning-split-note">回別の打撃結果は各打席の終了回で集計しています。標本「少数」は20打席未満です。'+(isP?'記録回は打席データのアウト進行から集計しています。自責点を回別に推測しないため、回別防御率は表示しません。':'打率・OPSなどは選択条件内の打席から再計算しています。')+'</div></div>';box.innerHTML=h;
+  }
 
   async function loadSplitFile(name){
     if(splitCache[name]) return splitCache[name];
@@ -5285,6 +5389,7 @@
 
   async function openSplits(key){
     curSplitPlayer=null;
+    resetInningSplit();
     for(var i=0;i<seasonData.length;i++){
       if(seasonData[i].key===key){ curSplitPlayer=seasonData[i]; break; }
     }
@@ -5317,7 +5422,7 @@
     var isP=pl.length>0;
 
     var tabs=[["log","試合ログ"],["month","月別"],["opp","対戦球団別"],
-              ["park","球場別"],["ha","ホーム/ビジター"],["recent","直近5・10試合"]];
+              ["park","球場別"],["ha","ホーム/ビジター"],["recent","直近5・10試合"],["inning","回別"]];
     tabs.push(isP ? ["mix","配球分析"] : ["swing","スイング指標"]);
 
     var h='<div class="stabs" style="margin-top:12px">';
@@ -5334,6 +5439,12 @@
     else if(splitTab==="ha") h+=splitBy(bl, pl, isP, function(r){
         return String(r.is_home).toLowerCase()==="true" ? "ホーム" : "ビジター";
       }, "区分", false);
+    else if(splitTab==="inning"){
+      h+='<div id="plInnings"><div class="msg">回別データを読み込み中…</div></div>';
+      el.innerHTML=h;
+      loadInningSplit();
+      return;
+    }
     else if(splitTab==="mix" || splitTab==="swing"){
       h+='<div id="plPitches"><div class="msg">読み込み中…</div></div>';
       el.innerHTML=h;

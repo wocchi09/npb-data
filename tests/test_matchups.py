@@ -44,7 +44,30 @@ class MatchupBuilderTests(unittest.TestCase):
             self.assertTrue(player_path.exists())
             self.assertEqual(payload["player"]["name"], "打者 一郎")
             self.assertEqual(payload["opponents"][0]["name"], "投手 二郎")
+            self.assertEqual(payload["games"][0]["opponent"], "日本ハム")
+            self.assertTrue(payload["games"][0]["is_home"])
+            self.assertEqual(len(payload["inning_events"][0]), 20)
+            self.assertEqual(payload["inning_events"][0][1], 7)
+            self.assertEqual(payload["inning_events"][0][2], 1)
+            self.assertEqual(payload["inning_events"][0][3], 1)
+            self.assertEqual(payload["inning_events"][0][18], 4)
+            self.assertEqual(payload["inning_events"][0][19], 1)
             self.assertTrue((Path(temp) / "2026" / "matchups" / "index.json").exists())
+
+    def test_inning_events_use_scorebook_out_progression(self):
+        first = self.row(result={"pa": 1, "ab": 1})
+        first["outs"] = 1
+        second = self.row(result={"pa": 1, "ab": 1, "hit": 1, "single": 1})
+        second["outs"] = 1
+        third = self.row(result={"pa": 1, "ab": 1})
+        third["outs"] = 3
+        next_inning = self.row(result={"pa": 1, "ab": 1})
+        next_inning["inning"] = 8
+        next_inning["outs"] = 1
+
+        buckets, _ = build_matchups.aggregate([first, second, third, next_inning])
+        events = buckets["pitcher"]["p2"]["events"]
+        self.assertEqual([event[19] for event in events], [1, 0, 2, 1])
 
     def test_high_confidence_baserunning_is_added_to_both_sides(self):
         atbat = self.row()
@@ -85,6 +108,13 @@ class MatchupBuilderTests(unittest.TestCase):
         row = {
             "date": "2026-07-31",
             "game_id": game_id,
+            "home": "ソフトバンク",
+            "away": "日本ハム",
+            "stadium": "みずほPayPay",
+            "inning": 7,
+            "top_bottom": "裏",
+            "outs": 1,
+            "pitches": 4,
             "batting_team": "ソフトバンク",
             "fielding_team": "日本ハム",
             "batter": "打者 一郎",
