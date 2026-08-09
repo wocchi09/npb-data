@@ -117,6 +117,18 @@ class MatchupPageTests(unittest.TestCase):
         self.assertIn('.inning-split-controls{grid-template-columns:1fr 1fr;}', self.html)
         self.assertIn('@keyframes inning-bar-in', self.html)
 
+    def test_inning_analysis_prioritizes_readable_cards_and_controls(self):
+        self.assertIn("inning-chart-card", self.html)
+        self.assertIn("回別の詳細成績", self.html)
+        self.assertIn("表は横にスクロールできます", self.html)
+        self.assertIn("inning-split-table", self.html)
+        self.assertIn("inning-game-field", self.html)
+        self.assertIn("is-hidden", self.html)
+        self.assertIn("期間（任意）", self.html)
+        self.assertIn("inning-chart-meta", self.html)
+        self.assertIn("row.games+'試合", self.html)
+        self.assertIn("position:sticky;left:0", self.html)
+
     def test_readable_japanese_typography_is_applied(self):
         self.assertIn("family=Noto+Sans+JP:wght@400;500;600;700;800", self.html)
         self.assertIn("--font-ui:'Noto Sans JP'", self.html)
