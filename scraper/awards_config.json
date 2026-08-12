@@ -1,6 +1,6 @@
 {
-  "scoreVersion": "1.1.0",
-  "periodScoreVersion": "1.2.0",
+  "scoreVersion": "1.2.0",
+  "periodScoreVersion": "1.3.0",
   "_note": "MVP・ベストメンバーの配点。値を変えて再集計すれば結果に反映されます。available_max は取得できるデータだけで到達しうる上限で、換算スコアの分母に使います。",
   "daily_batter": {
     "categories": {
@@ -110,17 +110,18 @@
       "winContrib": {
         "max": 15,
         "available_max": 15
+      },
+      "achievement": {
+        "max": 10,
+        "available_max": 10,
+        "note": "完投・完封・ノーヒットノーラン・完全試合を投球回とは別枠で評価"
       }
     },
     "innings": {
-      "per_inning": 3,
-      "bonus_6": 2,
-      "bonus_7": 3,
-      "bonus_8": 4,
-      "complete_game": 6,
-      "shutout": 10,
-      "no_hitter": 20,
-      "perfect_game": 30
+      "ip6": 15,
+      "ip7": 17.5,
+      "ip8": 18.75,
+      "ip9": 20
     },
     "prevention": {
       "er_0": 20,
@@ -143,11 +144,17 @@
       "t150": 3
     },
     "winContrib": {
-      "win": 7,
-      "hqs": 6,
-      "qs": 3,
+      "win": 4,
+      "hqs": 8,
+      "qs": 4,
       "team_win": 2,
       "win_eligible": 2
+    },
+    "achievement": {
+      "complete_game": 2,
+      "shutout": 5,
+      "no_hitter": 8,
+      "perfect_game": 10
     },
     "penalty": {
       "hr_allowed": -3,
@@ -361,13 +368,23 @@
         "available_max": 15
       },
       "qs": {
-        "max": 15,
-        "available_max": 15
+        "max": 20,
+        "available_max": 20
       },
       "winContrib": {
-        "max": 10,
-        "available_max": 10
+        "max": 5,
+        "available_max": 5
       }
+    },
+    "innings": {
+      "ip6": 15,
+      "ip7": 17.5,
+      "ip8": 18.75,
+      "ip9": 20
+    },
+    "quality": {
+      "qs": 12,
+      "hqs": 20
     },
     "min_starts": 1,
     "team_games_per_start": 6,

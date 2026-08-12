@@ -56,6 +56,30 @@ def _cap(value, limit):
     return min(value, limit) if limit is not None else value
 
 
+def _starter_innings_score(ip, max_score, points=None):
+    """6回以降も価値が残る、先発用の投球回スコアを返す。
+
+    設定された6・7・8・9回の基準点の間は線形補間する。従来は
+    6回で上限へ達していたため、7回以降を投げても加点されなかった。
+    """
+    points = points or {}
+    anchors = [
+        (0.0, 0.0),
+        (6.0, float(points.get("ip6", max_score * 0.75))),
+        (7.0, float(points.get("ip7", max_score * 0.875))),
+        (8.0, float(points.get("ip8", max_score * 0.9375))),
+        (9.0, float(points.get("ip9", max_score))),
+    ]
+    ip = max(float(ip or 0), 0.0)
+    if ip >= anchors[-1][0]:
+        return _cap(anchors[-1][1], max_score)
+    for (low_ip, low_score), (high_ip, high_score) in zip(anchors, anchors[1:]):
+        if ip <= high_ip:
+            ratio = (ip - low_ip) / (high_ip - low_ip)
+            return _cap(low_score + (high_score - low_score) * ratio, max_score)
+    return 0
+
+
 # ---------------------------------------------------------------- 試合の文脈
 
 def _score_map(score_at):
@@ -539,6 +563,7 @@ def score_daily_starter(row, ctx, cfg=None):
     cats = c["categories"]
     I, PR, K, W, WC, P = (c["innings"], c["prevention"], c["strikeout"],
                           c["whip"], c["winContrib"], c["penalty"])
+    A = c.get("achievement", {})
 
     outs = row.get("outs") or 0
     ip = outs / 3
@@ -554,26 +579,21 @@ def score_daily_starter(row, ctx, cfg=None):
     reasons, minus = [], []
 
     # --- 投球回 ---
-    inn = ip * I["per_inning"]
-    if outs >= 24:
-        inn += I["bonus_8"]
-    elif outs >= 21:
-        inn += I["bonus_7"]
-    elif outs >= 18:
-        inn += I["bonus_6"]
+    inn = _starter_innings_score(ip, cats["innings"]["max"], I)
+    achievement = 0
     if outs >= 27:
-        inn += I["complete_game"]
+        achievement = A.get("complete_game", 0)
         reasons.append("完投")
         if ra == 0:
-            inn += I["shutout"]
+            achievement = A.get("shutout", achievement)
             reasons.append("完封")
             if ha == 0:
-                inn += I["no_hitter"]
+                achievement = A.get("no_hitter", achievement)
                 reasons.append("ノーヒットノーラン")
                 if bb == 0 and hbp == 0 and (row.get("batters_faced") or 0) == 27:
-                    inn += I["perfect_game"]
+                    achievement = A.get("perfect_game", achievement)
                     reasons.append("完全試合")
-    inn = _cap(inn, cats["innings"]["max"])
+    achievement = _cap(achievement, cats.get("achievement", {}).get("max", 0))
 
     # --- 失点抑制 ---
     prev = (PR["er_0"] if er == 0 else PR["er_1"] if er == 1 else
@@ -633,7 +653,7 @@ def score_daily_starter(row, ctx, cfg=None):
     if hra:
         minus.append(f"被本塁打{hra}")
 
-    total = inn + prev + ks + ws + wc + pen
+    total = inn + prev + ks + ws + wc + achievement + pen
     avail = sum(v["available_max"] for v in cats.values())
     return {
         "name": row.get("name"), "team": row.get("_team"),
@@ -643,7 +663,9 @@ def score_daily_starter(row, ctx, cfg=None):
         "available_max": avail,
         "breakdown": {"innings": round(inn, 2), "prevention": round(prev, 2),
                       "strikeout": round(ks, 2), "whip": round(ws, 2),
-                      "winContrib": round(wc, 2), "penalty": round(pen, 2)},
+                      "winContrib": round(wc, 2),
+                      "achievement": round(achievement, 2),
+                      "penalty": round(pen, 2)},
         "stat_line": (f"{row.get('innings','')}回 {ra}失点 自責{er} "
                       f"{so}奪三振 被安打{ha} 与四球{bb}"
                       + (f" WHIP{whip:.2f}" if whip is not None else "")),
@@ -1066,11 +1088,21 @@ def score_weekly_starter(name, team, agg, league_pool, cfg=None, team_games=None
         c.get("workload_multiplier_floor", 0.5)
         + (1 - c.get("workload_multiplier_floor", 0.5)) * workload_coverage
     )
-    innings = ip_coverage * cats["innings"]["max"] if agg["games"] else 0
+    avg_ip = agg["ip"] / max(agg["games"], 1)
+    innings = _starter_innings_score(
+        avg_ip, cats["innings"]["max"], c.get("innings")
+    ) if agg["games"] else 0
     whip = _percentile_score([p["whip"] for p in league_pool], agg["whip"],
                               cats["whip"]["max"], higher_is_better=False)
     k = _percentile_score([p["so"] for p in league_pool], agg["so"], cats["strikeout"]["max"])
-    qs = min((agg["hqs"] * 1.5 + agg["qs"]) / max(agg["games"], 1), 1) * cats["qs"]["max"]
+    qs_only = max(agg["qs"] - agg["hqs"], 0)
+    quality_cfg = c.get("quality", {})
+    qs = min(
+        (qs_only * quality_cfg.get("qs", cats["qs"]["max"] * 0.6)
+         + agg["hqs"] * quality_cfg.get("hqs", cats["qs"]["max"]))
+        / max(agg["games"], 1),
+        cats["qs"]["max"],
+    )
     wc = min(agg["wins"] / max(agg["games"], 1), 1) * cats["winContrib"]["max"]
     total = (era + innings + whip + k + qs + wc) * workload_multiplier
     if agg["wins"]:
