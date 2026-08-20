@@ -174,11 +174,15 @@ def build_period(kind, label, date_from, date_to, season, base="data", cfg=None)
             "runs_allowed": num(r.get("runs_allowed")), "so": num(r.get("so")),
             "bb": num(r.get("bb")), "hits_allowed": num(r.get("hits_allowed")),
             "hr_allowed": num(r.get("hr_allowed")), "decision": r.get("decision") or "",
+            "is_starter": bool_(r.get("is_starter")),
         } for r in rows]
         agg = aggregate_pitcher_period(numeric)
+        starter_agg = aggregate_pitcher_period([r for r in numeric if r["is_starter"]])
+        relief_agg = aggregate_pitcher_period([r for r in numeric if not r["is_starter"]])
         role = "先発" if starts >= len(rows) / 2 and starts > 0 else None
         pit_aggs[k] = {"name": first.get("player"), "team": team, "starts": starts,
-                       "games": len(rows), "agg": agg, "role_hint": role}
+                       "games": len(rows), "agg": agg, "starter_agg": starter_agg,
+                       "relief_agg": relief_agg, "role_hint": role}
 
     result = {"awardType": kind, "label": label, "date_from": date_from, "date_to": date_to,
               "scoreVersion": cfg.get("periodScoreVersion", cfg.get("scoreVersion")),
@@ -201,23 +205,36 @@ def build_period(kind, label, date_from, date_to, season, base="data", cfg=None)
             scored.append(s)
         scored.sort(key=lambda x: -x["score"])
 
-        # 投手：先発／中継ぎ／抑え に振り分け
+        # 投手：先発／中継ぎ／抑え に振り分ける。期間中に役割が混在した
+        # 選手も、先発評価には先発登板だけ、救援評価には救援登板だけを使う。
         starters, relievers, closers = [], [], []
-        pit_pool = [v["agg"] for v in lg_pit]
-        for v in lg_pit:
-            agg = v["agg"]
-            if v["role_hint"] == "先発" or v["starts"] >= max(v["games"] - v["starts"], 1):
-                starters.append(score_weekly_starter(
-                    v["name"], v["team"], agg, pit_pool, cfg, team_games.get(v["team"])
-                ))
-            elif agg["saves"] > 0:
-                closers.append(score_weekly_closer(
-                    v["name"], v["team"], agg, pit_pool, cfg, team_games.get(v["team"])
-                ))
-            else:
-                relievers.append(score_weekly_reliever(
-                    v["name"], v["team"], agg, pit_pool, cfg, team_games.get(v["team"])
-                ))
+        starter_values = [
+            v for v in lg_pit
+            if v["role_hint"] == "先発"
+            or v["starts"] >= max(v["games"] - v["starts"], 1)
+        ]
+        relief_values = [v for v in lg_pit if v not in starter_values]
+        closer_values = [v for v in relief_values if v["relief_agg"]["saves"] > 0]
+        middle_values = [v for v in relief_values if v not in closer_values]
+        starter_pool = [v["starter_agg"] for v in starter_values]
+        reliever_pool = [v["relief_agg"] for v in middle_values]
+        closer_pool = [v["relief_agg"] for v in closer_values]
+
+        for v in starter_values:
+            agg = v["starter_agg"]
+            starters.append(score_weekly_starter(
+                v["name"], v["team"], agg, starter_pool, cfg, team_games.get(v["team"])
+            ))
+        for v in closer_values:
+            agg = v["relief_agg"]
+            closers.append(score_weekly_closer(
+                v["name"], v["team"], agg, closer_pool, cfg, team_games.get(v["team"])
+            ))
+        for v in middle_values:
+            agg = v["relief_agg"]
+            relievers.append(score_weekly_reliever(
+                v["name"], v["team"], agg, reliever_pool, cfg, team_games.get(v["team"])
+            ))
         starters.sort(key=lambda x: -x["score"])
         relievers.sort(key=lambda x: -x["score"])
         closers.sort(key=lambda x: -x["score"])

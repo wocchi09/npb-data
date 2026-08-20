@@ -1,8 +1,8 @@
 {
   "awardType": "daily",
   "date": "2026-07-17",
-  "scoreVersion": "1.1.0",
-  "generated_at": "2026-08-07T00:02:43.298081+09:00",
+  "scoreVersion": "1.2.0",
+  "generated_at": "2026-08-20T22:58:36.855492+09:00",
   "note": "利用可能データのみで算出。盗塁成功・盗塁失敗・高確度の走塁死を反映し、取得できない守備の細目は対象外",
   "games": 3,
   "leagues": {
@@ -59,15 +59,16 @@
         "team": "阪神",
         "player_id": "1600115",
         "role": "先発",
-        "raw": 61.5,
-        "score": 68.33,
-        "available_max": 90,
+        "raw": 59.25,
+        "score": 59.25,
+        "available_max": 100,
         "breakdown": {
-          "innings": 20,
+          "innings": 18.75,
           "prevention": 9,
           "strikeout": 10.5,
           "whip": 12,
-          "winContrib": 15,
+          "winContrib": 14,
+          "achievement": 0,
           "penalty": -5
         },
         "stat_line": "8回 2失点 自責2 7奪三振 被安打4 与四球2 WHIP0.75",
@@ -87,11 +88,11 @@
           "hqs": true
         },
         "game_id": "2021039152",
-        "z": 57.44,
+        "z": 58.47,
         "z_method": "役割内標準化",
-        "mvp_value": 57.44,
+        "mvp_value": 58.47,
         "comment": "8回 2失点 自責2 7奪三振 被安打4 与四球2 WHIP0.75。勝利投手／HQS。",
-        "margin": -1.42
+        "margin": 0.87
       },
       "best_batters": {
         "捕": {
@@ -451,39 +452,42 @@
       },
       "best_pitchers": {
         "先発": {
-          "name": "尾形 崇斗",
-          "team": "DeNA",
-          "player_id": "1700134",
+          "name": "才木 浩人",
+          "team": "阪神",
+          "player_id": "1600115",
           "role": "先発",
-          "raw": 64.5,
-          "score": 71.67,
-          "available_max": 90,
+          "raw": 59.25,
+          "score": 59.25,
+          "available_max": 100,
           "breakdown": {
-            "innings": 20.0,
+            "innings": 18.75,
             "prevention": 9,
-            "strikeout": 12.5,
+            "strikeout": 10.5,
             "whip": 12,
-            "winContrib": 12,
-            "penalty": -1
+            "winContrib": 14,
+            "achievement": 0,
+            "penalty": -5
           },
-          "stat_line": "6回 2失点 自責2 7奪三振 被安打3 与四球1 WHIP0.67",
+          "stat_line": "8回 2失点 自責2 7奪三振 被安打4 与四球2 WHIP0.75",
           "reasons": [
             "勝利投手",
-            "QS"
+            "HQS"
           ],
-          "minus_reasons": [],
+          "minus_reasons": [
+            "被本塁打1"
+          ],
           "keys": {
-            "outs": 18,
+            "outs": 24,
             "er": 2,
             "so": 7,
-            "whip": 0.6666666666666666,
+            "whip": 0.75,
             "qs": true,
-            "hqs": false
+            "hqs": true
           },
-          "game_id": "2021039151",
-          "z": 58.86,
+          "game_id": "2021039152",
+          "z": 58.47,
           "z_method": "役割内標準化",
-          "mvp_value": 55.92
+          "mvp_value": 58.47
         },
         "中継ぎ": {
           "name": "マルティネス",
@@ -1212,54 +1216,20 @@
       "pitcher_ranking": {
         "先発": [
           {
-            "name": "尾形 崇斗",
-            "team": "DeNA",
-            "player_id": "1700134",
-            "role": "先発",
-            "raw": 64.5,
-            "score": 71.67,
-            "available_max": 90,
-            "breakdown": {
-              "innings": 20.0,
-              "prevention": 9,
-              "strikeout": 12.5,
-              "whip": 12,
-              "winContrib": 12,
-              "penalty": -1
-            },
-            "stat_line": "6回 2失点 自責2 7奪三振 被安打3 与四球1 WHIP0.67",
-            "reasons": [
-              "勝利投手",
-              "QS"
-            ],
-            "minus_reasons": [],
-            "keys": {
-              "outs": 18,
-              "er": 2,
-              "so": 7,
-              "whip": 0.6666666666666666,
-              "qs": true,
-              "hqs": false
-            },
-            "game_id": "2021039151",
-            "z": 58.86,
-            "z_method": "役割内標準化",
-            "mvp_value": 55.92
-          },
-          {
             "name": "才木 浩人",
             "team": "阪神",
             "player_id": "1600115",
             "role": "先発",
-            "raw": 61.5,
-            "score": 68.33,
-            "available_max": 90,
+            "raw": 59.25,
+            "score": 59.25,
+            "available_max": 100,
             "breakdown": {
-              "innings": 20,
+              "innings": 18.75,
               "prevention": 9,
               "strikeout": 10.5,
               "whip": 12,
-              "winContrib": 15,
+              "winContrib": 14,
+              "achievement": 0,
               "penalty": -5
             },
             "stat_line": "8回 2失点 自責2 7奪三振 被安打4 与四球2 WHIP0.75",
@@ -1279,24 +1249,61 @@
               "hqs": true
             },
             "game_id": "2021039152",
-            "z": 57.44,
+            "z": 58.47,
             "z_method": "役割内標準化",
-            "mvp_value": 57.44
+            "mvp_value": 58.47
+          },
+          {
+            "name": "尾形 崇斗",
+            "team": "DeNA",
+            "player_id": "1700134",
+            "role": "先発",
+            "raw": 57.5,
+            "score": 57.5,
+            "available_max": 100,
+            "breakdown": {
+              "innings": 15.0,
+              "prevention": 9,
+              "strikeout": 12.5,
+              "whip": 12,
+              "winContrib": 10,
+              "achievement": 0,
+              "penalty": -1
+            },
+            "stat_line": "6回 2失点 自責2 7奪三振 被安打3 与四球1 WHIP0.67",
+            "reasons": [
+              "勝利投手",
+              "QS"
+            ],
+            "minus_reasons": [],
+            "keys": {
+              "outs": 18,
+              "er": 2,
+              "so": 7,
+              "whip": 0.6666666666666666,
+              "qs": true,
+              "hqs": false
+            },
+            "game_id": "2021039151",
+            "z": 57.6,
+            "z_method": "役割内標準化",
+            "mvp_value": 54.72
           },
           {
             "name": "ウィットリー",
             "team": "巨人",
             "player_id": "2117509",
             "role": "先発",
-            "raw": 59.0,
-            "score": 65.56,
-            "available_max": 90,
+            "raw": 55.0,
+            "score": 55.0,
+            "available_max": 100,
             "breakdown": {
-              "innings": 20.0,
+              "innings": 15.0,
               "prevention": 15,
               "strikeout": 15,
               "whip": 9,
-              "winContrib": 5,
+              "winContrib": 6,
+              "achievement": 0,
               "penalty": -5
             },
             "stat_line": "6回 1失点 自責1 11奪三振 被安打1 与四球4 WHIP0.83",
@@ -1314,24 +1321,25 @@
               "hqs": false
             },
             "game_id": "2021039150",
-            "z": 56.26,
+            "z": 56.38,
             "z_method": "役割内標準化",
-            "mvp_value": 53.45
+            "mvp_value": 53.56
           },
           {
             "name": "大野 雄大",
             "team": "中日",
             "player_id": "1000138",
             "role": "先発",
-            "raw": 54.5,
-            "score": 60.56,
-            "available_max": 90,
+            "raw": 50.5,
+            "score": 50.5,
+            "available_max": 100,
             "breakdown": {
-              "innings": 20.0,
+              "innings": 15.0,
               "prevention": 15,
               "strikeout": 4.5,
               "whip": 12,
-              "winContrib": 3,
+              "winContrib": 4,
+              "achievement": 0,
               "penalty": 0
             },
             "stat_line": "6回 1失点 自責1 3奪三振 被安打4 与四球0 WHIP0.67",
@@ -1348,24 +1356,25 @@
               "hqs": false
             },
             "game_id": "2021039150",
-            "z": 54.13,
+            "z": 54.16,
             "z_method": "役割内標準化",
-            "mvp_value": 51.42
+            "mvp_value": 51.45
           },
           {
             "name": "アドゥワ 誠",
             "team": "広島",
             "player_id": "1600125",
             "role": "先発",
-            "raw": 28.5,
-            "score": 31.67,
-            "available_max": 90,
+            "raw": 26.0,
+            "score": 26.0,
+            "available_max": 100,
             "breakdown": {
-              "innings": 15.0,
+              "innings": 12.5,
               "prevention": 4,
               "strikeout": 9.5,
               "whip": 9,
               "winContrib": 0,
+              "achievement": 0,
               "penalty": -9
             },
             "stat_line": "5回 3失点 自責3 5奪三振 被安打3 与四球2 WHIP1.00",
@@ -1383,24 +1392,25 @@
               "hqs": false
             },
             "game_id": "2021039152",
-            "z": 41.85,
+            "z": 42.11,
             "z_method": "役割内標準化",
-            "mvp_value": 37.66
+            "mvp_value": 37.9
           },
           {
             "name": "高橋 奎二",
             "team": "ヤクルト",
             "player_id": "1500042",
             "role": "先発",
-            "raw": 6.5,
-            "score": 7.22,
-            "available_max": 90,
+            "raw": 4.0,
+            "score": 4.0,
+            "available_max": 100,
             "breakdown": {
-              "innings": 15.0,
+              "innings": 12.5,
               "prevention": 0,
               "strikeout": 1.5,
               "whip": 0,
               "winContrib": 0,
+              "achievement": 0,
               "penalty": -10
             },
             "stat_line": "5回 4失点 自責4 1奪三振 被安打7 与四球3 WHIP2.00",
@@ -1418,9 +1428,9 @@
               "hqs": false
             },
             "game_id": "2021039151",
-            "z": 31.46,
+            "z": 31.28,
             "z_method": "役割内標準化",
-            "mvp_value": 28.31
+            "mvp_value": 28.15
           }
         ],
         "中継ぎ": [

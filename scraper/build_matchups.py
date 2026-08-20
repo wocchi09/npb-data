@@ -23,6 +23,14 @@ COUNT_FIELDS = (
     "hbp", "so", "sf", "sh", "gidp", "error", "rbi", "sb", "cs",
 )
 
+# 選手別JSON内の回別分析用イベント。
+# [game, inning, opponent_hand, pa, ab, hit, single, double, triple, hr,
+#  bb, hbp, so, sf, sh, gidp, error, rbi, pitches, recorded_outs]
+INNING_EVENT_FIELDS = (
+    "pa", "ab", "hit", "single", "double", "triple", "hr", "bb",
+    "hbp", "so", "sf", "sh", "gidp", "error", "rbi", "pitches",
+)
+
 
 def _number(value):
     try:
@@ -33,6 +41,45 @@ def _number(value):
 
 def _rate(numerator, denominator):
     return round(numerator / denominator, 4) if denominator else None
+
+
+def _hand_code(value):
+    value = str(value or "")
+    if "右" in value:
+        return 1
+    if "左" in value:
+        return 2
+    return 0
+
+
+def _is_home(row, kind):
+    team = row.get("batting_team" if kind == "batter" else "fielding_team")
+    return bool(team and team == row.get("home"))
+
+
+def _record_game(player, row, kind):
+    game_id = row.get("game_id") or f"{row.get('date') or '-'}-{row.get('home') or '-'}"
+    if game_id not in player["_game_index"]:
+        player["_game_index"][game_id] = len(player["games"])
+        player["games"].append({
+            "id": game_id,
+            "date": row.get("date") or "",
+            "opponent": row.get("fielding_team" if kind == "batter" else "batting_team") or "-",
+            "is_home": _is_home(row, kind),
+            "stadium": row.get("stadium") or "-",
+        })
+    return player["_game_index"][game_id]
+
+
+def _inning_event(row, game_index, kind, recorded_outs):
+    opponent_hand = row.get("pit_hand" if kind == "batter" else "bat_hand")
+    return [
+        game_index,
+        _number(row.get("inning")),
+        _hand_code(opponent_hand),
+        *[_number(row.get(field)) for field in INNING_EVENT_FIELDS],
+        recorded_outs,
+    ]
 
 
 def _filename(key):
@@ -96,10 +143,16 @@ def _finish_opponent(item):
 def aggregate(rows):
     buckets = {"batter": {}, "pitcher": {}}
     latest_date = None
+    half_outs = {}
     for row in rows:
         date = row.get("date")
         if date and (latest_date is None or date > latest_date):
             latest_date = date
+        half_key = (row.get("game_id"), row.get("inning"), row.get("top_bottom"))
+        reported_outs = max(0, min(3, _number(row.get("outs"))))
+        previous_outs = half_outs.get(half_key, 0)
+        recorded_outs = max(0, reported_outs - previous_outs)
+        half_outs[half_key] = reported_outs
         for kind in ("batter", "pitcher"):
             owner_prefix = "batter" if kind == "batter" else "pitcher"
             opponent_prefix = "pitcher" if kind == "batter" else "batter"
@@ -107,8 +160,16 @@ def aggregate(rows):
             opponent_key = row.get(opponent_prefix + "_key")
             if not owner_key or not opponent_key:
                 continue
-            player = buckets[kind].setdefault(owner_key, {"player": _new_player(row, kind), "opponents": {}})
+            player = buckets[kind].setdefault(owner_key, {
+                "player": _new_player(row, kind),
+                "opponents": {},
+                "games": [],
+                "events": [],
+                "_game_index": {},
+            })
             player["player"] = _new_player(row, kind)
+            game_index = _record_game(player, row, kind)
+            player["events"].append(_inning_event(row, game_index, kind, recorded_outs))
             opponent = player["opponents"].setdefault(opponent_key, _new_opponent(row, kind))
             opponent["name"] = row.get(opponent_prefix) or opponent["name"]
             opponent["team"] = row.get("fielding_team" if kind == "batter" else "batting_team") or opponent["team"]
@@ -180,6 +241,8 @@ def write_matchups(season, buckets, latest_date, base="data"):
                 "kind": kind,
                 "player": value["player"],
                 "opponents": opponents,
+                "games": value["games"],
+                "inning_events": value["events"],
             }
             with open(os.path.join(directory, filename), "w", encoding="utf-8") as handle:
                 json.dump(payload, handle, ensure_ascii=False, separators=(",", ":"))

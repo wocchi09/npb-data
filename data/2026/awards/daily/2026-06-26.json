@@ -1,8 +1,8 @@
 {
   "awardType": "daily",
   "date": "2026-06-26",
-  "scoreVersion": "1.1.0",
-  "generated_at": "2026-08-07T00:02:42.853582+09:00",
+  "scoreVersion": "1.2.0",
+  "generated_at": "2026-08-20T22:58:36.440032+09:00",
   "note": "利用可能データのみで算出。盗塁成功・盗塁失敗・高確度の走塁死を反映し、取得できない守備の細目は対象外",
   "games": 1,
   "leagues": {
@@ -68,42 +68,35 @@
         "margin": 16.87
       },
       "pitcher_mvp": {
-        "name": "髙橋 光成",
+        "name": "ウィンゲンター",
         "team": "西武",
-        "player_id": "1400182",
-        "role": "先発",
-        "raw": 40.5,
+        "player_id": "1860167",
+        "role": "中継ぎ",
+        "raw": 27.0,
         "score": 45.0,
-        "available_max": 90,
+        "available_max": 60,
         "breakdown": {
-          "innings": 20.0,
-          "prevention": 9,
-          "strikeout": 7.5,
-          "whip": 6,
-          "winContrib": 5,
-          "penalty": -7
+          "base": 23,
+          "situation": 4,
+          "penalty": 0.0
         },
-        "stat_line": "6回 2失点 自責2 5奪三振 被安打6 与四球1 WHIP1.17",
+        "stat_line": "1回 1奪三振 自責0 被安打0",
         "reasons": [
-          "QS"
+          "無失点",
+          "同点で登板"
         ],
-        "minus_reasons": [
-          "被本塁打2"
-        ],
+        "minus_reasons": [],
         "keys": {
-          "outs": 18,
-          "er": 2,
-          "so": 5,
-          "whip": 1.1666666666666667,
-          "qs": true,
-          "hqs": false
+          "outs": 3,
+          "er": 0,
+          "so": 1
         },
         "game_id": "2021039054",
-        "z": 45.0,
-        "z_method": "換算スコア",
-        "mvp_value": 42.75,
-        "comment": "6回 2失点 自責2 5奪三振 被安打6 与四球1 WHIP1.17。QS。",
-        "margin": -14.37
+        "z": 59.37,
+        "z_method": "役割内標準化",
+        "mvp_value": 41.56,
+        "comment": "1回 1奪三振 自責0 被安打0。無失点／同点で登板。",
+        "margin": 0.66
       },
       "best_batters": {
         "捕": {
@@ -489,15 +482,16 @@
           "team": "西武",
           "player_id": "1400182",
           "role": "先発",
-          "raw": 40.5,
-          "score": 45.0,
-          "available_max": 90,
+          "raw": 36.5,
+          "score": 36.5,
+          "available_max": 100,
           "breakdown": {
-            "innings": 20.0,
+            "innings": 15.0,
             "prevention": 9,
             "strikeout": 7.5,
             "whip": 6,
-            "winContrib": 5,
+            "winContrib": 6,
+            "achievement": 0,
             "penalty": -7
           },
           "stat_line": "6回 2失点 自責2 5奪三振 被安打6 与四球1 WHIP1.17",
@@ -516,9 +510,9 @@
             "hqs": false
           },
           "game_id": "2021039054",
-          "z": 45.0,
+          "z": 36.5,
           "z_method": "換算スコア",
-          "mvp_value": 42.75
+          "mvp_value": 34.67
         },
         "中継ぎ": {
           "name": "ウィンゲンター",
@@ -1178,15 +1172,16 @@
             "team": "西武",
             "player_id": "1400182",
             "role": "先発",
-            "raw": 40.5,
-            "score": 45.0,
-            "available_max": 90,
+            "raw": 36.5,
+            "score": 36.5,
+            "available_max": 100,
             "breakdown": {
-              "innings": 20.0,
+              "innings": 15.0,
               "prevention": 9,
               "strikeout": 7.5,
               "whip": 6,
-              "winContrib": 5,
+              "winContrib": 6,
+              "achievement": 0,
               "penalty": -7
             },
             "stat_line": "6回 2失点 自責2 5奪三振 被安打6 与四球1 WHIP1.17",
@@ -1205,24 +1200,25 @@
               "hqs": false
             },
             "game_id": "2021039054",
-            "z": 45.0,
+            "z": 36.5,
             "z_method": "換算スコア",
-            "mvp_value": 42.75
+            "mvp_value": 34.67
           },
           {
             "name": "伊藤 大海",
             "team": "日本ハム",
             "player_id": "2000079",
             "role": "先発",
-            "raw": 29.0,
-            "score": 32.22,
-            "available_max": 90,
+            "raw": 27.5,
+            "score": 27.5,
+            "available_max": 100,
             "breakdown": {
-              "innings": 20,
+              "innings": 17.5,
               "prevention": 4,
               "strikeout": 6.0,
               "whip": 0,
-              "winContrib": 3,
+              "winContrib": 4,
+              "achievement": 0,
               "penalty": -4
             },
             "stat_line": "7回 3失点 自責3 4奪三振 被安打9 与四球4 WHIP1.86",
@@ -1239,9 +1235,9 @@
               "hqs": false
             },
             "game_id": "2021039054",
-            "z": 32.22,
+            "z": 27.5,
             "z_method": "換算スコア",
-            "mvp_value": 32.22
+            "mvp_value": 27.5
           }
         ],
         "中継ぎ": [

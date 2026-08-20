@@ -3,8 +3,8 @@
   "label": "2026-07-20〜2026-07-26",
   "date_from": "2026-07-20",
   "date_to": "2026-07-26",
-  "scoreVersion": "1.2.0",
-  "generated_at": "2026-08-07T00:02:47.005884+09:00",
+  "scoreVersion": "1.3.0",
+  "generated_at": "2026-08-20T22:58:41.097286+09:00",
   "note": "利用可能データのみで算出。期間内のチーム試合数を基準に、野手は試合数・打席、投手は登板数・投球回で出場量補正",
   "leagues": {
     "セ": {
@@ -60,11 +60,11 @@
         "under_min_pa": false
       },
       "pitcher_mvp": {
-        "name": "平良 拳太郎",
-        "team": "DeNA",
+        "name": "村上 頌樹",
+        "team": "阪神",
         "role": "先発",
-        "raw": 95.32,
-        "score": 95.32,
+        "raw": 93.57,
+        "score": 93.57,
         "available_max": 100,
         "team_games": 6,
         "expected_appearances": 1.0,
@@ -73,15 +73,15 @@
         "breakdown": {
           "era": 25.0,
           "innings": 20.0,
-          "whip": 11.13,
-          "strikeout": 14.19,
-          "qs": 15.0,
-          "winContrib": 10.0
+          "whip": 12.43,
+          "strikeout": 11.14,
+          "qs": 20.0,
+          "winContrib": 5.0
         },
-        "stat_line": "1試合 6.0回 防御率0.00 7奪三振 WHIP0.83",
+        "stat_line": "1試合 9.0回 防御率0.00 6奪三振 WHIP0.78",
         "reasons": [
           "1勝0敗",
-          "QS1"
+          "HQS1"
         ],
         "minus_reasons": []
       },
@@ -394,51 +394,52 @@
           "under_min_pa": false
         },
         "中": {
-          "name": "髙寺 望夢",
-          "team": "阪神",
+          "name": "佐々木 俊輔",
+          "team": "巨人",
           "position": "中",
-          "raw": 35.89,
-          "score": 38.59,
+          "raw": 48.9,
+          "score": 52.58,
           "available_max": 93,
           "team_games": 6,
           "sample_coverage": 1.0,
           "sample_multiplier": 1.0,
           "breakdown": {
-            "battingContent": 26.12,
-            "runProduction": 2.6,
+            "battingContent": 31.5,
+            "runProduction": 10.9,
             "clutch": 0,
-            "playingTime": 8.5,
+            "playingTime": 10.0,
             "defenseBaser": 0,
             "teamWin": 0,
-            "penalty": -1.33
+            "penalty": -3.5
           },
           "stats": {
             "games": 6,
-            "pa": 18,
-            "ab": 15,
-            "hits": 4,
+            "pa": 24,
+            "ab": 20,
+            "hits": 6,
             "singles": 3,
-            "doubles": 1,
+            "doubles": 2,
             "triples": 0,
-            "hr": 0,
-            "rbi": 1,
-            "runs": 1,
+            "hr": 1,
+            "rbi": 2,
+            "runs": 4,
             "bb": 0,
             "hbp": 0,
-            "so": 2,
+            "so": 4,
             "sb": 0,
             "caught_stealing": 0,
             "baserunning_outs": 0,
             "baserunning_runs": 0,
-            "avg": 0.267,
-            "obp": 0.389,
-            "slg": 0.333,
-            "ops": 0.722
+            "avg": 0.3,
+            "obp": 0.375,
+            "slg": 0.55,
+            "ops": 0.925
           },
-          "stat_line": "6試合 18打席 15打数4安打 打率.267 OPS.722 0本 1点",
+          "stat_line": "6試合 24打席 20打数6安打 打率.300 OPS.925 1本 2点",
           "reasons": [
-            "OPS .722",
-            "1打点"
+            "OPS .925",
+            "1本塁打",
+            "2打点"
           ],
           "minus_reasons": [],
           "under_min_pa": false
@@ -497,11 +498,11 @@
       },
       "best_pitchers": {
         "先発": {
-          "name": "平良 拳太郎",
-          "team": "DeNA",
+          "name": "村上 頌樹",
+          "team": "阪神",
           "role": "先発",
-          "raw": 95.32,
-          "score": 95.32,
+          "raw": 93.57,
+          "score": 93.57,
           "available_max": 100,
           "team_games": 6,
           "expected_appearances": 1.0,
@@ -510,15 +511,15 @@
           "breakdown": {
             "era": 25.0,
             "innings": 20.0,
-            "whip": 11.13,
-            "strikeout": 14.19,
-            "qs": 15.0,
-            "winContrib": 10.0
+            "whip": 12.43,
+            "strikeout": 11.14,
+            "qs": 20.0,
+            "winContrib": 5.0
           },
-          "stat_line": "1試合 6.0回 防御率0.00 7奪三振 WHIP0.83",
+          "stat_line": "1試合 9.0回 防御率0.00 6奪三振 WHIP0.78",
           "reasons": [
             "1勝0敗",
-            "QS1"
+            "HQS1"
           ],
           "minus_reasons": []
         },
@@ -547,8 +548,8 @@
           "name": "森浦 大輔",
           "team": "広島",
           "role": "抑え",
-          "raw": 64.3,
-          "score": 64.3,
+          "raw": 65.0,
+          "score": 65.0,
           "available_max": 100,
           "team_games": 6,
           "expected_appearances": 2.7,
@@ -558,8 +559,8 @@
             "saves": 10.0,
             "saveRate": 20,
             "scorelessRate": 15.0,
-            "whip": 7.2,
-            "strikeout": 7.1,
+            "whip": 5.0,
+            "strikeout": 10.0,
             "appearances": 5
           },
           "stat_line": "4試合 1S 自責0 4奪三振",
@@ -1034,7 +1035,7 @@
         {
           "name": "赤羽 由紘",
           "team": "ヤクルト",
-          "position": "三左",
+          "position": "一",
           "raw": 49.38,
           "score": 53.1,
           "available_max": 93,
@@ -1085,7 +1086,7 @@
         {
           "name": "佐々木 俊輔",
           "team": "巨人",
-          "position": "右",
+          "position": "中",
           "raw": 48.9,
           "score": 52.58,
           "available_max": 93,
@@ -1341,11 +1342,11 @@
       "pitcher_ranking": {
         "先発": [
           {
-            "name": "平良 拳太郎",
-            "team": "DeNA",
+            "name": "村上 頌樹",
+            "team": "阪神",
             "role": "先発",
-            "raw": 95.32,
-            "score": 95.32,
+            "raw": 93.57,
+            "score": 93.57,
             "available_max": 100,
             "team_games": 6,
             "expected_appearances": 1.0,
@@ -1354,36 +1355,10 @@
             "breakdown": {
               "era": 25.0,
               "innings": 20.0,
-              "whip": 11.13,
-              "strikeout": 14.19,
-              "qs": 15.0,
-              "winContrib": 10.0
-            },
-            "stat_line": "1試合 6.0回 防御率0.00 7奪三振 WHIP0.83",
-            "reasons": [
-              "1勝0敗",
-              "QS1"
-            ],
-            "minus_reasons": []
-          },
-          {
-            "name": "村上 頌樹",
-            "team": "阪神",
-            "role": "先発",
-            "raw": 94.84,
-            "score": 94.84,
-            "available_max": 100,
-            "team_games": 6,
-            "expected_appearances": 1.0,
-            "workload_coverage": 1.0,
-            "workload_multiplier": 1.0,
-            "breakdown": {
-              "era": 25.0,
-              "innings": 20,
-              "whip": 11.29,
-              "strikeout": 13.55,
-              "qs": 15,
-              "winContrib": 10.0
+              "whip": 12.43,
+              "strikeout": 11.14,
+              "qs": 20.0,
+              "winContrib": 5.0
             },
             "stat_line": "1試合 9.0回 防御率0.00 6奪三振 WHIP0.78",
             "reasons": [
@@ -1396,20 +1371,20 @@
             "name": "髙橋 宏斗",
             "team": "中日",
             "role": "先発",
-            "raw": 86.89,
-            "score": 86.89,
+            "raw": 93.17,
+            "score": 93.17,
             "available_max": 100,
             "team_games": 6,
             "expected_appearances": 1.0,
             "workload_coverage": 1.0,
             "workload_multiplier": 1.0,
             "breakdown": {
-              "era": 13.98,
-              "innings": 20,
-              "whip": 13.23,
-              "strikeout": 14.68,
-              "qs": 15,
-              "winContrib": 10.0
+              "era": 20.71,
+              "innings": 18.75,
+              "whip": 14.57,
+              "strikeout": 14.14,
+              "qs": 20.0,
+              "winContrib": 5.0
             },
             "stat_line": "1試合 8.0回 防御率1.12 8奪三振 WHIP0.50",
             "reasons": [
@@ -1422,20 +1397,20 @@
             "name": "井上 温大",
             "team": "巨人",
             "role": "先発",
-            "raw": 84.2,
-            "score": 84.2,
+            "raw": 87.78,
+            "score": 87.78,
             "available_max": 100,
             "team_games": 6,
             "expected_appearances": 1.0,
             "workload_coverage": 1.0,
             "workload_multiplier": 1.0,
             "breakdown": {
-              "era": 13.71,
-              "innings": 20,
-              "whip": 10.81,
-              "strikeout": 14.68,
-              "qs": 15,
-              "winContrib": 10.0
+              "era": 20.0,
+              "innings": 17.5,
+              "whip": 11.14,
+              "strikeout": 14.14,
+              "qs": 20.0,
+              "winContrib": 5.0
             },
             "stat_line": "1試合 7.0回 防御率1.29 8奪三振 WHIP1.00",
             "reasons": [
@@ -1445,123 +1420,22 @@
             "minus_reasons": []
           },
           {
-            "name": "栗林 良吏",
-            "team": "広島",
-            "role": "先発",
-            "raw": 82.74,
-            "score": 82.74,
-            "available_max": 100,
-            "team_games": 6,
-            "expected_appearances": 1.0,
-            "workload_coverage": 1.0,
-            "workload_multiplier": 1.0,
-            "breakdown": {
-              "era": 25.0,
-              "innings": 20,
-              "whip": 13.39,
-              "strikeout": 9.35,
-              "qs": 15,
-              "winContrib": 0.0
-            },
-            "stat_line": "1試合 7.0回 防御率0.00 3奪三振 WHIP0.43",
-            "reasons": [
-              "HQS1"
-            ],
-            "minus_reasons": []
-          },
-          {
-            "name": "竹丸 和幸",
-            "team": "巨人",
-            "role": "先発",
-            "raw": 81.13,
-            "score": 81.13,
-            "available_max": 100,
-            "team_games": 6,
-            "expected_appearances": 1.0,
-            "workload_coverage": 1.0,
-            "workload_multiplier": 1.0,
-            "breakdown": {
-              "era": 12.9,
-              "innings": 20.0,
-              "whip": 10.81,
-              "strikeout": 12.42,
-              "qs": 15.0,
-              "winContrib": 10.0
-            },
-            "stat_line": "1試合 6.0回 防御率1.50 5奪三振 WHIP1.00",
-            "reasons": [
-              "1勝0敗",
-              "QS1"
-            ],
-            "minus_reasons": []
-          },
-          {
-            "name": "ウィットリー",
-            "team": "巨人",
-            "role": "先発",
-            "raw": 79.52,
-            "score": 79.52,
-            "available_max": 100,
-            "team_games": 6,
-            "expected_appearances": 1.0,
-            "workload_coverage": 1.0,
-            "workload_multiplier": 1.0,
-            "breakdown": {
-              "era": 25.0,
-              "innings": 20.0,
-              "whip": 5.97,
-              "strikeout": 13.55,
-              "qs": 15.0,
-              "winContrib": 0.0
-            },
-            "stat_line": "1試合 6.0回 防御率0.00 6奪三振 WHIP1.50",
-            "reasons": [
-              "QS1"
-            ],
-            "minus_reasons": []
-          },
-          {
-            "name": "下村 海翔",
-            "team": "阪神",
-            "role": "先発",
-            "raw": 74.51,
-            "score": 74.51,
-            "available_max": 100,
-            "team_games": 6,
-            "expected_appearances": 1.0,
-            "workload_coverage": 1.0,
-            "workload_multiplier": 1.0,
-            "breakdown": {
-              "era": 12.9,
-              "innings": 20.0,
-              "whip": 12.42,
-              "strikeout": 14.19,
-              "qs": 15.0,
-              "winContrib": 0.0
-            },
-            "stat_line": "1試合 6.0回 防御率1.50 7奪三振 WHIP0.67",
-            "reasons": [
-              "QS1"
-            ],
-            "minus_reasons": []
-          },
-          {
             "name": "金丸 夢斗",
             "team": "中日",
             "role": "先発",
-            "raw": 74.51,
-            "score": 74.51,
+            "raw": 83.22,
+            "score": 83.22,
             "available_max": 100,
             "team_games": 6,
             "expected_appearances": 1.0,
             "workload_coverage": 1.0,
             "workload_multiplier": 1.0,
             "breakdown": {
-              "era": 13.71,
-              "innings": 20,
-              "whip": 11.61,
-              "strikeout": 14.19,
-              "qs": 15,
+              "era": 20.0,
+              "innings": 17.5,
+              "whip": 12.86,
+              "strikeout": 12.86,
+              "qs": 20.0,
               "winContrib": 0.0
             },
             "stat_line": "1試合 7.0回 防御率1.29 7奪三振 WHIP0.71",
@@ -1571,22 +1445,148 @@
             "minus_reasons": []
           },
           {
-            "name": "尾形 崇斗",
+            "name": "平良 拳太郎",
             "team": "DeNA",
             "role": "先発",
-            "raw": 73.87,
-            "score": 73.87,
+            "raw": 81.86,
+            "score": 81.86,
             "available_max": 100,
             "team_games": 6,
             "expected_appearances": 1.0,
             "workload_coverage": 1.0,
             "workload_multiplier": 1.0,
             "breakdown": {
-              "era": 12.9,
+              "era": 25.0,
+              "innings": 15.0,
+              "whip": 12.0,
+              "strikeout": 12.86,
+              "qs": 12.0,
+              "winContrib": 5.0
+            },
+            "stat_line": "1試合 6.0回 防御率0.00 7奪三振 WHIP0.83",
+            "reasons": [
+              "1勝0敗",
+              "QS1"
+            ],
+            "minus_reasons": []
+          },
+          {
+            "name": "才木 浩人",
+            "team": "阪神",
+            "role": "先発",
+            "raw": 80.57,
+            "score": 80.57,
+            "available_max": 100,
+            "team_games": 6,
+            "expected_appearances": 1.0,
+            "workload_coverage": 1.0,
+            "workload_multiplier": 1.0,
+            "breakdown": {
+              "era": 11.43,
               "innings": 20.0,
-              "whip": 11.13,
-              "strikeout": 14.84,
-              "qs": 15.0,
+              "whip": 14.14,
+              "strikeout": 15.0,
+              "qs": 20.0,
+              "winContrib": 0.0
+            },
+            "stat_line": "1試合 9.0回 防御率2.00 13奪三振 WHIP0.56",
+            "reasons": [
+              "HQS1"
+            ],
+            "minus_reasons": []
+          },
+          {
+            "name": "栗林 良吏",
+            "team": "広島",
+            "role": "先発",
+            "raw": 80.5,
+            "score": 80.5,
+            "available_max": 100,
+            "team_games": 6,
+            "expected_appearances": 1.0,
+            "workload_coverage": 1.0,
+            "workload_multiplier": 1.0,
+            "breakdown": {
+              "era": 25.0,
+              "innings": 17.5,
+              "whip": 15.0,
+              "strikeout": 3.0,
+              "qs": 20.0,
+              "winContrib": 0.0
+            },
+            "stat_line": "1試合 7.0回 防御率0.00 3奪三振 WHIP0.43",
+            "reasons": [
+              "HQS1"
+            ],
+            "minus_reasons": []
+          },
+          {
+            "name": "小笠原 慎之介",
+            "team": "巨人",
+            "role": "先発",
+            "raw": 79.35,
+            "score": 79.35,
+            "available_max": 100,
+            "team_games": 6,
+            "expected_appearances": 1.0,
+            "workload_coverage": 1.0,
+            "workload_multiplier": 1.0,
+            "breakdown": {
+              "era": 20.0,
+              "innings": 17.5,
+              "whip": 7.71,
+              "strikeout": 14.14,
+              "qs": 20.0,
+              "winContrib": 0.0
+            },
+            "stat_line": "1試合 7.0回 防御率1.29 8奪三振 WHIP1.29",
+            "reasons": [
+              "HQS1"
+            ],
+            "minus_reasons": []
+          },
+          {
+            "name": "下村 海翔",
+            "team": "阪神",
+            "role": "先発",
+            "raw": 71.43,
+            "score": 71.43,
+            "available_max": 100,
+            "team_games": 6,
+            "expected_appearances": 1.0,
+            "workload_coverage": 1.0,
+            "workload_multiplier": 1.0,
+            "breakdown": {
+              "era": 17.86,
+              "innings": 15.0,
+              "whip": 13.71,
+              "strikeout": 12.86,
+              "qs": 12.0,
+              "winContrib": 0.0
+            },
+            "stat_line": "1試合 6.0回 防御率1.50 7奪三振 WHIP0.67",
+            "reasons": [
+              "QS1"
+            ],
+            "minus_reasons": []
+          },
+          {
+            "name": "尾形 崇斗",
+            "team": "DeNA",
+            "role": "先発",
+            "raw": 71.43,
+            "score": 71.43,
+            "available_max": 100,
+            "team_games": 6,
+            "expected_appearances": 1.0,
+            "workload_coverage": 1.0,
+            "workload_multiplier": 1.0,
+            "breakdown": {
+              "era": 17.86,
+              "innings": 15.0,
+              "whip": 12.0,
+              "strikeout": 14.57,
+              "qs": 12.0,
               "winContrib": 0.0
             },
             "stat_line": "1試合 6.0回 防御率1.50 9奪三振 WHIP0.83",
@@ -1622,8 +1622,8 @@
             "name": "松本 凌人",
             "team": "DeNA",
             "role": "中継ぎ",
-            "raw": 58.92,
-            "score": 60.74,
+            "raw": 58.46,
+            "score": 60.27,
             "available_max": 97,
             "team_games": 6,
             "expected_appearances": 3.0,
@@ -1632,7 +1632,7 @@
             "breakdown": {
               "scorelessRate": 25.0,
               "holds": 0.0,
-              "content": 18.92,
+              "content": 18.46,
               "appearances": 15
             },
             "stat_line": "5試合 4.0回 自責0 6奪三振",
@@ -1643,8 +1643,8 @@
             "name": "橋本 侑樹",
             "team": "中日",
             "role": "中継ぎ",
-            "raw": 58.71,
-            "score": 60.53,
+            "raw": 58.08,
+            "score": 59.88,
             "available_max": 97,
             "team_games": 6,
             "expected_appearances": 3.0,
@@ -1653,7 +1653,7 @@
             "breakdown": {
               "scorelessRate": 25.0,
               "holds": 0.0,
-              "content": 18.71,
+              "content": 18.08,
               "appearances": 15.0
             },
             "stat_line": "3試合 3.0回 自責0 3奪三振",
@@ -1664,8 +1664,8 @@
             "name": "廣澤 優",
             "team": "ヤクルト",
             "role": "中継ぎ",
-            "raw": 58.71,
-            "score": 60.53,
+            "raw": 58.08,
+            "score": 59.88,
             "available_max": 97,
             "team_games": 6,
             "expected_appearances": 3.0,
@@ -1674,7 +1674,7 @@
             "breakdown": {
               "scorelessRate": 25.0,
               "holds": 0.0,
-              "content": 18.71,
+              "content": 18.08,
               "appearances": 15.0
             },
             "stat_line": "3試合 3.0回 自責0 3奪三振",
@@ -1685,8 +1685,8 @@
             "name": "浜地 真澄",
             "team": "DeNA",
             "role": "中継ぎ",
-            "raw": 58.71,
-            "score": 60.53,
+            "raw": 58.08,
+            "score": 59.88,
             "available_max": 97,
             "team_games": 6,
             "expected_appearances": 3.0,
@@ -1695,7 +1695,7 @@
             "breakdown": {
               "scorelessRate": 25.0,
               "holds": 0.0,
-              "content": 18.71,
+              "content": 18.08,
               "appearances": 15.0
             },
             "stat_line": "3試合 3.0回 自責0 3奪三振",
@@ -1706,8 +1706,8 @@
             "name": "丸山 翔大",
             "team": "ヤクルト",
             "role": "中継ぎ",
-            "raw": 57.63,
-            "score": 59.41,
+            "raw": 56.54,
+            "score": 58.29,
             "available_max": 97,
             "team_games": 6,
             "expected_appearances": 3.0,
@@ -1716,7 +1716,7 @@
             "breakdown": {
               "scorelessRate": 25.0,
               "holds": 0.0,
-              "content": 17.63,
+              "content": 16.54,
               "appearances": 15
             },
             "stat_line": "4試合 4.0回 自責0 3奪三振",
@@ -1727,8 +1727,8 @@
             "name": "清水 昇",
             "team": "ヤクルト",
             "role": "中継ぎ",
-            "raw": 56.56,
-            "score": 58.31,
+            "raw": 55.77,
+            "score": 57.49,
             "available_max": 97,
             "team_games": 6,
             "expected_appearances": 3.0,
@@ -1737,7 +1737,7 @@
             "breakdown": {
               "scorelessRate": 25.0,
               "holds": 0.0,
-              "content": 16.56,
+              "content": 15.77,
               "appearances": 15.0
             },
             "stat_line": "3試合 3.0回 自責0 2奪三振",
@@ -1748,8 +1748,8 @@
             "name": "髙 太一",
             "team": "広島",
             "role": "中継ぎ",
-            "raw": 54.41,
-            "score": 56.09,
+            "raw": 54.23,
+            "score": 55.91,
             "available_max": 97,
             "team_games": 6,
             "expected_appearances": 3.0,
@@ -1758,7 +1758,7 @@
             "breakdown": {
               "scorelessRate": 25.0,
               "holds": 0.0,
-              "content": 14.41,
+              "content": 14.23,
               "appearances": 15
             },
             "stat_line": "4試合 4.0回 自責0 5奪三振",
@@ -1769,8 +1769,8 @@
             "name": "辻 大雅",
             "team": "広島",
             "role": "中継ぎ",
-            "raw": 50.63,
-            "score": 52.19,
+            "raw": 50.77,
+            "score": 52.34,
             "available_max": 97,
             "team_games": 6,
             "expected_appearances": 3.0,
@@ -1779,7 +1779,7 @@
             "breakdown": {
               "scorelessRate": 25.0,
               "holds": 0.0,
-              "content": 11.4,
+              "content": 11.54,
               "appearances": 15.0
             },
             "stat_line": "3試合 2.7回 自責0 3奪三振",
@@ -1790,8 +1790,8 @@
             "name": "草加 勝",
             "team": "中日",
             "role": "中継ぎ",
-            "raw": 48.07,
-            "score": 49.56,
+            "raw": 47.51,
+            "score": 48.98,
             "available_max": 97,
             "team_games": 6,
             "expected_appearances": 3.0,
@@ -1800,7 +1800,7 @@
             "breakdown": {
               "scorelessRate": 25.0,
               "holds": 0.0,
-              "content": 18.71,
+              "content": 18.08,
               "appearances": 10.0
             },
             "stat_line": "2試合 3.0回 自責0 2奪三振",
@@ -1813,8 +1813,8 @@
             "name": "森浦 大輔",
             "team": "広島",
             "role": "抑え",
-            "raw": 64.3,
-            "score": 64.3,
+            "raw": 65.0,
+            "score": 65.0,
             "available_max": 100,
             "team_games": 6,
             "expected_appearances": 2.7,
@@ -1824,8 +1824,8 @@
               "saves": 10.0,
               "saveRate": 20,
               "scorelessRate": 15.0,
-              "whip": 7.2,
-              "strikeout": 7.1,
+              "whip": 5.0,
+              "strikeout": 10.0,
               "appearances": 5
             },
             "stat_line": "4試合 1S 自責0 4奪三振",
@@ -1838,8 +1838,8 @@
             "name": "松山 晋也",
             "team": "中日",
             "role": "抑え",
-            "raw": 57.08,
-            "score": 57.08,
+            "raw": 58.48,
+            "score": 58.48,
             "available_max": 100,
             "team_games": 6,
             "expected_appearances": 2.7,
@@ -1849,8 +1849,8 @@
               "saves": 10.0,
               "saveRate": 20,
               "scorelessRate": 15.0,
-              "whip": 8.82,
-              "strikeout": 7.1,
+              "whip": 7.5,
+              "strikeout": 10.0,
               "appearances": 3.7
             },
             "stat_line": "2試合 1S 自責0 4奪三振",
@@ -1863,8 +1863,8 @@
             "name": "ドリス",
             "team": "阪神",
             "role": "抑え",
-            "raw": 55.56,
-            "score": 55.56,
+            "raw": 56.27,
+            "score": 56.27,
             "available_max": 100,
             "team_games": 6,
             "expected_appearances": 2.7,
@@ -1875,7 +1875,7 @@
               "saveRate": 20,
               "scorelessRate": 15.0,
               "whip": 10.0,
-              "strikeout": 4.19,
+              "strikeout": 5.0,
               "appearances": 3.7
             },
             "stat_line": "2試合 1S 自責0 2奪三振",
@@ -1888,8 +1888,8 @@
             "name": "マルティネス",
             "team": "巨人",
             "role": "抑え",
-            "raw": 43.61,
-            "score": 43.61,
+            "raw": 40.81,
+            "score": 40.81,
             "available_max": 100,
             "team_games": 6,
             "expected_appearances": 2.7,
@@ -1899,8 +1899,8 @@
               "saves": 10.0,
               "saveRate": 20,
               "scorelessRate": 7.5,
-              "whip": 3.98,
-              "strikeout": 4.19,
+              "whip": 0.0,
+              "strikeout": 5.0,
               "appearances": 3.7
             },
             "stat_line": "2試合 1S 自責1 2奪三振",
@@ -1913,8 +1913,8 @@
             "name": "田中 瑛斗",
             "team": "巨人",
             "role": "抑え",
-            "raw": 40.13,
-            "score": 40.13,
+            "raw": 37.16,
+            "score": 37.16,
             "available_max": 100,
             "team_games": 6,
             "expected_appearances": 2.7,
@@ -1924,8 +1924,8 @@
               "saves": 10.0,
               "saveRate": 20,
               "scorelessRate": 15.0,
-              "whip": 7.2,
-              "strikeout": 1.94,
+              "whip": 5.0,
+              "strikeout": 0.0,
               "appearances": 1.85
             },
             "stat_line": "1試合 1S 自責0 1奪三振",
@@ -1991,28 +1991,28 @@
         "under_min_pa": false
       },
       "pitcher_mvp": {
-        "name": "前田 悠伍",
-        "team": "ソフトバンク",
+        "name": "小島 和哉",
+        "team": "ロッテ",
         "role": "先発",
-        "raw": 84.96,
-        "score": 84.96,
+        "raw": 90.27,
+        "score": 90.27,
         "available_max": 100,
-        "team_games": 7,
-        "expected_appearances": 1.17,
-        "workload_coverage": 0.857,
-        "workload_multiplier": 0.929,
+        "team_games": 6,
+        "expected_appearances": 1.0,
+        "workload_coverage": 1.0,
+        "workload_multiplier": 1.0,
         "breakdown": {
-          "era": 25.0,
-          "innings": 17.14,
-          "whip": 11.45,
-          "strikeout": 12.9,
-          "qs": 15.0,
-          "winContrib": 10.0
+          "era": 20.97,
+          "innings": 20.0,
+          "whip": 12.58,
+          "strikeout": 11.72,
+          "qs": 20.0,
+          "winContrib": 5.0
         },
-        "stat_line": "1試合 6.0回 防御率0.00 5奪三振 WHIP0.83",
+        "stat_line": "1試合 9.0回 防御率2.00 6奪三振 WHIP1.00",
         "reasons": [
           "1勝0敗",
-          "QS1"
+          "HQS1"
         ],
         "minus_reasons": []
       },
@@ -2478,28 +2478,28 @@
       },
       "best_pitchers": {
         "先発": {
-          "name": "前田 悠伍",
-          "team": "ソフトバンク",
+          "name": "小島 和哉",
+          "team": "ロッテ",
           "role": "先発",
-          "raw": 84.96,
-          "score": 84.96,
+          "raw": 90.27,
+          "score": 90.27,
           "available_max": 100,
-          "team_games": 7,
-          "expected_appearances": 1.17,
-          "workload_coverage": 0.857,
-          "workload_multiplier": 0.929,
+          "team_games": 6,
+          "expected_appearances": 1.0,
+          "workload_coverage": 1.0,
+          "workload_multiplier": 1.0,
           "breakdown": {
-            "era": 25.0,
-            "innings": 17.14,
-            "whip": 11.45,
-            "strikeout": 12.9,
-            "qs": 15.0,
-            "winContrib": 10.0
+            "era": 20.97,
+            "innings": 20.0,
+            "whip": 12.58,
+            "strikeout": 11.72,
+            "qs": 20.0,
+            "winContrib": 5.0
           },
-          "stat_line": "1試合 6.0回 防御率0.00 5奪三振 WHIP0.83",
+          "stat_line": "1試合 9.0回 防御率2.00 6奪三振 WHIP1.00",
           "reasons": [
             "1勝0敗",
-            "QS1"
+            "HQS1"
           ],
           "minus_reasons": []
         },
@@ -2507,8 +2507,8 @@
           "name": "金村 尚真",
           "team": "日本ハム",
           "role": "中継ぎ",
-          "raw": 57.85,
-          "score": 59.64,
+          "raw": 56.67,
+          "score": 58.42,
           "available_max": 97,
           "team_games": 5,
           "expected_appearances": 2.5,
@@ -2517,7 +2517,7 @@
           "breakdown": {
             "scorelessRate": 25.0,
             "holds": 0.0,
-            "content": 17.85,
+            "content": 16.67,
             "appearances": 15
           },
           "stat_line": "3試合 3.0回 自責0 0奪三振",
@@ -2528,8 +2528,8 @@
           "name": "マチャド",
           "team": "オリックス",
           "role": "抑え",
-          "raw": 83.1,
-          "score": 83.1,
+          "raw": 83.92,
+          "score": 83.92,
           "available_max": 100,
           "team_games": 7,
           "expected_appearances": 3.15,
@@ -2539,8 +2539,8 @@
             "saves": 30.0,
             "saveRate": 20,
             "scorelessRate": 15.0,
-            "whip": 8.06,
-            "strikeout": 7.1,
+            "whip": 6.0,
+            "strikeout": 10.0,
             "appearances": 4.76
           },
           "stat_line": "3試合 3S 自責0 3奪三振",
@@ -3325,49 +3325,23 @@
       "pitcher_ranking": {
         "先発": [
           {
-            "name": "前田 悠伍",
-            "team": "ソフトバンク",
-            "role": "先発",
-            "raw": 84.96,
-            "score": 84.96,
-            "available_max": 100,
-            "team_games": 7,
-            "expected_appearances": 1.17,
-            "workload_coverage": 0.857,
-            "workload_multiplier": 0.929,
-            "breakdown": {
-              "era": 25.0,
-              "innings": 17.14,
-              "whip": 11.45,
-              "strikeout": 12.9,
-              "qs": 15.0,
-              "winContrib": 10.0
-            },
-            "stat_line": "1試合 6.0回 防御率0.00 5奪三振 WHIP0.83",
-            "reasons": [
-              "1勝0敗",
-              "QS1"
-            ],
-            "minus_reasons": []
-          },
-          {
             "name": "小島 和哉",
             "team": "ロッテ",
             "role": "先発",
-            "raw": 83.39,
-            "score": 83.39,
+            "raw": 90.27,
+            "score": 90.27,
             "available_max": 100,
             "team_games": 6,
             "expected_appearances": 1.0,
             "workload_coverage": 1.0,
             "workload_multiplier": 1.0,
             "breakdown": {
-              "era": 13.71,
-              "innings": 20,
-              "whip": 10.81,
-              "strikeout": 13.87,
-              "qs": 15,
-              "winContrib": 10.0
+              "era": 20.97,
+              "innings": 20.0,
+              "whip": 12.58,
+              "strikeout": 11.72,
+              "qs": 20.0,
+              "winContrib": 5.0
             },
             "stat_line": "1試合 9.0回 防御率2.00 6奪三振 WHIP1.00",
             "reasons": [
@@ -3380,20 +3354,20 @@
             "name": "エスピノーザ",
             "team": "オリックス",
             "role": "先発",
-            "raw": 82.07,
-            "score": 82.07,
+            "raw": 89.79,
+            "score": 89.79,
             "available_max": 100,
             "team_games": 7,
             "expected_appearances": 1.17,
             "workload_coverage": 0.914,
             "workload_multiplier": 0.957,
             "breakdown": {
-              "era": 14.78,
-              "innings": 20.0,
-              "whip": 11.29,
-              "strikeout": 14.68,
-              "qs": 15,
-              "winContrib": 10.0
+              "era": 24.19,
+              "innings": 17.5,
+              "whip": 13.06,
+              "strikeout": 14.06,
+              "qs": 20.0,
+              "winContrib": 5.0
             },
             "stat_line": "1試合 7.0回 防御率1.29 8奪三振 WHIP0.86",
             "reasons": [
@@ -3403,49 +3377,23 @@
             "minus_reasons": []
           },
           {
-            "name": "北山 亘基",
-            "team": "日本ハム",
-            "role": "先発",
-            "raw": 77.43,
-            "score": 77.43,
-            "available_max": 100,
-            "team_games": 5,
-            "expected_appearances": 1.0,
-            "workload_coverage": 1.0,
-            "workload_multiplier": 1.0,
-            "breakdown": {
-              "era": 14.52,
-              "innings": 20.0,
-              "whip": 7.26,
-              "strikeout": 10.65,
-              "qs": 15.0,
-              "winContrib": 10.0
-            },
-            "stat_line": "1試合 6.0回 防御率1.50 3奪三振 WHIP1.33",
-            "reasons": [
-              "1勝0敗",
-              "QS1"
-            ],
-            "minus_reasons": []
-          },
-          {
             "name": "スチュワート・ジュニア",
             "team": "ソフトバンク",
             "role": "先発",
-            "raw": 75.9,
-            "score": 75.9,
+            "raw": 79.07,
+            "score": 79.07,
             "available_max": 100,
             "team_games": 7,
             "expected_appearances": 1.17,
             "workload_coverage": 0.914,
             "workload_multiplier": 0.957,
             "breakdown": {
-              "era": 12.37,
-              "innings": 20.0,
-              "whip": 8.06,
-              "strikeout": 13.87,
-              "qs": 15,
-              "winContrib": 10.0
+              "era": 17.74,
+              "innings": 17.5,
+              "whip": 10.65,
+              "strikeout": 11.72,
+              "qs": 20.0,
+              "winContrib": 5.0
             },
             "stat_line": "1試合 7.0回 防御率2.57 6奪三振 WHIP1.14",
             "reasons": [
@@ -3455,74 +3403,22 @@
             "minus_reasons": []
           },
           {
-            "name": "九里 亜蓮",
-            "team": "オリックス",
-            "role": "先発",
-            "raw": 73.28,
-            "score": 73.28,
-            "available_max": 100,
-            "team_games": 7,
-            "expected_appearances": 1.17,
-            "workload_coverage": 1.0,
-            "workload_multiplier": 1.0,
-            "breakdown": {
-              "era": 13.44,
-              "innings": 20,
-              "whip": 4.84,
-              "strikeout": 15.0,
-              "qs": 15,
-              "winContrib": 5.0
-            },
-            "stat_line": "2試合 13.0回 防御率2.08 15奪三振 WHIP1.54",
-            "reasons": [
-              "1勝1敗",
-              "HQS1"
-            ],
-            "minus_reasons": []
-          },
-          {
-            "name": "上茶谷 大河",
-            "team": "ソフトバンク",
-            "role": "先発",
-            "raw": 72.23,
-            "score": 72.23,
-            "available_max": 100,
-            "team_games": 7,
-            "expected_appearances": 1.17,
-            "workload_coverage": 0.857,
-            "workload_multiplier": 0.929,
-            "breakdown": {
-              "era": 9.68,
-              "innings": 17.14,
-              "whip": 13.06,
-              "strikeout": 12.9,
-              "qs": 15.0,
-              "winContrib": 10.0
-            },
-            "stat_line": "1試合 6.0回 防御率4.50 5奪三振 WHIP0.50",
-            "reasons": [
-              "1勝0敗",
-              "QS1"
-            ],
-            "minus_reasons": []
-          },
-          {
             "name": "河村 説人",
             "team": "ロッテ",
             "role": "先発",
-            "raw": 71.08,
-            "score": 71.08,
+            "raw": 78.2,
+            "score": 78.2,
             "available_max": 100,
             "team_games": 6,
             "expected_appearances": 1.0,
             "workload_coverage": 1.0,
             "workload_multiplier": 1.0,
             "breakdown": {
-              "era": 13.17,
-              "innings": 20,
-              "whip": 12.26,
-              "strikeout": 10.65,
-              "qs": 15,
+              "era": 19.35,
+              "innings": 19.17,
+              "whip": 14.52,
+              "strikeout": 5.16,
+              "qs": 20.0,
               "winContrib": 0.0
             },
             "stat_line": "1試合 8.3回 防御率2.16 3奪三振 WHIP0.60",
@@ -3532,28 +3428,105 @@
             "minus_reasons": []
           },
           {
-            "name": "ジャクソン",
-            "team": "ロッテ",
+            "name": "荘司 康誠",
+            "team": "楽天",
             "role": "先発",
-            "raw": 70.76,
-            "score": 70.76,
+            "raw": 74.8,
+            "score": 74.8,
             "available_max": 100,
-            "team_games": 6,
+            "team_games": 5,
             "expected_appearances": 1.0,
             "workload_coverage": 1.0,
             "workload_multiplier": 1.0,
             "breakdown": {
-              "era": 9.95,
-              "innings": 20,
-              "whip": 5.97,
-              "strikeout": 14.84,
-              "qs": 15,
+              "era": 17.74,
+              "innings": 17.5,
+              "whip": 10.65,
+              "strikeout": 8.91,
+              "qs": 20.0,
+              "winContrib": 0.0
+            },
+            "stat_line": "1試合 7.0回 防御率2.57 5奪三振 WHIP1.14",
+            "reasons": [
+              "HQS1"
+            ],
+            "minus_reasons": []
+          },
+          {
+            "name": "前田 悠伍",
+            "team": "ソフトバンク",
+            "role": "先発",
+            "raw": 73.78,
+            "score": 73.78,
+            "available_max": 100,
+            "team_games": 7,
+            "expected_appearances": 1.17,
+            "workload_coverage": 0.857,
+            "workload_multiplier": 0.929,
+            "breakdown": {
+              "era": 25.0,
+              "innings": 15.0,
+              "whip": 13.55,
+              "strikeout": 8.91,
+              "qs": 12.0,
               "winContrib": 5.0
             },
-            "stat_line": "2試合 12.3回 防御率4.38 12奪三振 WHIP1.46",
+            "stat_line": "1試合 6.0回 防御率0.00 5奪三振 WHIP0.83",
             "reasons": [
               "1勝0敗",
+              "QS1"
+            ],
+            "minus_reasons": []
+          },
+          {
+            "name": "九里 亜蓮",
+            "team": "オリックス",
+            "role": "先発",
+            "raw": 73.3,
+            "score": 73.3,
+            "available_max": 100,
+            "team_games": 7,
+            "expected_appearances": 1.17,
+            "workload_coverage": 1.0,
+            "workload_multiplier": 1.0,
+            "breakdown": {
+              "era": 20.16,
+              "innings": 16.25,
+              "whip": 3.39,
+              "strikeout": 15.0,
+              "qs": 16.0,
+              "winContrib": 2.5
+            },
+            "stat_line": "2試合 13.0回 防御率2.08 15奪三振 WHIP1.54",
+            "reasons": [
+              "1勝1敗",
               "HQS1"
+            ],
+            "minus_reasons": []
+          },
+          {
+            "name": "北山 亘基",
+            "team": "日本ハム",
+            "role": "先発",
+            "raw": 69.26,
+            "score": 69.26,
+            "available_max": 100,
+            "team_games": 5,
+            "expected_appearances": 1.0,
+            "workload_coverage": 1.0,
+            "workload_multiplier": 1.0,
+            "breakdown": {
+              "era": 23.39,
+              "innings": 15.0,
+              "whip": 8.71,
+              "strikeout": 5.16,
+              "qs": 12.0,
+              "winContrib": 5.0
+            },
+            "stat_line": "1試合 6.0回 防御率1.50 3奪三振 WHIP1.33",
+            "reasons": [
+              "1勝0敗",
+              "QS1"
             ],
             "minus_reasons": []
           },
@@ -3561,23 +3534,49 @@
             "name": "加藤 貴之",
             "team": "日本ハム",
             "role": "先発",
-            "raw": 70.7,
-            "score": 70.7,
+            "raw": 64.19,
+            "score": 64.19,
             "available_max": 100,
             "team_games": 5,
             "expected_appearances": 1.0,
             "workload_coverage": 1.0,
             "workload_multiplier": 1.0,
             "breakdown": {
-              "era": 11.83,
-              "innings": 20.0,
-              "whip": 12.1,
-              "strikeout": 11.77,
-              "qs": 15.0,
+              "era": 16.13,
+              "innings": 15.0,
+              "whip": 14.03,
+              "strikeout": 7.03,
+              "qs": 12.0,
               "winContrib": 0.0
             },
             "stat_line": "1試合 6.0回 防御率3.00 4奪三振 WHIP0.67",
             "reasons": [
+              "QS1"
+            ],
+            "minus_reasons": []
+          },
+          {
+            "name": "上茶谷 大河",
+            "team": "ソフトバンク",
+            "role": "先発",
+            "raw": 63.15,
+            "score": 63.15,
+            "available_max": 100,
+            "team_games": 7,
+            "expected_appearances": 1.17,
+            "workload_coverage": 0.857,
+            "workload_multiplier": 0.929,
+            "breakdown": {
+              "era": 12.1,
+              "innings": 15.0,
+              "whip": 15.0,
+              "strikeout": 8.91,
+              "qs": 12.0,
+              "winContrib": 5.0
+            },
+            "stat_line": "1試合 6.0回 防御率4.50 5奪三振 WHIP0.50",
+            "reasons": [
+              "1勝0敗",
               "QS1"
             ],
             "minus_reasons": []
@@ -3588,8 +3587,8 @@
             "name": "金村 尚真",
             "team": "日本ハム",
             "role": "中継ぎ",
-            "raw": 57.85,
-            "score": 59.64,
+            "raw": 56.67,
+            "score": 58.42,
             "available_max": 97,
             "team_games": 5,
             "expected_appearances": 2.5,
@@ -3598,7 +3597,7 @@
             "breakdown": {
               "scorelessRate": 25.0,
               "holds": 0.0,
-              "content": 17.85,
+              "content": 16.67,
               "appearances": 15
             },
             "stat_line": "3試合 3.0回 自責0 0奪三振",
@@ -3609,8 +3608,8 @@
             "name": "ウィンゲンター",
             "team": "西武",
             "role": "中継ぎ",
-            "raw": 56.13,
-            "score": 57.87,
+            "raw": 54.81,
+            "score": 56.51,
             "available_max": 97,
             "team_games": 6,
             "expected_appearances": 3.0,
@@ -3619,7 +3618,7 @@
             "breakdown": {
               "scorelessRate": 25.0,
               "holds": 0.0,
-              "content": 16.13,
+              "content": 14.81,
               "appearances": 15.0
             },
             "stat_line": "3試合 3.0回 自責0 5奪三振",
@@ -3630,8 +3629,8 @@
             "name": "森脇 亮介",
             "team": "西武",
             "role": "中継ぎ",
-            "raw": 54.65,
-            "score": 56.34,
+            "raw": 53.62,
+            "score": 55.28,
             "available_max": 97,
             "team_games": 6,
             "expected_appearances": 3.0,
@@ -3640,7 +3639,7 @@
             "breakdown": {
               "scorelessRate": 25.0,
               "holds": 0.0,
-              "content": 15.48,
+              "content": 14.44,
               "appearances": 15.0
             },
             "stat_line": "3試合 2.7回 自責0 2奪三振",
@@ -3651,8 +3650,8 @@
             "name": "椋木 蓮",
             "team": "オリックス",
             "role": "中継ぎ",
-            "raw": 54.27,
-            "score": 55.95,
+            "raw": 53.35,
+            "score": 55.0,
             "available_max": 97,
             "team_games": 7,
             "expected_appearances": 3.5,
@@ -3661,7 +3660,7 @@
             "breakdown": {
               "scorelessRate": 25.0,
               "holds": 0.0,
-              "content": 14.62,
+              "content": 13.7,
               "appearances": 15
             },
             "stat_line": "4試合 3.3回 自責0 3奪三振",
@@ -3714,8 +3713,8 @@
             "name": "才木 海翔",
             "team": "オリックス",
             "role": "中継ぎ",
-            "raw": 48.91,
-            "score": 50.42,
+            "raw": 47.9,
+            "score": 49.38,
             "available_max": 97,
             "team_games": 7,
             "expected_appearances": 3.5,
@@ -3724,7 +3723,7 @@
             "breakdown": {
               "scorelessRate": 25.0,
               "holds": 0.0,
-              "content": 14.41,
+              "content": 13.33,
               "appearances": 12.86
             },
             "stat_line": "3試合 3.0回 自責0 1奪三振",
@@ -3735,8 +3734,8 @@
             "name": "オスナ",
             "team": "ソフトバンク",
             "role": "中継ぎ",
-            "raw": 48.16,
-            "score": 49.65,
+            "raw": 47.08,
+            "score": 48.54,
             "available_max": 97,
             "team_games": 7,
             "expected_appearances": 3.5,
@@ -3745,7 +3744,7 @@
             "breakdown": {
               "scorelessRate": 18.75,
               "holds": 0.0,
-              "content": 14.41,
+              "content": 13.33,
               "appearances": 15
             },
             "stat_line": "4試合 4.0回 自責1 5奪三振",
@@ -3753,29 +3752,29 @@
             "minus_reasons": []
           },
           {
-            "name": "中村 祐太",
-            "team": "西武",
+            "name": "八木 彬",
+            "team": "ロッテ",
             "role": "中継ぎ",
-            "raw": 47.3,
-            "score": 48.76,
+            "raw": 46.75,
+            "score": 48.2,
             "available_max": 97,
             "team_games": 6,
             "expected_appearances": 3.0,
-            "workload_coverage": 0.767,
-            "workload_multiplier": 0.895,
+            "workload_coverage": 0.667,
+            "workload_multiplier": 0.85,
             "breakdown": {
               "scorelessRate": 25.0,
               "holds": 0.0,
-              "content": 17.85,
+              "content": 20.0,
               "appearances": 10.0
             },
-            "stat_line": "2試合 3.0回 自責0 3奪三振",
+            "stat_line": "2試合 2.0回 自責0 1奪三振",
             "reasons": [],
             "minus_reasons": []
           },
           {
-            "name": "八木 彬",
-            "team": "ロッテ",
+            "name": "山田 陽翔",
+            "team": "西武",
             "role": "中継ぎ",
             "raw": 46.75,
             "score": 48.2,
@@ -3800,8 +3799,8 @@
             "name": "マチャド",
             "team": "オリックス",
             "role": "抑え",
-            "raw": 83.1,
-            "score": 83.1,
+            "raw": 83.92,
+            "score": 83.92,
             "available_max": 100,
             "team_games": 7,
             "expected_appearances": 3.15,
@@ -3811,8 +3810,8 @@
               "saves": 30.0,
               "saveRate": 20,
               "scorelessRate": 15.0,
-              "whip": 8.06,
-              "strikeout": 7.1,
+              "whip": 6.0,
+              "strikeout": 10.0,
               "appearances": 4.76
             },
             "stat_line": "3試合 3S 自責0 3奪三振",
@@ -3825,8 +3824,8 @@
             "name": "甲斐野 央",
             "team": "西武",
             "role": "抑え",
-            "raw": 70.65,
-            "score": 70.65,
+            "raw": 70.0,
+            "score": 70.0,
             "available_max": 100,
             "team_games": 6,
             "expected_appearances": 2.7,
@@ -3836,8 +3835,8 @@
               "saves": 20.0,
               "saveRate": 20,
               "scorelessRate": 15.0,
-              "whip": 4.84,
-              "strikeout": 5.81,
+              "whip": 2.0,
+              "strikeout": 8.0,
               "appearances": 5
             },
             "stat_line": "3試合 2S 自責0 2奪三振",
@@ -3850,8 +3849,8 @@
             "name": "津森 宥紀",
             "team": "ソフトバンク",
             "role": "抑え",
-            "raw": 52.39,
-            "score": 52.39,
+            "raw": 53.63,
+            "score": 53.63,
             "available_max": 100,
             "team_games": 7,
             "expected_appearances": 3.15,
@@ -3861,8 +3860,8 @@
               "saves": 10.0,
               "saveRate": 20,
               "scorelessRate": 15.0,
-              "whip": 8.71,
-              "strikeout": 5.81,
+              "whip": 8.0,
+              "strikeout": 8.0,
               "appearances": 3.17
             },
             "stat_line": "2試合 1S 自責0 2奪三振",
@@ -3875,8 +3874,8 @@
             "name": "藤平 尚真",
             "team": "楽天",
             "role": "抑え",
-            "raw": 47.27,
-            "score": 47.27,
+            "raw": 48.92,
+            "score": 48.92,
             "available_max": 100,
             "team_games": 5,
             "expected_appearances": 2.25,
@@ -3887,7 +3886,7 @@
               "saveRate": 20,
               "scorelessRate": 15.0,
               "whip": 10.0,
-              "strikeout": 5.81,
+              "strikeout": 8.0,
               "appearances": 2.22
             },
             "stat_line": "1試合 1S 自責0 2奪三振",
@@ -3900,8 +3899,8 @@
             "name": "杉山 一樹",
             "team": "ソフトバンク",
             "role": "抑え",
-            "raw": 34.1,
-            "score": 34.1,
+            "raw": 29.4,
+            "score": 29.4,
             "available_max": 100,
             "team_games": 7,
             "expected_appearances": 3.15,
@@ -3911,8 +3910,8 @@
               "saves": 10.0,
               "saveRate": 20,
               "scorelessRate": 0,
-              "whip": 3.87,
-              "strikeout": 3.76,
+              "whip": 0.0,
+              "strikeout": 2.0,
               "appearances": 3.17
             },
             "stat_line": "2試合 1S 自責3 1奪三振",
@@ -3925,8 +3924,8 @@
             "name": "横山 陸人",
             "team": "ロッテ",
             "role": "抑え",
-            "raw": 26.99,
-            "score": 26.99,
+            "raw": 22.26,
+            "score": 22.26,
             "available_max": 100,
             "team_games": 6,
             "expected_appearances": 2.7,
@@ -3936,8 +3935,8 @@
               "saves": 10.0,
               "saveRate": 0,
               "scorelessRate": 7.5,
-              "whip": 7.2,
-              "strikeout": 2.15,
+              "whip": 4.0,
+              "strikeout": 0.0,
               "appearances": 3.7
             },
             "stat_line": "2試合 1S 自責1 0奪三振",

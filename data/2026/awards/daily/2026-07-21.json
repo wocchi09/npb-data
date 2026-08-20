@@ -1,8 +1,8 @@
 {
   "awardType": "daily",
   "date": "2026-07-21",
-  "scoreVersion": "1.1.0",
-  "generated_at": "2026-08-07T00:02:43.401672+09:00",
+  "scoreVersion": "1.2.0",
+  "generated_at": "2026-08-20T22:58:36.950635+09:00",
   "note": "利用可能データのみで算出。盗塁成功・盗塁失敗・高確度の走塁死を反映し、取得できない守備の細目は対象外",
   "games": 4,
   "leagues": {
@@ -61,15 +61,16 @@
         "team": "阪神",
         "player_id": "2110265",
         "role": "先発",
-        "raw": 61.5,
-        "score": 68.33,
-        "available_max": 90,
+        "raw": 57.5,
+        "score": 57.5,
+        "available_max": 100,
         "breakdown": {
-          "innings": 20.0,
+          "innings": 15.0,
           "prevention": 15,
           "strikeout": 12.5,
           "whip": 12,
-          "winContrib": 5,
+          "winContrib": 6,
+          "achievement": 0,
           "penalty": -3
         },
         "stat_line": "6回 1失点 自責1 7奪三振 被安打4 与四球0 WHIP0.67",
@@ -88,11 +89,11 @@
           "hqs": false
         },
         "game_id": "2021039173",
-        "z": 67.67,
+        "z": 68.06,
         "z_method": "役割内標準化",
-        "mvp_value": 64.29,
+        "mvp_value": 64.66,
         "comment": "6回 1失点 自責1 7奪三振 被安打4 与四球0 WHIP0.67。QS。",
-        "margin": 14.88
+        "margin": 16.59
       },
       "best_batters": {
         "捕": {
@@ -447,15 +448,16 @@
           "team": "阪神",
           "player_id": "2110265",
           "role": "先発",
-          "raw": 61.5,
-          "score": 68.33,
-          "available_max": 90,
+          "raw": 57.5,
+          "score": 57.5,
+          "available_max": 100,
           "breakdown": {
-            "innings": 20.0,
+            "innings": 15.0,
             "prevention": 15,
             "strikeout": 12.5,
             "whip": 12,
-            "winContrib": 5,
+            "winContrib": 6,
+            "achievement": 0,
             "penalty": -3
           },
           "stat_line": "6回 1失点 自責1 7奪三振 被安打4 与四球0 WHIP0.67",
@@ -474,9 +476,9 @@
             "hqs": false
           },
           "game_id": "2021039173",
-          "z": 67.67,
+          "z": 68.06,
           "z_method": "役割内標準化",
-          "mvp_value": 64.29
+          "mvp_value": 64.66
         },
         "中継ぎ": {
           "name": "工藤 泰成",
@@ -1172,15 +1174,16 @@
             "team": "阪神",
             "player_id": "2110265",
             "role": "先発",
-            "raw": 61.5,
-            "score": 68.33,
-            "available_max": 90,
+            "raw": 57.5,
+            "score": 57.5,
+            "available_max": 100,
             "breakdown": {
-              "innings": 20.0,
+              "innings": 15.0,
               "prevention": 15,
               "strikeout": 12.5,
               "whip": 12,
-              "winContrib": 5,
+              "winContrib": 6,
+              "achievement": 0,
               "penalty": -3
             },
             "stat_line": "6回 1失点 自責1 7奪三振 被安打4 与四球0 WHIP0.67",
@@ -1199,24 +1202,60 @@
               "hqs": false
             },
             "game_id": "2021039173",
-            "z": 67.67,
+            "z": 68.06,
             "z_method": "役割内標準化",
-            "mvp_value": 64.29
+            "mvp_value": 64.66
+          },
+          {
+            "name": "篠木 健太郎",
+            "team": "DeNA",
+            "player_id": "1850838",
+            "role": "先発",
+            "raw": 33.17,
+            "score": 33.17,
+            "available_max": 100,
+            "breakdown": {
+              "innings": 11.67,
+              "prevention": 15,
+              "strikeout": 9.5,
+              "whip": 3,
+              "winContrib": 0,
+              "achievement": 0,
+              "penalty": -6
+            },
+            "stat_line": "4.2回 1失点 自責1 5奪三振 被安打5 与四球1 WHIP1.29",
+            "reasons": [],
+            "minus_reasons": [
+              "5回未満"
+            ],
+            "keys": {
+              "outs": 14,
+              "er": 1,
+              "so": 5,
+              "whip": 1.2857142857142856,
+              "qs": false,
+              "hqs": false
+            },
+            "game_id": "2021039173",
+            "z": 52.43,
+            "z_method": "役割内標準化",
+            "mvp_value": 46.3
           },
           {
             "name": "山﨑 伊織",
             "team": "巨人",
             "player_id": "2000006",
             "role": "先発",
-            "raw": 37.5,
-            "score": 41.67,
-            "available_max": 90,
+            "raw": 31.67,
+            "score": 31.67,
+            "available_max": 100,
             "breakdown": {
-              "innings": 17.0,
+              "innings": 14.17,
               "prevention": 9,
               "strikeout": 4.5,
               "whip": 3,
-              "winContrib": 9,
+              "winContrib": 6,
+              "achievement": 0,
               "penalty": -5
             },
             "stat_line": "5.2回 2失点 自責2 3奪三振 被安打6 与四球1 WHIP1.24",
@@ -1235,58 +1274,58 @@
               "hqs": false
             },
             "game_id": "2021039171",
-            "z": 52.79,
+            "z": 51.47,
             "z_method": "役割内標準化",
-            "mvp_value": 49.25
+            "mvp_value": 48.02
           },
           {
-            "name": "篠木 健太郎",
-            "team": "DeNA",
-            "player_id": "1850838",
+            "name": "松葉 貴大",
+            "team": "中日",
+            "player_id": "1200098",
             "role": "先発",
-            "raw": 35.5,
-            "score": 39.44,
-            "available_max": 90,
+            "raw": 25.0,
+            "score": 25.0,
+            "available_max": 100,
             "breakdown": {
-              "innings": 14.0,
-              "prevention": 15,
+              "innings": 12.5,
+              "prevention": 0,
               "strikeout": 9.5,
               "whip": 3,
-              "winContrib": 0,
-              "penalty": -6
+              "winContrib": 2,
+              "achievement": 0,
+              "penalty": -2
             },
-            "stat_line": "4.2回 1失点 自責1 5奪三振 被安打5 与四球1 WHIP1.29",
+            "stat_line": "5.0回 4失点 自責4 5奪三振 被安打5 与四球2 WHIP1.40",
             "reasons": [],
-            "minus_reasons": [
-              "5回未満"
-            ],
+            "minus_reasons": [],
             "keys": {
-              "outs": 14,
-              "er": 1,
+              "outs": 15,
+              "er": 4,
               "so": 5,
-              "whip": 1.2857142857142856,
+              "whip": 1.4,
               "qs": false,
               "hqs": false
             },
-            "game_id": "2021039173",
-            "z": 51.55,
+            "game_id": "2021039172",
+            "z": 47.18,
             "z_method": "役割内標準化",
-            "mvp_value": 45.52
+            "mvp_value": 42.46
           },
           {
             "name": "山野 太一",
             "team": "ヤクルト",
             "player_id": "2000025",
             "role": "先発",
-            "raw": 29.0,
-            "score": 32.22,
-            "available_max": 90,
+            "raw": 24.0,
+            "score": 24.0,
+            "available_max": 100,
             "breakdown": {
-              "innings": 20.0,
+              "innings": 15.0,
               "prevention": 0,
               "strikeout": 11.0,
               "whip": 6,
               "winContrib": 0,
+              "achievement": 0,
               "penalty": -8
             },
             "stat_line": "6回 4失点 自責4 6奪三振 被安打5 与四球2 WHIP1.17",
@@ -1303,56 +1342,25 @@
               "hqs": false
             },
             "game_id": "2021039172",
-            "z": 47.52,
+            "z": 46.54,
             "z_method": "役割内標準化",
-            "mvp_value": 45.14
-          },
-          {
-            "name": "松葉 貴大",
-            "team": "中日",
-            "player_id": "1200098",
-            "role": "先発",
-            "raw": 27.5,
-            "score": 30.56,
-            "available_max": 90,
-            "breakdown": {
-              "innings": 15.0,
-              "prevention": 0,
-              "strikeout": 9.5,
-              "whip": 3,
-              "winContrib": 2,
-              "penalty": -2
-            },
-            "stat_line": "5.0回 4失点 自責4 5奪三振 被安打5 与四球2 WHIP1.40",
-            "reasons": [],
-            "minus_reasons": [],
-            "keys": {
-              "outs": 15,
-              "er": 4,
-              "so": 5,
-              "whip": 1.4,
-              "qs": false,
-              "hqs": false
-            },
-            "game_id": "2021039172",
-            "z": 46.59,
-            "z_method": "役割内標準化",
-            "mvp_value": 41.93
+            "mvp_value": 44.21
           },
           {
             "name": "岡本 駿",
             "team": "広島",
             "player_id": "2114807",
             "role": "先発",
-            "raw": 7.0,
-            "score": 7.78,
-            "available_max": 90,
+            "raw": 5.0,
+            "score": 5.0,
+            "available_max": 100,
             "breakdown": {
-              "innings": 12.0,
+              "innings": 10.0,
               "prevention": 0,
               "strikeout": 3.0,
               "whip": 0,
               "winContrib": 0,
+              "achievement": 0,
               "penalty": -8
             },
             "stat_line": "4回 9失点 自責7 2奪三振 被安打12 与四球1 WHIP3.25",
@@ -1370,9 +1378,9 @@
               "hqs": false
             },
             "game_id": "2021039171",
-            "z": 33.88,
+            "z": 34.33,
             "z_method": "役割内標準化",
-            "mvp_value": 28.8
+            "mvp_value": 29.18
           }
         ],
         "中継ぎ": [
@@ -1725,15 +1733,16 @@
         "team": "オリックス",
         "player_id": "2108177",
         "role": "先発",
-        "raw": 68.0,
-        "score": 75.56,
-        "available_max": 90,
+        "raw": 64.5,
+        "score": 64.5,
+        "available_max": 100,
         "breakdown": {
-          "innings": 20,
+          "innings": 17.5,
           "prevention": 15,
           "strikeout": 14.0,
           "whip": 9,
-          "winContrib": 15,
+          "winContrib": 14,
+          "achievement": 0,
           "penalty": -5
         },
         "stat_line": "7回 1失点 自責1 8奪三振 被安打4 与四球2 WHIP0.86",
@@ -1753,11 +1762,11 @@
           "hqs": true
         },
         "game_id": "2021039174",
-        "z": 75.56,
+        "z": 64.5,
         "z_method": "換算スコア",
-        "mvp_value": 75.56,
+        "mvp_value": 64.5,
         "comment": "7回 1失点 自責1 8奪三振 被安打4 与四球2 WHIP0.86。勝利投手／HQS。",
-        "margin": 23.34
+        "margin": -2.63
       },
       "best_batters": {
         "捕": {
@@ -2146,15 +2155,16 @@
           "team": "オリックス",
           "player_id": "2108177",
           "role": "先発",
-          "raw": 68.0,
-          "score": 75.56,
-          "available_max": 90,
+          "raw": 64.5,
+          "score": 64.5,
+          "available_max": 100,
           "breakdown": {
-            "innings": 20,
+            "innings": 17.5,
             "prevention": 15,
             "strikeout": 14.0,
             "whip": 9,
-            "winContrib": 15,
+            "winContrib": 14,
+            "achievement": 0,
             "penalty": -5
           },
           "stat_line": "7回 1失点 自責1 8奪三振 被安打4 与四球2 WHIP0.86",
@@ -2174,9 +2184,9 @@
             "hqs": true
           },
           "game_id": "2021039174",
-          "z": 75.56,
+          "z": 64.5,
           "z_method": "換算スコア",
-          "mvp_value": 75.56
+          "mvp_value": 64.5
         },
         "中継ぎ": {
           "name": "椋木 蓮",
@@ -2870,15 +2880,16 @@
             "team": "オリックス",
             "player_id": "2108177",
             "role": "先発",
-            "raw": 68.0,
-            "score": 75.56,
-            "available_max": 90,
+            "raw": 64.5,
+            "score": 64.5,
+            "available_max": 100,
             "breakdown": {
-              "innings": 20,
+              "innings": 17.5,
               "prevention": 15,
               "strikeout": 14.0,
               "whip": 9,
-              "winContrib": 15,
+              "winContrib": 14,
+              "achievement": 0,
               "penalty": -5
             },
             "stat_line": "7回 1失点 自責1 8奪三振 被安打4 与四球2 WHIP0.86",
@@ -2898,24 +2909,25 @@
               "hqs": true
             },
             "game_id": "2021039174",
-            "z": 75.56,
+            "z": 64.5,
             "z_method": "換算スコア",
-            "mvp_value": 75.56
+            "mvp_value": 64.5
           },
           {
             "name": "上沢 直之",
             "team": "ソフトバンク",
             "player_id": "1100099",
             "role": "先発",
-            "raw": 47.0,
-            "score": 52.22,
-            "available_max": 90,
+            "raw": 43.0,
+            "score": 43.0,
+            "available_max": 100,
             "breakdown": {
-              "innings": 20.0,
+              "innings": 15.0,
               "prevention": 9,
               "strikeout": 14.0,
               "whip": 6,
-              "winContrib": 3,
+              "winContrib": 4,
+              "achievement": 0,
               "penalty": -5
             },
             "stat_line": "6回 2失点 自責2 8奪三振 被安打7 与四球0 WHIP1.17",
@@ -2935,9 +2947,9 @@
               "hqs": false
             },
             "game_id": "2021039174",
-            "z": 52.22,
+            "z": 43.0,
             "z_method": "換算スコア",
-            "mvp_value": 49.61
+            "mvp_value": 40.85
           }
         ],
         "中継ぎ": [
