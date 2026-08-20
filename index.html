@@ -802,6 +802,51 @@
   .social-template summary{cursor:pointer;font-size:11px;font-weight:700;color:var(--accent);}
   .social-template-grid{display:grid;grid-template-columns:1fr 1fr auto;gap:7px;align-items:end;margin-top:8px;}
   .social-posted-badge{font-size:9px;color:var(--safe);border:1px solid currentColor;border-radius:12px;padding:2px 6px;}
+  .social-card-maker{border:1px solid var(--line);border-radius:14px;background:var(--panel2);
+    padding:12px;margin:12px 0;}
+  .social-card-head{display:flex;align-items:center;justify-content:space-between;gap:8px;
+    margin-bottom:9px;}
+  .social-card-head h3{font-size:14px;color:var(--accent);}
+  .social-card-controls{display:grid;grid-template-columns:minmax(150px,1fr) minmax(180px,2fr) auto;
+    gap:8px;align-items:end;margin-bottom:10px;}
+  .social-card-preview{border:1px solid var(--line2);border-radius:12px;overflow:hidden;
+    background:#fff;box-shadow:var(--shadow);}
+  .social-card-preview canvas{display:block;width:100%;height:auto;aspect-ratio:16/9;}
+  .social-card-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px;}
+
+  /* ---- 試合ストーリー ---- */
+  .story-hero{margin-top:12px;border:1px solid var(--line);border-radius:14px;padding:16px;
+    background:radial-gradient(circle at 90% 0,rgba(245,159,0,.18),transparent 35%),
+      linear-gradient(145deg,var(--panel2),var(--panel));}
+  .story-kicker{font-size:10px;color:var(--accent);font-weight:800;letter-spacing:.12em;}
+  .story-headline{font-size:clamp(20px,4vw,30px);line-height:1.4;margin:3px 0 6px;}
+  .story-summary{font-size:12.5px;color:var(--ink2);line-height:1.8;}
+  .story-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:12px;}
+  .story-kpi{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:8px 10px;}
+  .story-kpi span{display:block;font-size:9.5px;color:var(--muted);}
+  .story-kpi b{font:800 17px 'Roboto Mono',monospace;color:var(--accent);}
+  .story-turning{border-left:5px solid var(--accent);margin:11px 0;padding:11px 13px;
+    border-radius:9px;background:rgba(232,89,12,.08);}
+  .story-turning small{display:block;color:var(--muted);font-size:9.5px;font-weight:700;}
+  .story-turning b{font-size:14px;}
+  .story-timeline{position:relative;margin:13px 0 4px;padding-left:28px;}
+  .story-timeline:before{content:"";position:absolute;left:10px;top:7px;bottom:7px;width:2px;
+    background:linear-gradient(var(--accent2),var(--accent));}
+  .story-event{position:relative;border:1px solid var(--line);background:var(--panel);
+    border-radius:11px;padding:10px 12px;margin-bottom:9px;}
+  .story-event:before{content:"";position:absolute;left:-24px;top:16px;width:12px;height:12px;
+    border-radius:50%;background:var(--accent);border:3px solid var(--bg);}
+  .story-event-head{display:flex;align-items:center;gap:7px;flex-wrap:wrap;}
+  .story-inning{font:800 12px 'Roboto Mono',monospace;color:var(--accent);}
+  .story-type{font-size:9.5px;font-weight:800;padding:2px 7px;border-radius:999px;
+    color:#fff;background:var(--accent);}
+  .story-type.tie{background:#1971c2}.story-type.comeback{background:#c92a2a}
+  .story-score{margin-left:auto;font:800 12px 'Roboto Mono',monospace;color:var(--ink2);}
+  .story-play{font-size:13px;font-weight:700;margin-top:4px;}
+  .story-detail{font-size:10.5px;color:var(--muted);margin-top:2px;}
+  .story-bullpen{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0;}
+  .story-bullpen span{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);
+    border-radius:999px;background:var(--panel2);padding:4px 8px;font-size:10px;color:var(--ink2);}
   .note-article{border:1px solid var(--line);border-left:4px solid #41c9a5;border-radius:12px;background:var(--panel);padding:14px;margin:12px 0;}
   .note-article-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:9px;}
   .note-article-head h3{margin:0;font-size:16px;color:var(--ink);}
@@ -921,6 +966,9 @@
     .social-controls .btn{grid-column:1/-1;width:100%;}
     .social-actions .btn{flex:1;}
     .social-template-grid{grid-template-columns:1fr;}
+    .social-card-controls{grid-template-columns:1fr;}
+    .social-card-actions .btn{flex:1;}
+    .story-kpis{grid-template-columns:1fr;}
     .note-article-actions .btn{flex:1;min-width:120px;}
     .note-article-text{min-height:420px;}
     .matchup-controls{grid-template-columns:1fr 1fr;}
@@ -1409,6 +1457,8 @@
   </div>
 
 <script src="https://js.puter.com/v2/"></script>
+<script src="game_story.js"></script>
+<script src="social_cards.js"></script>
 <script>
   var dp=document.getElementById("dp"),
       gamesEl=document.getElementById("games"),
@@ -1853,7 +1903,7 @@
 
   function render(){
     var g=curGame;if(!g) return;
-    var tabs=[["summary","概要"],["lineup","スタメン"],["batting","打撃"],["pitching","投手"],
+    var tabs=[["summary","概要"],["story","試合ストーリー"],["lineup","スタメン"],["batting","打撃"],["pitching","投手"],
               ["analysis","配球"],["pitches","全打席"]];
     var h='<div class="tabs">';
     tabs.forEach(function(t){
@@ -1864,6 +1914,7 @@
 
     var body=document.getElementById("tabbody");
     if(curTab==="summary") body.innerHTML=renderSummary(g);
+    else if(curTab==="story") body.innerHTML=renderGameStory(g);
     else if(curTab==="lineup") body.innerHTML=renderLineup(g);
     else if(curTab==="batting") body.innerHTML=renderBatting(g);
     else if(curTab==="pitching") body.innerHTML=renderPitching(g);
@@ -1934,6 +1985,43 @@
         }).join("")+'</div>';
     }
     return h;
+  }
+
+  function storyTypeClass(type){
+    if(type==="逆転")return " comeback";
+    if(type==="同点")return " tie";
+    return "";
+  }
+  function renderGameStory(g){
+    var story=buildGameStory(g),turn=story.turning_point;
+    var h='<div class="story-hero"><div class="story-kicker">GAME STORY</div>'+
+      '<h2 class="story-headline">'+esc(story.headline)+'</h2>'+ teamBadge(story.final.away)+' '+esc(story.final.away)+' '+story.final.away_score+
+      ' － '+story.final.home_score+' '+teamBadge(story.final.home)+' '+esc(story.final.home)+
+      '<p class="story-summary">'+esc(story.summary||"得点記録を時系列で振り返ります。")+'</p>'+
+      '<div class="story-kpis"><div class="story-kpi"><span>得点イベント</span><b>'+story.events.length+'</b></div>'+
+      '<div class="story-kpi"><span>同点</span><b>'+story.ties+'</b></div>'+
+      '<div class="story-kpi"><span>逆転・勝ち越し</span><b>'+story.lead_changes+'</b></div></div></div>';
+    if(turn){
+      h+='<div class="story-turning"><small>TURNING POINT（得点状況による参考判定）</small><b>'+esc(turn.label)+' '+esc(turn.batter)+'　'+esc(turn.result)+'</b>'+
+        '<div class="story-detail">'+esc(turn.score)+'</div></div>';
+    }
+    if(story.pitching_changes.length){
+      h+='<div class="story-bullpen"><b class="story-detail">継投</b>'+story.pitching_changes.map(function(change){
+        return '<span>'+esc(change.label)+' '+teamBadge(change.team)+' '+esc(change.pitcher)+'</span>';
+      }).join("")+'</div>';
+    }
+    if(!story.events.length){
+      return h+'<div class="msg">得点イベントは記録されていません</div>';
+    }
+    h+='<div class="story-timeline">';
+    story.events.forEach(function(event){
+      h+='<div class="story-event"><div class="story-event-head"><span class="story-inning">'+esc(event.label)+'</span>'+
+        '<span class="story-type'+storyTypeClass(event.type)+'">'+esc(event.type)+'</span>'+teamBadge(event.team)+
+        '<span class="story-score">'+esc(event.score)+'</span></div>'+
+        '<div class="story-play">'+esc(event.batter)+'　'+esc(event.result)+'　<span class="hi">'+event.runs+'得点</span></div>'+
+        (event.detail?'<div class="story-detail">対 '+esc(event.pitcher)+' ／ '+esc(event.detail)+'</div>':'')+'</div>';
+    });
+    return h+'</div><div class="sub" style="font-size:10.5px">試合ストーリーは収集済み打席のスコア推移から自動生成しています。TURNING POINTは公式WPAではなく、回・点差・同点／逆転を用いた参考判定です。</div>';
   }
 
   /* ===== 打撃成績タブ ===== */
@@ -4849,6 +4937,92 @@
   var socialTemplate=socialLoadStored(SOCIAL_TEMPLATE_KEY,{prefix:"",suffix:"",includeNoHr:false});
   var socialState={date:"",league:"all",category:"all",summary:null,games:[],award:null,players:[],posts:[],
     prefix:socialTemplate.prefix||"",suffix:socialTemplate.suffix||"",includeNoHr:!!socialTemplate.includeNoHr};
+  var socialCardType="result",socialCardTarget="";
+
+  function socialCardTargetOptions(){
+    if(socialCardType==="result"){
+      return (socialState.games||[]).map(function(game,index){
+        var result=game.result||{},value=String(game.game_id||index);
+        var label=(game.away||result.away||"-")+" "+num(result.away_score)+"－"+num(result.home_score)+" "+(game.home||result.home||"-");
+        return '<option value="'+esc(value)+'"'+(socialCardTarget===value?' selected':'')+'>'+esc(label)+'</option>';
+      }).join("");
+    }
+    var leagues=[["パ","パ・リーグ"],["セ","セ・リーグ"]];
+    if(socialCardType==="homeruns")leagues.push(["all","セ・パ両リーグ"]);
+    return leagues.map(function(item){
+      return '<option value="'+item[0]+'"'+(socialCardTarget===item[0]?' selected':'')+'>'+item[1]+'</option>';
+    }).join("");
+  }
+  function socialCardSetType(value){
+    socialCardType=value;socialCardTarget=value==="result"?"":"パ";socialCardRenderMaker();
+  }
+  function socialCardSetTarget(value){socialCardTarget=value;socialCardDraw();}
+  function socialCardGame(){
+    var games=socialState.games||[];
+    for(var i=0;i<games.length;i++) if(String(games[i].game_id||i)===socialCardTarget)return games[i];
+    return games[0]||null;
+  }
+  function socialCardModel(){
+    var date=String(socialState.date||"").replace(/-/g,"."),accent="#e8590c";
+    if(socialCardType==="result"){
+      var game=socialCardGame();if(!game)return null;var result=game.result||{};
+      var decisions=[];
+      if(result.win_pitcher)decisions.push("勝 "+result.win_pitcher);
+      if(result.lose_pitcher)decisions.push("敗 "+result.lose_pitcher);
+      if(result.save_pitcher)decisions.push("S "+result.save_pitcher);
+      return {layout:"score",date:date,kicker:"GAME RESULT",title:"試合結果",
+        away:game.away||result.away,home:game.home||result.home,
+        away_score:num(result.away_score),home_score:num(result.home_score),
+        away_color:tColor(game.away||result.away),home_color:tColor(game.home||result.home),
+        subtitle:(result.state||"試合終了")+(game.stadium?" ／ "+game.stadium:""),
+        detail:decisions.join("　"),accent:accent,footer:"NPB公式記録をもとに作成"};
+    }
+    if(socialCardType==="homeruns"){
+      var homeruns=socialHomeRunRows(socialState.summary,socialCardTarget||"パ");
+      return {layout:"list",date:date,kicker:"TODAY'S HOME RUN",title:"本日の本塁打",
+        count:homeruns.length,count_label:"HOME RUNS",lines:homeruns.map(socialHomeRunLine),
+        accent:accent,footer:"全"+homeruns.length+"本 ／ "+socialSummaryState(socialState.summary)};
+    }
+    var league=socialCardTarget==="セ"?"セ":"パ",data=((socialState.award||{}).leagues||{})[league]||{};
+    var batter=data.batter_mvp||{},pitcher=data.pitcher_mvp||{};
+    return {layout:"mvp",date:date,kicker:"DAILY MVP",title:"日刊MVP（"+league+"・リーグ）",badge:"野手MVP",
+      primary:(batter.name||"該当なし")+(batter.team?"（"+tMini(batter.team)+"）":""),
+      secondary:batter.stat_line||"データなし",lines:[
+        "投手MVP　"+(pitcher.name||"該当なし")+(pitcher.team?"（"+tMini(pitcher.team)+"）":""),
+        pitcher.stat_line||"データなし","独自集計スコアによる選出"
+      ],accent:accent,badge_color:league==="セ"?"#1c7ed6":"#e8590c",footer:"NPB SCOREBOARD 独自表彰"};
+  }
+  function socialCardDraw(){
+    var canvas=document.getElementById("socialCardCanvas"),model=socialCardModel();
+    if(!canvas||!model)return;drawSocialCard(canvas,model);
+  }
+  function socialCardRenderMaker(){
+    var maker=document.getElementById("socialCardMaker");if(!maker)return;
+    if(socialCardType==="result"&&!socialCardTarget&&socialState.games.length){
+      socialCardTarget=String(socialState.games[0].game_id||0);
+    }else if(socialCardType!=="result"&&!socialCardTarget){socialCardTarget="パ";}
+    maker.innerHTML='<div class="social-card-maker"><div class="social-card-head"><h3>SNS画像カード</h3><span class="dash-date">1200 × 675 PNG</span></div>'+
+      '<div class="social-card-controls"><div class="social-field"><label>カード種類</label><select onchange="socialCardSetType(this.value)">'+
+      '<option value="result"'+(socialCardType==="result"?' selected':'')+'>試合結果</option>'+
+      '<option value="homeruns"'+(socialCardType==="homeruns"?' selected':'')+'>本日の本塁打</option>'+
+      '<option value="mvp"'+(socialCardType==="mvp"?' selected':'')+'>日刊MVP</option></select></div>'+
+      '<div class="social-field"><label>'+(socialCardType==="result"?'対象試合':'対象リーグ')+'</label><select onchange="socialCardSetTarget(this.value)">'+socialCardTargetOptions()+'</select></div>'+
+      '<button class="btn" onclick="socialCardDraw()">再描画</button></div>'+
+      '<div class="social-card-preview"><canvas id="socialCardCanvas" width="1200" height="675" aria-label="SNS画像カードのプレビュー"></canvas></div>'+
+      '<div class="social-card-actions"><button class="btn primary" onclick="socialCardDownload()">PNGで保存</button>'+
+      '<button class="btn" onclick="socialCardCopy()">画像をコピー</button></div><div id="socialCardStatus" class="social-status"></div></div>';
+    if(document.fonts&&document.fonts.ready)document.fonts.ready.then(socialCardDraw);else socialCardDraw();
+  }
+  async function socialCardDownload(){
+    var canvas=document.getElementById("socialCardCanvas"),status=document.getElementById("socialCardStatus");
+    try{await downloadSocialCard(canvas,"npb-card-"+socialDateCompact(socialState.date)+"-"+socialCardType+".png");if(status)status.textContent="PNGを保存しました";}
+    catch(e){if(status)status.textContent="画像を保存できませんでした";}
+  }
+  async function socialCardCopy(){
+    var canvas=document.getElementById("socialCardCanvas"),status=document.getElementById("socialCardStatus");
+    try{await copySocialCard(canvas);if(status)status.textContent="画像をクリップボードへコピーしました";}
+    catch(e){if(status)status.textContent="このブラウザでは画像コピーに対応していません。PNG保存を使ってください";}
+  }
   function noteArticleDateLabel(date){
     return socialDateCompact(date);
   }
@@ -4934,6 +5108,7 @@
       '<div class="social-field"><label>ハッシュタグ前の末尾文</label><input id="socialSuffix" value="'+esc(socialState.suffix)+'" placeholder="任意"></div>'+
       '<button class="btn" onclick="socialSaveTemplate()">設定を保存</button></div>'+
       '<label style="display:inline-flex;gap:6px;align-items:center;margin-top:8px;font-size:11px"><input type="checkbox" id="socialNoHr"'+(socialState.includeNoHr?' checked':'')+'> 本塁打なしの日も投稿文を作る</label></details>'+
+      '<div id="socialCardMaker"></div>'+
       '<div class="note-article"><div class="note-article-head"><h3>note記事作成</h3><span class="dash-date">全試合まとめ・Markdown</span></div>'+
       '<input class="note-article-title" id="noteArticleTitle" aria-label="note記事タイトル" placeholder="データ読込後にタイトルを生成します">'+
       '<textarea class="note-article-text" id="noteArticleText" aria-label="note記事本文" placeholder="データ読込後に記事本文を生成します"></textarea>'+
@@ -4962,7 +5137,7 @@
         try{var r=await fetch("data/"+year+"/players/stats.json?t="+Date.now());return r.ok?(await r.json()).players||[]:[];}catch(e){return [];}
       })();
       var loaded=await Promise.all([Promise.all(gameRequests),awardRequest,playersRequest]);
-      socialState.games=loaded[0].filter(Boolean);socialState.award=loaded[1];socialState.players=loaded[2];socialRenderPosts(true);noteArticleRender();
+      socialState.games=loaded[0].filter(Boolean);socialState.award=loaded[1];socialState.players=loaded[2];socialRenderPosts(true);noteArticleRender();socialCardRenderMaker();
     }catch(e){
       socialState.summary=null;socialState.games=[];socialState.award=null;socialState.players=[];socialState.posts=[];
       container.innerHTML='<div class="msg">この日の試合データがありません</div>';
