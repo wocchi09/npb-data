@@ -46,7 +46,7 @@ def save_json(path, data):
 MANAGED_FILES = {
     "index.json", "calendar.json", "no_games.json", "exclude.json",
     "standings.json", "npb_roster.json", "fip_constants.json",
-        "war.json", "w_impact.json", "w_impact_trends.json",
+        "war.json", "w_impact.json", "w_impact_trends.json", "w_impact_rank_changes.json",
 }
 MANAGED_DIRS = (
     "/players/", "/teams/", "/dataset/", "/masters/", "/awards/", "/matchups/", "/pitch_heatmaps/",
