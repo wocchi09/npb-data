@@ -10,6 +10,7 @@ from datetime import datetime, timezone, timedelta
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from lib.w_impact import BATTER_WEIGHTS, PITCHER_WEIGHTS, calculate
 from lib.w_impact_trends import build_rolling_trends
+from lib.ranking_changes import build_ranking_changes
 
 JST = timezone(timedelta(hours=9))
 
@@ -88,10 +89,28 @@ def build(season, base="data"):
     trend_path = f"{root}/w_impact_trends.json"
     with open(trend_path, "w", encoding="utf-8") as f:
         json.dump(trend_output, f, ensure_ascii=False, separators=(",", ":"))
+
+    ranking_changes = build_ranking_changes(
+        pdata.get("players", []), games, batting_lines, pitching_lines,
+        atbats, runner_events, fip_constants, current_result=result,
+    )
+    ranking_output = {
+        "season": str(season),
+        "version": "1.0.0",
+        "generated_at": datetime.now(JST).isoformat(),
+        "note": (
+            "シーズン累積W-Value順位を、最新試合日とその直前の試合日で比較。"
+            "順位変動は前回順位－現在順位で、プラスが上昇です。"
+        ),
+        **ranking_changes,
+    }
+    ranking_path = f"{root}/w_impact_rank_changes.json"
+    with open(ranking_path, "w", encoding="utf-8") as f:
+        json.dump(ranking_output, f, ensure_ascii=False, separators=(",", ":"))
     print(
         f"[INFO] W-Impact: 野手{len(result['batters'])}人 / "
         f"投手{len(result['pitchers'])}人 / 総合{len(result['overall'])}人 / "
-        f"推移{len(trend_result['players'])}人"
+        f"推移{len(trend_result['players'])}人 / 順位変動2日比較"
     )
     return output
 
