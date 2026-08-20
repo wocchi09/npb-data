@@ -815,11 +815,27 @@
   .pitch-heatmap-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:9px;}
   .pitch-heatmap-title{font-size:15px;font-weight:800;color:var(--ink);}
   .pitch-heatmap-title small{display:block;margin-top:3px;font-size:10px;font-weight:500;color:var(--muted);}
-  .pitch-heatmap-controls{display:grid;grid-template-columns:repeat(6,minmax(105px,1fr));gap:7px;margin-bottom:11px;}
+  .pitch-heatmap-controls{display:grid;grid-template-columns:repeat(6,minmax(105px,1fr));gap:7px;margin-bottom:9px;}
+  .pitch-heatmap-controls .ef,.pitch-heatmap-advanced-grid .ef{min-width:0;}
+  .pitch-heatmap-controls .ef input,.pitch-heatmap-controls .ef select,
+  .pitch-heatmap-advanced-grid .ef input,.pitch-heatmap-advanced-grid .ef select{width:100%;min-width:0;box-sizing:border-box;}
+  .pitch-heatmap-advanced{border:1px solid var(--line);border-radius:10px;background:var(--panel2);margin-bottom:11px;}
+  .pitch-heatmap-advanced summary{cursor:pointer;list-style:none;padding:9px 11px;font-size:11px;font-weight:800;color:var(--accent);}
+  .pitch-heatmap-advanced summary::-webkit-details-marker{display:none;}
+  .pitch-heatmap-advanced summary::after{content:'＋';float:right;}
+  .pitch-heatmap-advanced[open] summary::after{content:'－';}
+  .pitch-heatmap-advanced-grid{display:grid;grid-template-columns:repeat(6,minmax(105px,1fr));gap:7px;padding:0 10px 10px;}
+  .pitch-heatmap-reset{align-self:end;min-height:34px;}
+  .pitch-heatmap-active{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin:-2px 0 10px;}
+  .pitch-heatmap-active span{font-size:9px;border:1px solid var(--line);border-radius:999px;background:var(--panel2);padding:3px 7px;color:var(--ink2);}
   .pitch-heatmap-layout{display:grid;grid-template-columns:minmax(260px,390px) 1fr;gap:14px;align-items:center;}
   .pitch-heatmap-grid{max-width:390px;width:100%;}
   .pitch-heatmap-grid .hcell{position:relative;font-size:15px;transition:background-color .2s ease,transform .2s ease;}
   .pitch-heatmap-grid .hcell small{display:block;font-size:8px;font-weight:600;opacity:.76;margin-left:2px;}
+  .pitch-heatmap-surface{position:relative;width:min(100%,390px);aspect-ratio:1;margin:0 auto;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:color-mix(in srgb,var(--panel2) 78%,#dbeafe);box-shadow:inset 0 0 25px rgba(15,23,42,.05);}
+  .pitch-heatmap-surface canvas{display:block;width:100%;height:100%;}
+  .pitch-contour-legend{width:92px;height:11px;border-radius:6px;background:linear-gradient(90deg,#2b6cb0,#9ecae1,#f7f7f2,#fdae61,#d7191c);border:1px solid rgba(0,0,0,.08);}
+  .pitch-heatmap-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:20px;text-align:center;font-size:11px;color:var(--muted);}
   .pitch-heatmap-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
   .pitch-heatmap-summary .stat{min-width:0;}
   .pitch-heatmap-guide{display:grid;grid-template-columns:repeat(3,1fr);font-size:9px;color:var(--muted);text-align:center;margin:0 0 5px;}
@@ -881,7 +897,9 @@
     .note-article-text{min-height:420px;}
     .matchup-controls{grid-template-columns:1fr 1fr;}
     .matchup-kpis{grid-template-columns:1fr;}
-    .pitch-heatmap-controls{grid-template-columns:1fr 1fr;}
+    .pitch-heatmap-controls{grid-template-columns:1fr;}
+    .pitch-heatmap-advanced-grid{grid-template-columns:1fr;}
+    .pitch-heatmap-reset{grid-column:1/-1;}
     .pitch-heatmap-layout{grid-template-columns:1fr;}
     .pitch-heatmap-grid{max-width:340px;margin:0 auto;}
     .inning-split-controls{grid-template-columns:1fr 1fr;}
@@ -5151,10 +5169,12 @@
   var MATCHUP_RANKING_DEFAULT_MIN_PA=10;
   var matchupState={key:"",kind:"batter",year:"",entry:null,data:null,search:"",team:"all",hand:"all",minPa:1,rankingMinPa:MATCHUP_RANKING_DEFAULT_MIN_PA};
   var pitchHeatmapIndexCache={};
-  var pitchHeatmapState={key:"",year:"",data:null,error:"",scope:"season",opponent:"all",game:"all",hand:"all",pitchType:"all",metric:"count"};
+  var pitchHeatmapRenderData=null;
+  var pitchHeatmapState={key:"",year:"",data:null,error:"",scope:"season",opponent:"all",game:"all",pitchType:"all",metric:"count",view:"smooth",dateFrom:"",dateTo:"",batter:"all",hand:"all",inning:"all",count:"all",outs:"all",runners:"all",result:"all",speedMin:"",speedMax:""};
 
   function resetPitchHeatmap(){
-    pitchHeatmapState={key:matchupState.key,year:matchupState.year,data:null,error:"",scope:"season",opponent:"all",game:"all",hand:"all",pitchType:"all",metric:"count"};
+    pitchHeatmapRenderData=null;
+    pitchHeatmapState={key:matchupState.key,year:matchupState.year,data:null,error:"",scope:"season",opponent:"all",game:"all",pitchType:"all",metric:"count",view:"smooth",dateFrom:"",dateTo:"",batter:"all",hand:"all",inning:"all",count:"all",outs:"all",runners:"all",result:"all",speedMin:"",speedMax:""};
   }
 
   function matchupPlayer(key){
@@ -5344,9 +5364,20 @@
     pitchHeatmapState.scope=val("pitchHeatScope","season");
     pitchHeatmapState.opponent=val("pitchHeatOpponent","all");
     pitchHeatmapState.game=val("pitchHeatGame","all");
-    pitchHeatmapState.hand=val("pitchHeatHand","all");
     pitchHeatmapState.pitchType=val("pitchHeatType","all");
     pitchHeatmapState.metric=val("pitchHeatMetric","count");
+    pitchHeatmapState.view=val("pitchHeatView","smooth");
+    pitchHeatmapState.dateFrom=val("pitchHeatDateFrom","");
+    pitchHeatmapState.dateTo=val("pitchHeatDateTo","");
+    pitchHeatmapState.batter=val("pitchHeatBatter","all");
+    pitchHeatmapState.hand=val("pitchHeatHand","all");
+    pitchHeatmapState.inning=val("pitchHeatInning","all");
+    pitchHeatmapState.count=val("pitchHeatCount","all");
+    pitchHeatmapState.outs=val("pitchHeatOuts","all");
+    pitchHeatmapState.runners=val("pitchHeatRunners","all");
+    pitchHeatmapState.result=val("pitchHeatResult","all");
+    pitchHeatmapState.speedMin=val("pitchHeatSpeedMin","");
+    pitchHeatmapState.speedMax=val("pitchHeatSpeedMax","");
     var data=pitchHeatmapState.data||{},games=data.games||[];
     if(pitchHeatmapState.scope==="team"&&pitchHeatmapState.opponent==="all"){
       var firstTeam=Array.from(new Set(games.map(function(game){return game.opponent;}).filter(Boolean))).sort()[0];
@@ -5358,62 +5389,165 @@
     }
     renderPitchHeatmap();
   }
+  function pitchHeatmapAdvancedToggled(open){pitchHeatmapState.advancedOpen=!!open;}
+  function pitchHeatmapResetFilters(){
+    var data=pitchHeatmapState.data,key=pitchHeatmapState.key,year=pitchHeatmapState.year,error=pitchHeatmapState.error;
+    resetPitchHeatmap();pitchHeatmapState.data=data;pitchHeatmapState.key=key;pitchHeatmapState.year=year;pitchHeatmapState.error=error;
+    renderPitchHeatmap();
+  }
   function renderPitchHeatmap(){
-    var box=document.getElementById("pitchHeatmapView");if(box)box.innerHTML=pitchHeatmapMarkup();
+    var box=document.getElementById("pitchHeatmapView");if(box){box.innerHTML=pitchHeatmapMarkup();requestAnimationFrame(drawPitchHeatmapSurface);}
+  }
+  function pitchHeatmapInningMatches(value,inning){
+    if(value==="all")return true;
+    if(value==="1-3")return inning>=1&&inning<=3;
+    if(value==="4-6")return inning>=4&&inning<=6;
+    if(value==="7-9")return inning>=7&&inning<=9;
+    return value==="10+"&&inning>=10;
+  }
+  function pitchHeatmapColor(t){
+    var stops=[[43,108,176],[158,202,225],[247,247,242],[253,174,97],[215,25,28]],scaled=Math.max(0,Math.min(.999,t))*(stops.length-1),i=Math.floor(scaled),f=scaled-i;
+    return [0,1,2].map(function(k){return Math.round(stops[i][k]+(stops[i+1][k]-stops[i][k])*f);});
+  }
+  function drawPitchHeatmapSurface(){
+    var canvas=document.getElementById("pitchHeatCanvas"),render=pitchHeatmapRenderData;if(!canvas||!render||!render.total)return;
+    var size=300,ctx=canvas.getContext("2d");canvas.width=size;canvas.height=size;ctx.clearRect(0,0,size,size);
+    var density=new Float32Array(size*size),sigma=.135,sigma2=2*sigma*sigma,maxDensity=0,zones=render.zones;
+    for(var y=0;y<size;y++){
+      var py=(y+.5)/size;
+      for(var x=0;x<size;x++){
+        var px=(x+.5)/size,sum=0;
+        zones.forEach(function(item,index){
+          if(!item.count||item.value==null)return;
+          var zx=(index%5+.5)/5,zy=(Math.floor(index/5)+.5)/5,dx=px-zx,dy=py-zy;
+          var normalized=render.metric==="count"||render.metric==="share"?(render.max?item.value/render.max:0):
+            (render.metric==="speed"?(render.max>render.min?(item.value-render.min)/(render.max-render.min):.5):item.value);
+          var reliability=Math.min(1,item.count/8),weight=(.08+.92*Math.max(0,normalized))*reliability;
+          sum+=weight*Math.exp(-(dx*dx+dy*dy)/sigma2);
+        });
+        density[y*size+x]=sum;if(sum>maxDensity)maxDensity=sum;
+      }
+    }
+    var image=ctx.createImageData(size,size);
+    for(var i=0;i<density.length;i++){
+      var t=maxDensity?density[i]/maxDensity:0,offset=i*4;
+      if(t<.018){image.data[offset+3]=0;continue;}
+      var rgb=pitchHeatmapColor(Math.pow(t,.72));
+      image.data[offset]=rgb[0];image.data[offset+1]=rgb[1];image.data[offset+2]=rgb[2];image.data[offset+3]=Math.round(70+Math.min(1,t)*175);
+    }
+    ctx.putImageData(image,0,0);
+    var ink=getComputedStyle(document.documentElement).getPropertyValue("--ink").trim()||"#202020";
+    ctx.strokeStyle=ink;ctx.lineWidth=2;ctx.strokeRect(size*.2,size*.2,size*.6,size*.6);
+    ctx.beginPath();ctx.moveTo(size*.39,size*.93);ctx.lineTo(size*.61,size*.93);ctx.lineTo(size*.67,size*.97);ctx.lineTo(size*.5,size*.995);ctx.lineTo(size*.33,size*.97);ctx.closePath();ctx.stroke();
   }
   function pitchHeatmapMarkup(){
     if(pitchHeatmapState.error)return '<div class="msg">'+esc(pitchHeatmapState.error)+'</div>';
     var data=pitchHeatmapState.data;
     if(!data)return '<div class="msg">配球ヒートマップを準備中…</div>';
-    var games=(data.games||[]).slice(),teams=Array.from(new Set(games.map(function(game){return game.opponent;}).filter(Boolean))).sort();
+    var games=(data.games||[]).slice(),allGames=games.slice(),teams=Array.from(new Set(games.map(function(game){return game.opponent;}).filter(Boolean))).sort();
     var gameList=games.slice().sort(function(a,b){return String(b.date).localeCompare(String(a.date))||String(b.id).localeCompare(String(a.id));});
     var types=(data.pitch_types||[]).map(function(name,index){return {value:index,label:name};});
+    var batters=(data.batters||[]).map(function(item,index){return {value:index,label:item.name+"（"+(item.team||"-")+"）"};}).sort(function(a,b){return a.label.localeCompare(b.label,"ja");});
     if(pitchHeatmapState.scope==="team")games=games.filter(function(game){return game.opponent===pitchHeatmapState.opponent;});
     if(pitchHeatmapState.scope==="game")games=games.filter(function(game){return String(game.id)===String(pitchHeatmapState.game);});
-    var zones=Array.from({length:25},function(){return {count:0,swings:0,misses:0};}),usedGames=0;
+    if(pitchHeatmapState.dateFrom)games=games.filter(function(game){return String(game.date)>=pitchHeatmapState.dateFrom;});
+    if(pitchHeatmapState.dateTo)games=games.filter(function(game){return String(game.date)<=pitchHeatmapState.dateTo;});
+    var zones=Array.from({length:25},function(){return {count:0,swings:0,misses:0,called:0,inplay:0,speedSum:0,speedCount:0};}),usedGames=0,usedBatters=new Set();
     games.forEach(function(game){
       var used=false;
       (game.p||[]).forEach(function(pitch){
-        if(pitchHeatmapState.hand!=="all"&&String(pitch[2])!==pitchHeatmapState.hand)return;
         if(pitchHeatmapState.pitchType!=="all"&&String(pitch[1])!==pitchHeatmapState.pitchType)return;
+        if(pitchHeatmapState.batter!=="all"&&String(pitch[12])!==pitchHeatmapState.batter)return;
+        if(pitchHeatmapState.hand!=="all"&&String(pitch[2])!==pitchHeatmapState.hand)return;
+        if(!pitchHeatmapInningMatches(pitchHeatmapState.inning,Number(pitch[5])||0))return;
+        if(pitchHeatmapState.count!=="all"&&(String(pitch[6])+"-"+String(pitch[7]))!==pitchHeatmapState.count)return;
+        if(pitchHeatmapState.outs!=="all"&&String(pitch[8])!==pitchHeatmapState.outs)return;
+        var runnerMask=Number(pitch[9])||0;
+        if(pitchHeatmapState.runners==="empty"&&runnerMask!==0)return;
+        if(pitchHeatmapState.runners==="on"&&runnerMask===0)return;
+        if(pitchHeatmapState.runners==="risp"&&(runnerMask&6)===0)return;
+        if(pitchHeatmapState.result!=="all"&&String(pitch[10])!==pitchHeatmapState.result)return;
+        var speed=Number(pitch[11])||0;
+        if(pitchHeatmapState.speedMin!==""&&(!speed||speed<Number(pitchHeatmapState.speedMin)))return;
+        if(pitchHeatmapState.speedMax!==""&&(!speed||speed>Number(pitchHeatmapState.speedMax)))return;
         var zone=Number(pitch[0]);if(zone<0||zone>24)return;
-        zones[zone].count++;zones[zone].swings+=Number(pitch[3])||0;zones[zone].misses+=Number(pitch[4])||0;used=true;
+        var item=zones[zone];item.count++;item.swings+=Number(pitch[3])||0;item.misses+=Number(pitch[4])||0;
+        item.called+=Number(pitch[10])===2?1:0;item.inplay+=Number(pitch[10])===5?1:0;
+        if(speed){item.speedSum+=speed;item.speedCount++;}usedBatters.add(Number(pitch[12]));used=true;
       });
       if(used)usedGames++;
     });
     var total=zones.reduce(function(sum,item){return sum+item.count;},0);
     var swings=zones.reduce(function(sum,item){return sum+item.swings;},0);
     var misses=zones.reduce(function(sum,item){return sum+item.misses;},0);
-    var metric=pitchHeatmapState.metric,max=0;
+    var speedTotal=zones.reduce(function(sum,item){return sum+item.speedSum;},0),speedCount=zones.reduce(function(sum,item){return sum+item.speedCount;},0);
+    var metric=pitchHeatmapState.metric,max=0,min=Infinity;
     zones.forEach(function(item){
-      item.value=metric==="whiff"?(item.swings?item.misses/item.swings:null):(metric==="share"?(total?item.count/total:0):item.count);
-      if(item.value!=null&&item.value>max)max=item.value;
+      if(metric==="whiff")item.value=item.swings?item.misses/item.swings:null;
+      else if(metric==="share")item.value=total?item.count/total:0;
+      else if(metric==="swing")item.value=item.count?item.swings/item.count:null;
+      else if(metric==="called")item.value=item.count?item.called/item.count:null;
+      else if(metric==="inplay")item.value=item.count?item.inplay/item.count:null;
+      else if(metric==="speed")item.value=item.speedCount?item.speedSum/item.speedCount:null;
+      else item.value=item.count;
+      if(item.value!=null){if(item.value>max)max=item.value;if(item.value<min)min=item.value;}
     });
+    if(min===Infinity)min=0;
+    pitchHeatmapRenderData={zones:zones,metric:metric,max:max,min:min,total:total};
     var cells="";
     zones.forEach(function(item,index){
       var row=Math.floor(index/5),col=index%5,inZone=row>=1&&row<=3&&col>=1&&col<=3;
-      var ratio=item.value==null?0:(metric==="whiff"?item.value:(max?item.value/max:0));
+      var isRate=["whiff","swing","called","inplay"].indexOf(metric)>=0;
+      var ratio=item.value==null?0:(metric==="speed"?(max>min?(item.value-min)/(max-min):.5):(isRate?item.value:(max?item.value/max:0)));
       var alpha=item.count?(.10+ratio*.78):.03;
-      var color=metric==="whiff"?"14,116,144":"232,89,12";
-      var label=metric==="count"?(item.count||""):(item.value==null?"-":(item.value*100).toFixed(metric==="share"?1:0)+"%");
+      var color=isRate?"14,116,144":"232,89,12";
+      var label=metric==="count"?(item.count||""):(item.value==null?"-":(metric==="speed"?item.value.toFixed(1):(item.value*100).toFixed(metric==="share"?1:0)+"%"));
       var title=item.count+"球 / 投球割合 "+(total?(item.count/total*100).toFixed(1):"0.0")+"% / 空振り "+item.misses+"／スイング "+item.swings;
       cells+='<div class="hcell'+(inZone?' zone':'')+'" style="background:rgba('+color+','+alpha.toFixed(2)+')" title="'+esc(title)+'" aria-label="'+esc(title)+'">'+label+'</div>';
     });
-    var metricName=metric==="share"?"投球割合":metric==="whiff"?"空振り率":"投球数";
+    var metricNames={count:"投球数",share:"投球割合",swing:"スイング率",whiff:"空振り率",called:"見逃しストライク率",inplay:"インプレー率",speed:"平均球速"},metricName=metricNames[metric]||"投球数";
     var scopeItems=[{value:"season",label:"シーズン"},{value:"team",label:"対チーム"},{value:"game",label:"1試合"}];
     var teamItems=[{value:"all",label:"対戦球団を選択"}].concat(teams.map(function(team){return {value:team,label:team};}));
-    var gameItems=[{value:"all",label:"試合を選択"}].concat(gameList.map(function(game){return {value:game.id,label:game.date+" vs "+game.opponent};}));
+    var gameItems=[{value:"all",label:"試合を選択"}].concat(gameList.map(function(game){return {value:game.id,label:game.date+" vs "+game.opponent+(game.stadium&&game.stadium!=="-"?"（"+game.stadium+"）":"")};}));
+    var dates=allGames.map(function(game){return game.date;}).filter(Boolean).sort(),dateMin=dates[0]||"",dateMax=dates[dates.length-1]||"";
+    var countItems=[];for(var balls=0;balls<=3;balls++)for(var strikes=0;strikes<=2;strikes++)countItems.push({value:balls+"-"+strikes,label:balls+"-"+strikes});
+    var active=[pitchHeatmapState.scope==="season"?"シーズン":pitchHeatmapState.scope==="team"?"対 "+pitchHeatmapState.opponent:"1試合"];
+    if(pitchHeatmapState.pitchType!=="all")active.push((data.pitch_types||[])[Number(pitchHeatmapState.pitchType)]||"球種指定");
+    if(pitchHeatmapState.batter!=="all"&&data.batters&&data.batters[Number(pitchHeatmapState.batter)])active.push("対 "+data.batters[Number(pitchHeatmapState.batter)].name);
+    if(pitchHeatmapState.hand!=="all")active.push(pitchHeatmapState.hand==="1"?"右打者":"左打者");
+    if(pitchHeatmapState.inning!=="all")active.push(pitchHeatmapState.inning+"回");
+    if(pitchHeatmapState.count!=="all")active.push(pitchHeatmapState.count+"カウント");
+    if(pitchHeatmapState.outs!=="all")active.push(pitchHeatmapState.outs+"アウト");
+    if(pitchHeatmapState.runners!=="all")active.push(pitchHeatmapState.runners==="empty"?"走者なし":pitchHeatmapState.runners==="risp"?"得点圏":"走者あり");
+    if(pitchHeatmapState.result!=="all")active.push(({1:"ボール",2:"見逃し",3:"空振り",4:"ファウル",5:"インプレー"})[pitchHeatmapState.result]);
+    if(pitchHeatmapState.dateFrom||pitchHeatmapState.dateTo)active.push((pitchHeatmapState.dateFrom||dateMin)+"〜"+(pitchHeatmapState.dateTo||dateMax));
+    if(pitchHeatmapState.speedMin!==""||pitchHeatmapState.speedMax!=="")active.push((pitchHeatmapState.speedMin||"下限なし")+"〜"+(pitchHeatmapState.speedMax||"上限なし")+"km/h");
+    var gridDisplay=pitchHeatmapState.view==="grid"?"":"display:none",smoothDisplay=pitchHeatmapState.view==="smooth"?"":"display:none";
     return '<div class="pitch-heatmap-head"><div class="pitch-heatmap-title">投球コース・ヒートマップ<small>集計範囲や条件を選んで配球傾向を比較できます</small></div><span class="sub">投手から見た位置 ／ '+esc(data.updated_through||"-")+'時点</span></div>'+
       '<div class="pitch-heatmap-controls">'+
       '<label class="ef"><span>集計範囲</span><select id="pitchHeatScope" onchange="pitchHeatmapChanged()">'+pitchHeatmapOptions(scopeItems,pitchHeatmapState.scope)+'</select></label>'+
       '<label class="ef"><span>対戦球団</span><select id="pitchHeatOpponent" onchange="pitchHeatmapChanged()"'+(pitchHeatmapState.scope!=="team"?' disabled':'')+'>'+pitchHeatmapOptions(teamItems,pitchHeatmapState.opponent)+'</select></label>'+
       '<label class="ef"><span>試合</span><select id="pitchHeatGame" onchange="pitchHeatmapChanged()"'+(pitchHeatmapState.scope!=="game"?' disabled':'')+'>'+pitchHeatmapOptions(gameItems,pitchHeatmapState.game)+'</select></label>'+
-      '<label class="ef"><span>打者の左右</span><select id="pitchHeatHand" onchange="pitchHeatmapChanged()"><option value="all">左右すべて</option><option value="1"'+(pitchHeatmapState.hand==="1"?' selected':'')+'>右打者</option><option value="2"'+(pitchHeatmapState.hand==="2"?' selected':'')+'>左打者</option></select></label>'+
       '<label class="ef"><span>球種</span><select id="pitchHeatType" onchange="pitchHeatmapChanged()"><option value="all">全球種</option>'+pitchHeatmapOptions(types,pitchHeatmapState.pitchType)+'</select></label>'+
-      '<label class="ef"><span>表示指標</span><select id="pitchHeatMetric" onchange="pitchHeatmapChanged()"><option value="count"'+(metric==="count"?' selected':'')+'>投球数</option><option value="share"'+(metric==="share"?' selected':'')+'>投球割合</option><option value="whiff"'+(metric==="whiff"?' selected':'')+'>空振り率</option></select></label></div>'+
-      '<div class="pitch-heatmap-layout"><div class="pitch-heatmap-grid"><div class="pitch-heatmap-guide"><span>左打席側</span><b>高め</b><span>右打席側</span></div><div class="heat">'+cells+'</div><div class="heat-lg"><span>低</span><span class="hgrad"></span><span>高</span><span style="margin-left:auto">枠内＝ストライクゾーン</span></div></div>'+
-      '<div><div class="pitch-heatmap-summary"><div class="stat"><div class="sv">'+usedGames+'</div><div class="sl">対象試合</div></div><div class="stat"><div class="sv">'+total+'</div><div class="sl">コース付き投球</div></div><div class="stat"><div class="sv">'+swings+'</div><div class="sl">スイング</div></div><div class="stat"><div class="sv">'+misses+'</div><div class="sl">空振り</div></div></div><div class="pitch-heatmap-note"><b>'+metricName+'</b>をセルに表示しています。空振り率は各コースの「空振り数÷スイング数」で、スイングがない場所は「-」です。対象球数が少ない条件は参考値として見てください。</div></div></div>'+
-      '<div class="pitch-heatmap-note">このヒートマップは当サイトで取得した5×5のコース区分による集計です。公式のトラッキング座標や捕手視点の精密な投球位置ではありません。</div>';
+      '<label class="ef"><span>表示指標</span><select id="pitchHeatMetric" onchange="pitchHeatmapChanged()">'+pitchHeatmapOptions([{value:"count",label:"投球数"},{value:"share",label:"投球割合"},{value:"swing",label:"スイング率"},{value:"whiff",label:"空振り率"},{value:"called",label:"見逃しストライク率"},{value:"inplay",label:"インプレー率"},{value:"speed",label:"平均球速"}],metric)+'</select></label>'+
+      '<label class="ef"><span>表示形式</span><select id="pitchHeatView" onchange="pitchHeatmapChanged()"><option value="smooth"'+(pitchHeatmapState.view==="smooth"?' selected':'')+'>等高線</option><option value="grid"'+(pitchHeatmapState.view==="grid"?' selected':'')+'>5×5数値</option></select></label></div>'+
+      '<details class="pitch-heatmap-advanced"'+(pitchHeatmapState.advancedOpen?' open':'')+' ontoggle="pitchHeatmapAdvancedToggled(this.open)"><summary>詳細条件（日付・打者・カウント・走者・結果・球速）</summary><div class="pitch-heatmap-advanced-grid">'+
+      '<label class="ef"><span>開始日</span><input id="pitchHeatDateFrom" type="date" min="'+esc(dateMin)+'" max="'+esc(dateMax)+'" value="'+esc(pitchHeatmapState.dateFrom)+'" onchange="pitchHeatmapChanged()"></label>'+
+      '<label class="ef"><span>終了日</span><input id="pitchHeatDateTo" type="date" min="'+esc(dateMin)+'" max="'+esc(dateMax)+'" value="'+esc(pitchHeatmapState.dateTo)+'" onchange="pitchHeatmapChanged()"></label>'+
+      '<label class="ef"><span>対戦打者</span><select id="pitchHeatBatter" onchange="pitchHeatmapChanged()"><option value="all">全打者</option>'+pitchHeatmapOptions(batters,pitchHeatmapState.batter)+'</select></label>'+
+      '<label class="ef"><span>打者の左右</span><select id="pitchHeatHand" onchange="pitchHeatmapChanged()"><option value="all">左右すべて</option><option value="1"'+(pitchHeatmapState.hand==="1"?' selected':'')+'>右打者</option><option value="2"'+(pitchHeatmapState.hand==="2"?' selected':'')+'>左打者</option></select></label>'+
+      '<label class="ef"><span>イニング</span><select id="pitchHeatInning" onchange="pitchHeatmapChanged()">'+pitchHeatmapOptions([{value:"all",label:"全イニング"},{value:"1-3",label:"1〜3回"},{value:"4-6",label:"4〜6回"},{value:"7-9",label:"7〜9回"},{value:"10+",label:"延長"}],pitchHeatmapState.inning)+'</select></label>'+
+      '<label class="ef"><span>投球前カウント</span><select id="pitchHeatCount" onchange="pitchHeatmapChanged()"><option value="all">全カウント</option>'+pitchHeatmapOptions(countItems,pitchHeatmapState.count)+'</select></label>'+
+      '<label class="ef"><span>アウト</span><select id="pitchHeatOuts" onchange="pitchHeatmapChanged()"><option value="all">全アウト</option><option value="0"'+(pitchHeatmapState.outs==="0"?' selected':'')+'>0アウト</option><option value="1"'+(pitchHeatmapState.outs==="1"?' selected':'')+'>1アウト</option><option value="2"'+(pitchHeatmapState.outs==="2"?' selected':'')+'>2アウト</option></select></label>'+
+      '<label class="ef"><span>走者状況</span><select id="pitchHeatRunners" onchange="pitchHeatmapChanged()">'+pitchHeatmapOptions([{value:"all",label:"すべて"},{value:"empty",label:"走者なし"},{value:"on",label:"走者あり"},{value:"risp",label:"得点圏"}],pitchHeatmapState.runners)+'</select></label>'+
+      '<label class="ef"><span>投球結果</span><select id="pitchHeatResult" onchange="pitchHeatmapChanged()">'+pitchHeatmapOptions([{value:"all",label:"全結果"},{value:"1",label:"ボール"},{value:"2",label:"見逃し"},{value:"3",label:"空振り"},{value:"4",label:"ファウル"},{value:"5",label:"インプレー"}],pitchHeatmapState.result)+'</select></label>'+
+      '<label class="ef"><span>最低球速 km/h</span><input id="pitchHeatSpeedMin" type="number" min="60" max="180" value="'+esc(pitchHeatmapState.speedMin)+'" onchange="pitchHeatmapChanged()" placeholder="指定なし"></label>'+
+      '<label class="ef"><span>最高球速 km/h</span><input id="pitchHeatSpeedMax" type="number" min="60" max="180" value="'+esc(pitchHeatmapState.speedMax)+'" onchange="pitchHeatmapChanged()" placeholder="指定なし"></label>'+
+      '<button class="btn pitch-heatmap-reset" onclick="pitchHeatmapResetFilters()">条件をリセット</button></div></details>'+
+      '<div class="pitch-heatmap-active"><b class="sub">適用中：</b>'+active.map(function(label){return '<span>'+esc(label)+'</span>';}).join("")+'</div>'+
+      '<div class="pitch-heatmap-layout"><div class="pitch-heatmap-grid"><div class="pitch-heatmap-guide"><span>左打席側</span><b>高め</b><span>右打席側</span></div><div style="'+smoothDisplay+'"><div class="pitch-heatmap-surface">'+(total?'<canvas id="pitchHeatCanvas" aria-label="等高線ヒートマップ"></canvas>':'<div class="pitch-heatmap-empty">条件に合うコースデータがありません</div>')+'</div><div class="heat-lg"><span>低</span><span class="pitch-contour-legend"></span><span>高</span><span style="margin-left:auto">相対的な濃淡</span></div></div><div style="'+gridDisplay+'"><div class="heat">'+cells+'</div><div class="heat-lg"><span>低</span><span class="hgrad"></span><span>高</span><span style="margin-left:auto">枠内＝ストライクゾーン</span></div></div></div>'+
+      '<div><div class="pitch-heatmap-summary"><div class="stat"><div class="sv">'+usedGames+'</div><div class="sl">対象試合</div></div><div class="stat"><div class="sv">'+total+'</div><div class="sl">コース付き投球</div></div><div class="stat"><div class="sv">'+usedBatters.size+'</div><div class="sl">対戦打者</div></div><div class="stat"><div class="sv">'+(speedCount?(speedTotal/speedCount).toFixed(1):"-")+'</div><div class="sl">平均球速 km/h</div></div><div class="stat"><div class="sv">'+swings+'</div><div class="sl">スイング</div></div><div class="stat"><div class="sv">'+misses+'</div><div class="sl">空振り</div></div></div><div class="pitch-heatmap-note"><b>'+metricName+'</b>を表示しています。割合系の指標は各コース内の対象球を分母にし、空振り率だけは「空振り数÷スイング数」です。対象球数が少ない条件は参考値として見てください。</div></div></div>'+
+      '<div class="pitch-heatmap-note">等高線は当サイトで取得した<b>5×5のコース区分を滑らかに補間した視覚表現</b>です。実際の投球座標を直接描いたものではなく、公式トラッキングの精密なヒートマップではありません。5×5数値へ切り替えると元の集計値を確認できます。</div>';
   }
   function renderMatchups(){
     var view=document.getElementById("matchupView"),data=matchupState.data;if(!view||!data)return;
@@ -5474,6 +5608,7 @@
       (isPitcher?'投手の防御率・失点は個別打者へ正確に配分できないため表示しません。':'')+'</div></div>';
     view.innerHTML=h;
     if(isPitcher&&!pitchHeatmapState.data&&!pitchHeatmapState.error)loadPitchHeatmap();
+    else if(isPitcher&&pitchHeatmapState.data)requestAnimationFrame(drawPitchHeatmapSurface);
   }
 
   /* ===== 選手スプリット（試合ログ・月別・対戦別など） ===== */

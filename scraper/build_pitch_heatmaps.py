@@ -7,8 +7,13 @@
     data/{season}/pitch_heatmaps/index.json
     data/{season}/pitch_heatmaps/pitchers/{player_key}.json
 
-各投球は [zone, pitch_type, batter_hand, swing, miss] の5要素へ圧縮する。
+各投球は次の配列へ圧縮する。
+    [zone, pitch_type, batter_hand, swing, miss, inning, balls, strikes,
+     outs, runners, result, speed_kmh, batter]
+
 zone は上から行優先の 0〜24、左右は 0=不明 / 1=右 / 2=左。
+runners は一塁=1、二塁=2、三塁=4 のビット値。
+result は 0=不明 / 1=ボール / 2=見逃し / 3=空振り / 4=ファウル / 5=インプレー。
 """
 
 import argparse
@@ -52,6 +57,35 @@ def _zone(row):
     return grid_row * 5 + grid_col
 
 
+def _integer(value, default=0):
+    try:
+        return int(float(value))
+    except (TypeError, ValueError):
+        return default
+
+
+def _result_code(row):
+    if _truthy(row.get("is_miss")):
+        return 3
+    if _truthy(row.get("is_inplay")):
+        return 5
+    if _truthy(row.get("is_foul")):
+        return 4
+    if _truthy(row.get("is_called")):
+        return 2
+    if _truthy(row.get("is_ball")):
+        return 1
+    return 0
+
+
+def _runner_mask(row):
+    return (
+        (1 if _truthy(row.get("r1")) else 0)
+        | (2 if _truthy(row.get("r2")) else 0)
+        | (4 if _truthy(row.get("r3")) else 0)
+    )
+
+
 def aggregate(rows):
     pitchers = {}
     latest_date = None
@@ -73,6 +107,8 @@ def aggregate(rows):
             },
             "pitch_types": [],
             "_pitch_type_index": {},
+            "batters": [],
+            "_batter_index": {},
             "games": {},
         })
         player = pitcher["player"]
@@ -87,11 +123,25 @@ def aggregate(rows):
             pitcher["_pitch_type_index"][pitch_type] = len(pitcher["pitch_types"])
             pitcher["pitch_types"].append(pitch_type)
         type_index = pitcher["_pitch_type_index"][pitch_type]
+        batter_key = row.get("batter_key") or row.get("batter_id") or row.get("batter") or "-"
+        if batter_key not in pitcher["_batter_index"]:
+            pitcher["_batter_index"][batter_key] = len(pitcher["batters"])
+            pitcher["batters"].append({
+                "key": batter_key,
+                "player_id": row.get("batter_id") or None,
+                "name": row.get("batter") or "-",
+                "team": row.get("batting_team") or "-",
+                "hand": row.get("bat_hand") or "-",
+            })
+        batter_index = pitcher["_batter_index"][batter_key]
         game_id = row.get("game_id") or f"{date}-{row.get('batting_team') or '-'}"
         game = pitcher["games"].setdefault(game_id, {
             "id": game_id,
             "date": date,
             "opponent": row.get("batting_team") or "-",
+            "home": row.get("home") or "-",
+            "away": row.get("away") or "-",
+            "stadium": row.get("stadium") or "-",
             "p": [],
         })
         game["p"].append([
@@ -100,6 +150,14 @@ def aggregate(rows):
             _hand_code(row.get("bat_hand")),
             1 if _truthy(row.get("is_swing")) else 0,
             1 if _truthy(row.get("is_miss")) else 0,
+            _integer(row.get("inning")),
+            _integer(row.get("balls_before")),
+            _integer(row.get("strikes_before")),
+            _integer(row.get("outs")),
+            _runner_mask(row),
+            _result_code(row),
+            _integer(row.get("speed_kmh")),
+            batter_index,
         ])
     return pitchers, latest_date
 
@@ -125,6 +183,7 @@ def write_heatmaps(season, pitchers, latest_date, base="data"):
             "updated_through": latest_date,
             "player": value["player"],
             "pitch_types": value["pitch_types"],
+            "batters": value["batters"],
             "games": games,
         }
         with open(os.path.join(directory, filename), "w", encoding="utf-8") as handle:
