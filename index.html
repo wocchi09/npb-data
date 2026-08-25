@@ -1338,12 +1338,21 @@
   .roster-team-head .sub2{margin-left:auto;font-weight:500;}
   .roster-team-block .tblwrap{border:0;border-radius:0;box-shadow:none;}
   .roster-team-block table.stbl{margin:0;}
+  .player-bio-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:8px 0 12px;}
+  .player-bio-item{border:1px solid var(--line);border-radius:9px;background:var(--panel2);padding:9px 10px;min-width:0;}
+  .player-bio-item span{display:block;color:var(--muted);font-size:9px;margin-bottom:4px;}
+  .player-bio-item b{display:block;font-size:12px;line-height:1.55;overflow-wrap:anywhere;}
+  .career-stats{margin-top:10px;}
+  .career-stats .stbl th,.career-stats .stbl td{white-space:nowrap;text-align:center;}
+  .career-empty{padding:10px;border:1px dashed var(--line);border-radius:9px;color:var(--muted);font-size:11px;}
+  .profile-source{margin-top:8px;font-size:10px;color:var(--muted);}
   @media(max-width:680px){
     .roster-kpis{grid-template-columns:1fr 1fr;}
     .roster-events{grid-template-columns:1fr;}
     .roster-datebar .btn{flex:1;}
     #rosterView .dash-h{flex-wrap:wrap;align-items:center;}
     #rosterView .dash-date{width:100%;margin-left:16px;text-align:left;}
+    .player-bio-grid{grid-template-columns:1fr 1fr;}
   }
 
   /* ---- Typography: 日本語と小さい成績表の可読性を優先 ---- */
@@ -3575,6 +3584,7 @@
 
   /* ===== 公式名鑑（NPB公式・支配下選手のみ） ===== */
   var npbRoster=null;      // {updated_at, players:[...]}
+  var playerProfiles=null; // {updated_at, players:[...]} NPB公式プロフィール・通算成績
 
   /* 氏名の正規化：スペースを除き、よくある異体字を寄せる。
      公式サイトとスポナビで表記が違うため、突合の前に必ず通す。 */
@@ -3601,6 +3611,25 @@
       npbRoster = r.ok ? await r.json() : false;
     }catch(e){ npbRoster=false; }
     return npbRoster;
+  }
+
+  async function loadPlayerProfiles(){
+    if(playerProfiles!==null) return playerProfiles;
+    try{
+      var r=await fetch("data/masters/player_profiles.json?t="+Date.now());
+      playerProfiles=r.ok?await r.json():false;
+    }catch(e){playerProfiles=false;}
+    return playerProfiles;
+  }
+
+  function playerProfileIndex(){
+    var index={};
+    if(playerProfiles&&playerProfiles.players){
+      playerProfiles.players.forEach(function(profile){
+        if(profile.npb_id) index[String(profile.npb_id)]=profile;
+      });
+    }
+    return index;
   }
 
   /* 成績（seasonData）を氏名＋球団で引けるようにする */
@@ -3741,10 +3770,11 @@
 
   async function loadPlayers(){
     var pv=document.getElementById("playersView");
-    if(seasonData && npbRoster!==null && rosterRegistration!==null){ renderPlayers(); return; }
+    if(seasonData && npbRoster!==null && rosterRegistration!==null && playerProfiles!==null){ renderPlayers(); return; }
     pv.innerHTML='<div class="msg">読み込み中…</div>';
     // 公式名鑑（一覧の基準）と、成績（表示用）の両方を読む
     await loadRoster();
+    await loadPlayerProfiles();
     await loadRegistrationData();
     if(!seasonData) await loadSeason();
     if(!npbRoster && !seasonData){
@@ -3802,6 +3832,7 @@
   function buildPlayerList(){
     var idx=statsIndex();
     var regIdx=registrationIndex();
+    var profileIdx=playerProfileIndex();
     if(npbRoster && npbRoster.players && npbRoster.players.length){
       return npbRoster.players.map(function(r){
         var st=findStats(idx, r.name, r.team) || {};
@@ -3818,6 +3849,7 @@
           hand: (r.throws?r.throws+"投":"") + (r.bats?r.bats+"打":""),
           throws: r.throws, bats: r.bats,
           birthdate: r.birthdate, height: r.height, weight: r.weight,
+          profile: profileIdx[String(r.npb_id)]||null,
           is_pitcher: !!r.is_pitcher,
           played: !!(b || q),                     // 一軍出場（収集済み試合に登場したか）
           batting: b, pitching: q,
@@ -3840,6 +3872,7 @@
       for(var k in p) o[k]=p[k];
       o.played = true;
       o.fromRoster = false;
+      o.profile = null;
       return o;
     });
   }
@@ -5236,6 +5269,41 @@
     view.innerHTML=h;
   }
 
+  function careerValue(value,key){
+    if(value==null||value==="") return "-";
+    if(/^(win_pct|batting_average|slugging_percentage|on_base_percentage)$/.test(key)){
+      return Number(value).toFixed(3).replace(/^0\./,".");
+    }
+    if(key==="era") return Number(value).toFixed(2);
+    return String(value);
+  }
+
+  function careerStatsTable(title,data,defs,emptyLabel){
+    var h='<div class="career-stats"><div class="subttl">'+esc(title)+'</div>';
+    if(!data) return h+'<div class="career-empty">'+esc(emptyLabel||"NPB一軍の通算成績はありません")+'</div></div>';
+    h+='<div class="tblwrap"><table class="stbl"><thead><tr>';
+    defs.forEach(function(def){h+='<th>'+esc(def[1])+'</th>';});
+    h+='</tr></thead><tbody><tr>';
+    defs.forEach(function(def){h+='<td class="num">'+esc(careerValue(data[def[0]],def[0]))+'</td>';});
+    return h+'</tr></tbody></table></div></div>';
+  }
+
+  var CAREER_BATTING_COLS=[
+    ["games","試合"],["plate_appearances","打席"],["at_bats","打数"],["runs","得点"],
+    ["hits","安打"],["doubles","二塁打"],["triples","三塁打"],["home_runs","本塁打"],
+    ["total_bases","塁打"],["runs_batted_in","打点"],["stolen_bases","盗塁"],["caught_stealing","盗塁死"],
+    ["sacrifice_hits","犠打"],["sacrifice_flies","犠飛"],["walks","四球"],["hit_by_pitch","死球"],
+    ["strikeouts","三振"],["grounded_into_double_plays","併殺打"],["batting_average","打率"],
+    ["on_base_percentage","出塁率"],["slugging_percentage","長打率"]
+  ];
+  var CAREER_PITCHING_COLS=[
+    ["games","登板"],["wins","勝利"],["losses","敗戦"],["saves","セーブ"],["holds","H"],
+    ["hold_points","HP"],["complete_games","完投"],["shutouts","完封"],["no_walk_games","無四球"],
+    ["win_pct","勝率"],["batters_faced","打者"],["innings","投球回"],["hits_allowed","被安打"],
+    ["home_runs_allowed","被本塁打"],["walks","与四球"],["hit_batters","与死球"],["strikeouts","奪三振"],
+    ["wild_pitches","暴投"],["balks","ボーク"],["runs","失点"],["earned_runs","自責点"],["era","防御率"]
+  ];
+
   /* 選手詳細（選手一覧から開く） */
   function showPlayerDetail(key){
     var p=null;
@@ -5249,7 +5317,7 @@
     }
     var el=document.getElementById("plDetail");
     if(!p||!el) return;
-    var b=p.batting||{}, q=p.pitching||{};
+    var b=p.batting||{}, q=p.pitching||{}, profile=p.profile||null;
 
     var h='<div class="dash-sec pcard" style="border-left:5px solid '+
       (tColor(p.team)||'var(--accent)')+'">'+
@@ -5258,19 +5326,37 @@
       ' '+teamBadge(p.team)+
       '<button class="btn" style="margin-left:auto" onclick="document.getElementById(\'plDetail\').innerHTML=\'\'">閉じる</button></div>';
 
-    // プロフィール
+    // プロフィール（取得できない項目は推測しない）
     var prof=[];
     if(p.team) prof.push(["所属", p.team]);
     if(p.number) prof.push(["背番号", "#"+p.number]);
     if(p.hand) prof.push(["投打", p.hand]);
     if(p.position) prof.push(["主守備", p.position]);
-    if(p.player_id) prof.push(["選手ID", p.player_id]);
+    var birthdate=(profile&&profile.birthdate)||p.birthdate;
+    if(birthdate) prof.push(["生年月日", String(birthdate).replace(/\./g,"-")]);
+    if(profile&&profile.reading) prof.push(["ふりがな", profile.reading]);
+    if(profile&&profile.height_cm) prof.push(["身長／体重", profile.height_cm+"cm／"+(profile.weight_kg||"-")+"kg"]);
+    if(profile&&profile.career) prof.push(["経歴・出身校", profile.career]);
+    if(profile&&profile.draft) prof.push(["ドラフト", profile.draft]);
+    if(profile&&profile.career_teams&&profile.career_teams.length) prof.push(["NPB在籍球団", profile.career_teams.join(" → ")]);
+    if(profile&&profile.birthplace) prof.push(["出身地", profile.birthplace]);
     if(prof.length){
-      h+='<div class="expform" style="margin-bottom:10px">';
+      h+='<div class="player-bio-grid">';
       prof.forEach(function(x){
-        h+='<div class="ef"><span>'+esc(x[0])+'</span><b style="font-size:14px">'+esc(x[1])+'</b></div>';
+        h+='<div class="player-bio-item"><span>'+esc(x[0])+'</span><b>'+esc(x[1])+'</b></div>';
       });
       h+='</div>';
+    }
+
+    if(profile){
+      h+='<div class="subsec"><div class="subttl">NPB通算成績</div>'+
+        careerStatsTable("通算打撃成績",profile.career_batting,CAREER_BATTING_COLS,"NPB一軍の通算打撃成績はありません")+
+        careerStatsTable("通算投手成績",profile.career_pitching,CAREER_PITCHING_COLS,"NPB一軍の通算投手成績はありません")+
+        '<div class="profile-source">出典：<a href="'+esc(profile.source_url||"https://npb.jp/bis/players/")+'" target="_blank" rel="noopener">NPB公式 個人年度別成績</a> ／ '+
+        (profile.stale?'前回取得値（最新取得に失敗）':'取得 '+esc(String(profile.fetched_at||"").slice(0,10)))+
+        '。出身都道府県は公式個人成績ページに記載がないため推測していません。</div></div>';
+    }else{
+      h+='<div class="career-empty" style="margin-bottom:10px">通算成績はまだ取得されていません。Actions の「Update Player Profiles」で更新できます。</div>';
     }
 
     if(p.registered_days!=null){

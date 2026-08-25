@@ -1,0 +1,75 @@
+name: Update Player Profiles
+
+# NPB公式の個人年度別成績からプロフィールと通算成績を週1回更新する。
+# 現役支配下選手を1ページずつ、2秒間隔で取得するため30分前後かかる。
+
+on:
+  schedule:
+    # JST 月曜 9:00（名鑑更新の45分後）
+    - cron: "0 0 * * 1"
+  workflow_dispatch:
+    inputs:
+      team:
+        description: "特定球団だけ更新（例: ソフトバンク。空欄で全選手）"
+        required: false
+        default: ""
+      limit:
+        description: "動作確認用の人数上限（空欄で全選手）"
+        required: false
+        default: ""
+
+concurrency:
+  group: npb-data-write
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  profiles:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+
+      - name: Fetch profiles and career totals
+        env:
+          PROFILE_TEAM: ${{ github.event.inputs.team }}
+          PROFILE_LIMIT: ${{ github.event.inputs.limit }}
+        run: |
+          ARGS=()
+          if [ -n "$PROFILE_TEAM" ]; then
+            ARGS+=(--team "$PROFILE_TEAM")
+          fi
+          if [ -n "$PROFILE_LIMIT" ]; then
+            ARGS+=(--limit "$PROFILE_LIMIT")
+          fi
+          python scraper/player_profiles.py "${ARGS[@]}"
+
+      - name: Test profile parser and page integration
+        run: python -m unittest tests.test_player_profiles tests.test_player_profiles_page
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          find . -name "__pycache__" -type d -prune -exec rm -rf {} + 2>/dev/null || true
+          git add data/masters/player_profiles.json
+          if git diff --cached --quiet; then
+            echo "プロフィールの変更なし。"
+            exit 0
+          fi
+          git commit -m "data: update player profiles $(date +'%Y-%m-%d')"
+          for i in 1 2 3; do
+            git fetch origin main
+            if git rebase -X theirs origin/main && git push origin HEAD:main; then
+              exit 0
+            fi
+            git rebase --abort 2>/dev/null || true
+            sleep $((5 * i))
+          done
+          exit 1

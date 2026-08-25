@@ -48,6 +48,7 @@ data/2026/07/12/2021038864.json   … 試合ごとの一球速報フル
 data/2026/07/12/_summary.json     … その日の試合一覧
 data/2026/roster/daily/2026-07-31.json … 当日の登録・抹消と登録選手一覧
 data/2026/roster/registration.json     … 選手別の登録日数・登録期間
+data/masters/player_profiles.json      … NPB公式プロフィール・通算成績
 data/index.json                   … 収集済みファイル一覧（ビューア用）
 ```
 
@@ -114,6 +115,11 @@ git push -u origin main
 | 過去日を収集 | Actions →「Run workflow」→ 日付入力 |
 | 特定試合だけ収集 | Run workflow の「game」に試合IDを入力 |
 | ローカルでテスト | `python scraper/main.py --date 2026-07-12` |
+| 選手プロフィール・通算成績を更新 | Actions →「Update Player Profiles」→ Run workflow |
+
+選手プロフィールはNPB公式の現役支配下選手を対象に週1回更新します。生年月日、経歴、
+ドラフト、現在・過去の所属球団、通算打撃・投手成績を保存します。出身都道府県は
+公式個人成績ページに記載がないため、学校所在地などから推測しません。
 
 ## マナー・法的メモ
 
