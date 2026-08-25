@@ -55,12 +55,14 @@ def build(season, base="data"):
     output = {
         "season": str(season),
         "metric": "W-Impact",
-        "version": "1.5.0",
+        "version": "1.6.0",
         "generated_at": datetime.now(JST).isoformat(),
         "note": (
             "サイト独自の総合貢献指数。WAR・UZRではありません。"
             "守備はポジション難度、失策、守備交代、複数守備の参考評価であり、"
-            "守備範囲は含みません。取得できない項目は推測していません。"
+            "守備範囲は含みません。打撃・投球は縮小済み球場係数と"
+            "対戦相手強度で環境補正し、標本量に応じた信頼度を表示します。"
+            "取得できない項目は推測していません。"
         ),
         "scale": {"average": 100, "excellent": 120, "elite": 140},
         "weights": {"batter": BATTER_WEIGHTS, "pitcher": PITCHER_WEIGHTS},
