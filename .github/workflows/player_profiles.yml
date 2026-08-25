@@ -19,7 +19,8 @@ on:
         default: ""
 
 concurrency:
-  group: npb-data-write
+  # この処理が書くのは専用の player_profiles.json だけ。試合収集とは並行可能。
+  group: npb-player-profiles
   cancel-in-progress: false
 
 permissions:
