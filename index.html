@@ -312,8 +312,23 @@
     font-family:'Roboto Mono',monospace;}
   .impact-dept-score strong{color:var(--accent);font-size:12px;}
   .impact-dept-score span{font-size:9px;color:var(--muted);white-space:nowrap;}
+  .impact-confidence{display:inline-flex;align-items:center;gap:4px;border-radius:999px;
+    padding:3px 7px;font-size:9.5px;font-weight:800;white-space:nowrap;border:1px solid currentColor;}
+  .impact-confidence.c5,.impact-confidence.c4{color:#147a47;background:rgba(25,150,90,.10);}
+  .impact-confidence.c3{color:#875500;background:rgba(245,166,35,.14);}
+  .impact-confidence.c2,.impact-confidence.c1{color:#b33a2f;background:rgba(200,61,50,.10);}
+  .impact-confidence-stars{font:700 9px 'Roboto Mono',monospace;letter-spacing:-1px;}
+  .impact-context{display:inline-flex;flex-direction:column;align-items:flex-end;line-height:1.25;
+    white-space:nowrap;}
+  .impact-context b{font:800 10.5px 'Roboto Mono',monospace;color:var(--ink2);}
+  .impact-context small{font-size:8.5px;color:var(--muted);}
+  .impact-method{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:9px 0;}
+  .impact-method>div{border:1px solid var(--line);border-radius:9px;background:var(--panel2);
+    padding:8px 10px;font-size:10.5px;line-height:1.6;color:var(--ink2);}
+  .impact-method b{display:block;color:var(--accent);font-size:11px;}
   @media(max-width:680px){
     .impact-dept-head{align-items:flex-start;flex-direction:column;gap:2px;}
+    .impact-method{grid-template-columns:1fr;}
   }
 
   /* ---- 今日のランキング変動 ---- */
@@ -7985,7 +8000,7 @@
 
   /* ===== サイト独自指標 W-Impact ===== */
   var impactData=null, impactLg="パ", impactKind="overall",
-      impactQual="all", impactSort="w_value", impactSortDir="desc";
+      impactQual="all", impactConfidence="all", impactSort="w_value", impactSortDir="desc";
 
   async function loadImpact(){
     var iv=document.getElementById("impactView");
@@ -8010,12 +8025,30 @@
     renderImpact();
   }
   function setImpactQual(k){ impactQual=k; renderImpact(); }
+  function setImpactConfidence(k){ impactConfidence=k; renderImpact(); }
   function setImpactSort(k){ impactSort=k; renderImpact(); }
   function toggleImpactSortDir(){
     impactSortDir=impactSortDir==="desc"?"asc":"desc";
     renderImpact();
   }
   function impactNum(v){ return v==null?"-":Number(v).toFixed(1); }
+  function impactConfidenceBadge(x,compact){
+    var c=(x||{}).confidence;
+    if(!c)return '<span class="impact-confidence c1" title="W-Impact v1.6で再集計すると表示されます">再集計待ち</span>';
+    var score=Number(c.score||0),level=Number(c.level||1);
+    var title="指標信頼度 "+score+"点：標本量と収集データの充足度。成績の良し悪しではありません";
+    return '<span class="impact-confidence c'+level+'" title="'+esc(title)+'">'+
+      (compact?'C '+score:'<span class="impact-confidence-stars">'+esc(c.stars||"★☆☆☆☆")+'</span> '+
+       esc(c.label||"低い")+' '+score)+'</span>';
+  }
+  function impactContextCell(x){
+    var c=(x||{}).context;if(!c)return '<span class="sub">-</span>';
+    var pct=(Number(c.adjustment||1)-1)*100,sign=pct>0?"+":"";
+    var title="球場係数 "+Number(c.park_factor||1).toFixed(3)+
+      " ／ 対戦相手係数 "+Number(c.opponent_factor||1).toFixed(3)+
+      " ／ 中立化倍率 "+Number(c.adjustment||1).toFixed(3);
+    return '<span class="impact-context" title="'+esc(title)+'"><b>'+sign+pct.toFixed(1)+'%</b><small>球場・相手</small></span>';
+  }
   function impactPosition(x){
     var players=npbRoster&&npbRoster.players;
     if(players){
@@ -8037,6 +8070,12 @@
     }
     if(key.indexOf("stats.")===0){
       return Number((x.stats||{})[key.slice(6)]||0);
+    }
+    if(key.indexOf("confidence.")===0){
+      return Number((x.confidence||{})[key.slice(11)]||0);
+    }
+    if(key.indexOf("context.")===0){
+      return Number((x.context||{})[key.slice(8)]||0);
     }
     return Number(x[key]||0);
   }
@@ -8131,7 +8170,7 @@
            '<div class="impact-dept-score"><strong>'+item.score.toFixed(1)+'</strong>'+
            '<span>V '+Number(x.w_value||0).toFixed(2)+' / R '+impactNum(x.w_rating)+
            ' / '+Number((x.stats||{}).games||0)+(gi<3?'登板':'試合')+
-           '</span></div></td>';
+           '</span>'+impactConfidenceBadge(x,true)+'</div></td>';
       }
       h+='</tr>';
     });
@@ -8144,7 +8183,8 @@
       '<span class="dash-date">役割を含む総合貢献指数</span></div>';
     h+='<div class="warwarn"><b>このサイト独自の指標です。</b> W-Ratingは機会あたりの質（平均100）、'+
        'W-Valueは出場量を含む累積貢献を表します。守備はポジション難度・失策・守備交代・'+
-       '複数守備の参考評価で、UZRではありません。　'+
+       '複数守備の参考評価で、UZRではありません。打撃・投球は球場と対戦相手の強さを中立化し、'+
+       '標本量に応じた指標信頼度を併記します。　'+
        '<a href="#" onclick="setView(\'impactGuide\');return false;">計算方法 ▶</a></div>';
     if(!impactData){
       h+='<div class="msg">W-Impactデータがまだありません<br>'+
@@ -8162,6 +8202,10 @@
          'onclick="setImpactKind(\''+x[0]+'\')">'+x[1]+'</button>';
     });
     h+='</div>';
+    h+='<div class="impact-method"><div><b>データ信頼度</b>打席・投球回・登板数と収集充足率を0〜100点化。'+
+       '能力評価ではなく、現在のW-Ratingをどれだけ安定して読めるかの目安です。</div>'+
+       '<div><b>球場・対戦相手補正</b>球場の得点環境と、対戦した球団の攻守強度をリーグ平均1.00へ中立化。'+
+       '少標本は平均へ戻し、補正幅は±10%以内です。</div></div>';
     h+=impactDepartmentTable();
     var source=impactKind==="overall"?impactData.overall:
                impactKind==="batter"?impactData.batters:impactData.pitchers;
@@ -8174,6 +8218,12 @@
       if(impactQual==="ip") return impactKind==="overall"?x.qualified_ip:s.qualified_ip;
       return true;
     });
+    list=list.filter(function(x){
+      var score=Number((x.confidence||{}).score||0);
+      if(impactConfidence==="standard")return score>=55;
+      if(impactConfidence==="high")return score>=75;
+      return true;
+    });
     list.sort(function(a,b){
       var av=impactSortValue(a,impactSort), bv=impactSortValue(b,impactSort);
       var cmp=(typeof av==="string"||typeof bv==="string")
@@ -8183,7 +8233,8 @@
       return impactSortDir==="asc"?cmp:-cmp;
     });
     var sortOptions=[
-      ["w_value","W-Value"],["w_rating","W-Rating"],["name","選手名"],["team","球団"]
+      ["w_value","W-Value"],["w_rating","W-Rating"],["confidence.score","信頼度"],
+      ["context.adjustment","環境補正率"],["name","選手名"],["team","球団"]
     ];
     if(impactKind==="batter"){
       sortOptions=sortOptions.concat([
@@ -8208,6 +8259,11 @@
        '<option value="all"'+(impactQual==="all"?" selected":"")+'>全選手</option>'+
        (impactKind!=="pitcher"?'<option value="pa"'+(impactQual==="pa"?" selected":"")+'>規定打席到達</option>':'')+
        (impactKind!=="batter"?'<option value="ip"'+(impactQual==="ip"?" selected":"")+'>規定投球回到達</option>':'')+
+       '</select></label>'+
+       '<label class="ef"><span>データ信頼度</span><select onchange="setImpactConfidence(this.value)">'+
+       '<option value="all"'+(impactConfidence==="all"?' selected':'')+'>すべて表示</option>'+
+       '<option value="standard"'+(impactConfidence==="standard"?' selected':'')+'>標準以上（55点〜）</option>'+
+       '<option value="high"'+(impactConfidence==="high"?' selected':'')+'>高い以上（75点〜）</option>'+
        '</select></label>';
     h+='<label class="ef"><span>並び順</span><select onchange="setImpactSort(this.value)">'+
        sortOptions.map(function(x){
@@ -8225,7 +8281,7 @@
         impactKind==="pitcher"?'<th>登板</th><th>投球回</th>':
         '<th title="打者として成績が記録された試合数。打席数ではありません">打者出場</th>'+
         '<th title="投手として登板した試合数">投手登板</th>')+
-       '<th>W-Value</th><th>W-Rating</th>';
+       '<th>W-Value</th><th>W-Rating</th><th>信頼度</th><th>環境補正</th>';
     if(impactKind==="overall") h+='<th>野手値</th><th>投手値</th>';
     if(impactKind==="batter") h+='<th>打撃</th><th>勝負</th><th>走塁</th><th>守備</th><th>役割</th><th>複数</th>';
     if(impactKind==="pitcher") h+='<th>投球</th><th>奪三振</th><th>失点抑止</th><th>役割</th>';
@@ -8245,7 +8301,9 @@
           '<td class="num" title="投手として登板した試合数">'+
           (x.pitching_games||0)+'</td>')+
          '<td class="num hi">'+Number(x.w_value).toFixed(2)+'</td>'+
-         '<td class="num hi">'+impactNum(x.w_rating)+'</td>';
+         '<td class="num hi">'+impactNum(x.w_rating)+'</td>'+
+         '<td class="num">'+impactConfidenceBadge(x,false)+'</td>'+
+         '<td class="num">'+impactContextCell(x)+'</td>';
       if(impactKind==="overall"){
         h+='<td class="num">'+Number(x.batter_w_value||0).toFixed(2)+'</td>'+
            '<td class="num">'+Number(x.pitcher_w_value||0).toFixed(2)+'</td>';
@@ -8271,7 +8329,8 @@
        '「打者出場」は打者として成績が記録された試合数（打席数ではありません）。'+
        '「投手登板」は投手として登板した試合数です。</div>':'')+
        '<div class="sub" style="font-size:11px;margin-top:8px">'+esc(impactData.note||"")+
-       '／v'+esc(impactData.version||"")+'</div></div>';
+       '／信頼度は成績評価ではなく標本量の目安／環境補正は少標本を平均へ縮小／v'+
+       esc(impactData.version||"")+'</div></div>';
     iv.innerHTML=h;
   }
 
@@ -8970,7 +9029,15 @@
        '<div class="tblwrap"><table class="stbl"><tbody>'+
        gRow2("W-Rating","機会あたりの質。同一リーグ・同一投手役割の平均が100。120以上は優秀、140以上はトップ級。")+
        gRow2("W-Value","出場量を含む累積貢献。レギュラー、代打、代走、守備交代、救援投手を総合順位で比較する。")+
+       gRow2("データ信頼度","打席・投球回・登板数・収集データ充足率を0〜100点化。選手の実力や成績の良し悪しではなく、標本の安定度を示す。")+
        '</tbody></table></div></div>';
+    h+='<div class="subsec"><div class="subttl">球場・対戦相手補正</div>'+
+       '<div class="glossformula" style="display:block">中立成績 = 実成績 × 球場係数・対戦相手係数による補正倍率（0.90〜1.10）</div>'+
+       '<p style="font-size:13px;line-height:1.7;margin-top:8px">球場係数は各球場の1チーム1試合あたり得点、'+
+       '対戦相手係数は球団打線のOPSと球団投手陣の失点率から算出します。'+
+       '交流戦を含め所属リーグ基準で比較し、球場20チーム試合、打線600打席、投手180回相当の事前分布で'+
+       'リーグ平均1.00へ縮小します。少ない試合だけで極端な補正にならないよう、最終倍率は±10%に制限します。'+
+       'W-Impactでは野手のOPS、投手のFIP・防御率に適用し、元の公式成績も表示データに保持します。</p></div>';
     h+='<div class="subsec"><div class="subttl">野手の構成</div>'+
        '<div class="glossformula" style="display:block">打撃45% + 勝負強さ15% + 走塁8% + 守備参考12% + 役割10% + 複数守備5% + 出場量5%</div>'+
        '<p style="font-size:13px;line-height:1.7;margin-top:8px">代打は出塁と打点、代走は得点と盗塁、守備交代は出場回数を評価します。'+

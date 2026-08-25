@@ -126,6 +126,182 @@ def _league(player):
     return lg if lg in ("セ", "パ") else None
 
 
+def _clamp(value, low, high):
+    return max(low, min(high, value))
+
+
+def _confidence(score):
+    """Return a transparent sample-size confidence label for display."""
+    score = int(round(_clamp(score, 0, 100)))
+    if score >= 90:
+        label, level = "非常に高い", 5
+    elif score >= 75:
+        label, level = "高い", 4
+    elif score >= 55:
+        label, level = "標準", 3
+    elif score >= 35:
+        label, level = "参考", 2
+    else:
+        label, level = "低い", 1
+    return {
+        "score": score,
+        "label": label,
+        "level": level,
+        "stars": "★" * level + "☆" * (5 - level),
+    }
+
+
+def _line_pa(row):
+    return sum(number(row.get(key)) for key in ("ab", "bb", "hbp", "sac"))
+
+
+def _line_tb(row):
+    return (
+        number(row.get("singles")) + number(row.get("doubles")) * 2
+        + number(row.get("triples")) * 3 + number(row.get("hr")) * 4
+    )
+
+
+def build_context_adjustments(batting_lines, pitching_lines):
+    """Build shrunk park and opponent-strength adjustments from collected lines.
+
+    The factors are intentionally conservative. Park factors use team-game runs
+    and regress 20 team-games toward 1.00. Opponent offense/pitching strength is
+    also regressed toward the league mean. No missing event is estimated.
+    """
+    team_bat = defaultdict(lambda: defaultdict(float))
+    team_pitch = defaultdict(lambda: defaultdict(float))
+    park_team_games = defaultdict(dict)
+
+    for row in batting_lines:
+        team = row.get("team")
+        lg = team_info(team).get("league")
+        if lg not in ("セ", "パ"):
+            continue
+        bucket = team_bat[team]
+        for key in ("ab", "hits", "bb", "hbp", "sac"):
+            bucket[key] += number(row.get(key))
+        bucket["tb"] += _line_tb(row)
+        game_id, stadium = row.get("game_id"), row.get("stadium")
+        if game_id and stadium:
+            game_key = f"{game_id}|{team}"
+            item = park_team_games[lg].setdefault(game_key, {
+                "stadium": stadium, "runs": 0.0,
+            })
+            item["runs"] += number(row.get("runs"))
+
+    for row in pitching_lines:
+        team = row.get("team")
+        lg = team_info(team).get("league")
+        if lg not in ("セ", "パ"):
+            continue
+        bucket = team_pitch[team]
+        bucket["outs"] += number(row.get("outs"))
+        bucket["runs"] += number(row.get("runs_allowed"))
+
+    league_ops = {}
+    league_ra9 = {}
+    team_ops = {}
+    team_ra9 = {}
+    for lg in ("セ", "パ"):
+        batting_teams = [t for t in team_bat if team_info(t).get("league") == lg]
+        pitching_teams = [t for t in team_pitch if team_info(t).get("league") == lg]
+        totals = defaultdict(float)
+        for team in batting_teams:
+            for key, value in team_bat[team].items():
+                totals[key] += value
+        league_pa = totals["ab"] + totals["bb"] + totals["hbp"] + totals["sac"]
+        league_obp = ((totals["hits"] + totals["bb"] + totals["hbp"]) / league_pa
+                      if league_pa else 0.0)
+        league_slg = totals["tb"] / totals["ab"] if totals["ab"] else 0.0
+        league_ops[lg] = league_obp + league_slg
+        total_outs = sum(team_pitch[t]["outs"] for t in pitching_teams)
+        total_runs = sum(team_pitch[t]["runs"] for t in pitching_teams)
+        league_ra9[lg] = total_runs * 27 / total_outs if total_outs else 4.0
+
+        for team in batting_teams:
+            b = team_bat[team]
+            pa = b["ab"] + b["bb"] + b["hbp"] + b["sac"]
+            obp = (b["hits"] + b["bb"] + b["hbp"]) / pa if pa else league_obp
+            slg = b["tb"] / b["ab"] if b["ab"] else league_slg
+            raw = obp + slg
+            team_ops[team] = shrink(raw, league_ops[lg], pa, 600)
+        for team in pitching_teams:
+            p = team_pitch[team]
+            ip = p["outs"] / 3
+            raw = p["runs"] * 9 / ip if ip else league_ra9[lg]
+            team_ra9[team] = shrink(raw, league_ra9[lg], ip, 180)
+
+    park_factors = {}
+    for lg in ("セ", "パ"):
+        games = list(park_team_games[lg].values())
+        league_mean = sum(x["runs"] for x in games) / len(games) if games else 1.0
+        by_park = defaultdict(list)
+        for item in games:
+            by_park[item["stadium"]].append(item["runs"])
+        for stadium, rows in by_park.items():
+            raw = (sum(rows) / len(rows)) / league_mean if league_mean else 1.0
+            shrunk = shrink(raw, 1.0, len(rows), 20)
+            park_factors[(lg, stadium)] = round(_clamp(shrunk, 0.85, 1.15), 3)
+
+    batter_context = defaultdict(lambda: {"weight": 0.0, "park": 0.0, "opponent": 0.0})
+    for row in batting_lines:
+        key, team = row.get("player_key"), row.get("team")
+        lg, weight = team_info(team).get("league"), _line_pa(row)
+        if not key or lg not in ("セ", "パ") or weight <= 0:
+            continue
+        park = park_factors.get((lg, row.get("stadium")), 1.0)
+        opponent = row.get("opponent")
+        # A lower opponent RA9 means a harder pitching staff.
+        opp_factor = (league_ra9[lg] / team_ra9.get(opponent, league_ra9[lg])
+                      if league_ra9[lg] else 1.0)
+        item = batter_context[key]
+        item["weight"] += weight
+        item["park"] += park * weight
+        item["opponent"] += opp_factor * weight
+
+    pitcher_context = defaultdict(lambda: {"weight": 0.0, "park": 0.0, "opponent": 0.0})
+    for row in pitching_lines:
+        key, team = row.get("player_key"), row.get("team")
+        lg, weight = team_info(team).get("league"), number(row.get("outs"))
+        if not key or lg not in ("セ", "パ") or weight <= 0:
+            continue
+        park = park_factors.get((lg, row.get("stadium")), 1.0)
+        opponent = row.get("opponent")
+        opp_factor = (team_ops.get(opponent, league_ops[lg]) / league_ops[lg]
+                      if league_ops[lg] else 1.0)
+        item = pitcher_context[key]
+        item["weight"] += weight
+        item["park"] += park * weight
+        item["opponent"] += opp_factor * weight
+
+    def finish(source, pitcher=False):
+        result = {}
+        for key, item in source.items():
+            weight = item["weight"]
+            park = item["park"] / weight if weight else 1.0
+            opponent = item["opponent"] / weight if weight else 1.0
+            environment = park * opponent
+            # Batter: neutral OPS = OPS * opponent difficulty / park.
+            # Pitcher: neutral run rate = observed rate / run environment.
+            adjustment = 1 / environment if pitcher else opponent / park
+            result[key] = {
+                "park_factor": round(park, 3),
+                "opponent_factor": round(opponent, 3),
+                "adjustment": round(_clamp(adjustment, 0.90, 1.10), 3),
+                "sample": round(weight, 1),
+            }
+        return result
+
+    return {
+        "batters": finish(batter_context),
+        "pitchers": finish(pitcher_context, pitcher=True),
+        "park_factors": {f"{lg}|{park}": factor
+                         for (lg, park), factor in park_factors.items()},
+        "method": "season_shrunk_park_opponent_v1",
+    }
+
+
 def collect_batter_roles(batting_lines):
     roles = defaultdict(lambda: {
         "starts": 0, "pinch_hit_apps": 0, "pinch_hit_pa": 0,
@@ -237,6 +413,7 @@ def calculate(players, teams, batting_lines, pitching_lines, atbats,
         "source": "runner_events" if runner_events else "players/stats.json",
         "events": len(runner_events or []),
     }
+    context_model = build_context_adjustments(batting_lines, pitching_lines)
 
     def runner_stats(player):
         batting = player.get("batting") or {}
@@ -281,7 +458,20 @@ def calculate(players, teams, batting_lines, pitching_lines, atbats,
         tg = max(team_games.get(p.get("team"), 0), 1)
         required_pa = team_games.get(p.get("team"), 0) * 3.1
         ops_mean = league_bat[lg]["ops"]
-        ops_adj = shrink(number(batting.get("ops")), ops_mean, pa, 50)
+        context = context_model["batters"].get(p.get("key"), {
+            "park_factor": 1.0, "opponent_factor": 1.0,
+            "adjustment": 1.0, "sample": 0.0,
+        })
+        ops_raw = number(batting.get("ops"))
+        ops_neutral = ops_raw * context["adjustment"]
+        ops_adj = shrink(ops_neutral, ops_mean, pa, 50)
+        volume_ratio = min(pa / max(required_pa, 150), 1)
+        game_ratio = min(games / max(tg, 40), 1)
+        coverage_ratio = min(context["sample"] / max(pa, 1), 1)
+        confidence = _confidence(
+            100 * (volume_ratio * 0.70 + game_ratio * 0.20
+                   + coverage_ratio * 0.10)
+        )
 
         risp_quality = ((c["risp_hits"] + 0.35 * c["risp_rbi"]) / c["risp_pa"]
                         if c["risp_pa"] else 0)
@@ -334,6 +524,8 @@ def calculate(players, teams, batting_lines, pitching_lines, atbats,
             "player_key": p.get("key"), "player_id": p.get("player_id"),
             "name": p.get("name"), "team": p.get("team"), "league": lg,
             "position": p.get("position"),
+            "confidence": confidence,
+            "context": context,
             "raw": {
                 "batting": ops_adj, "clutch": clutch_raw,
                 "baserunning": baserunning_raw, "defense": defense_raw,
@@ -342,6 +534,7 @@ def calculate(players, teams, batting_lines, pitching_lines, atbats,
             },
             "stats": {
                 "games": int(games), "pa": int(pa), "ops": batting.get("ops"),
+                "ops_context_adjusted": round(ops_neutral, 3),
                 "avg": batting.get("avg"), "obp": batting.get("obp"),
                 "slg": batting.get("slg"), "iso": batting.get("iso"),
                 "babip": batting.get("babip"), "bb_pct": batting.get("bb_pct"),
@@ -375,6 +568,7 @@ def calculate(players, teams, batting_lines, pitching_lines, atbats,
         lg = _league(p)
         if not lg or games <= 0:
             continue
+        tg = max(team_games.get(p.get("team"), 0), 1)
         role_data = pitcher_roles[p.get("key")]
         role_name = _pitcher_role(pitching, role_data)
         outs = number(pitching.get("outs"))
@@ -384,8 +578,14 @@ def calculate(players, teams, batting_lines, pitching_lines, atbats,
         era = number(pitching.get("era"), 9)
         k9 = number(pitching.get("k9"))
         quality_sample = ip
-        pitching_raw = -shrink(fip, 4.0, quality_sample, 20)
-        run_raw = -shrink(era, 4.0, quality_sample, 20)
+        context = context_model["pitchers"].get(p.get("key"), {
+            "park_factor": 1.0, "opponent_factor": 1.0,
+            "adjustment": 1.0, "sample": 0.0,
+        })
+        fip_neutral = fip * context["adjustment"]
+        era_neutral = era * context["adjustment"]
+        pitching_raw = -shrink(fip_neutral, 4.0, quality_sample, 20)
+        run_raw = -shrink(era_neutral, 4.0, quality_sample, 20)
         dominance_raw = shrink(k9, 7.5, quality_sample, 20)
         if role_name == "先発":
             role_raw = role_data["qs"] / max(role_data["starts"], 1)
@@ -398,10 +598,27 @@ def calculate(players, teams, batting_lines, pitching_lines, atbats,
                 role_data["scoreless_relief"] / max(role_data["relief_apps"], 1)
                 + holds / max(games, 1)
             )
+        coverage_ratio = min(context["sample"] / max(outs, 1), 1)
+        if role_name == "先発":
+            innings_ratio = min(ip / max(required_innings, 60), 1)
+            starts_ratio = min(role_data["starts"] / max(tg / 6, 10), 1)
+            confidence_score = 100 * (
+                innings_ratio * 0.70 + starts_ratio * 0.20
+                + coverage_ratio * 0.10
+            )
+        else:
+            app_ratio = min(games / max(tg * 0.40, 20), 1)
+            innings_ratio = min(ip / max(tg * 0.35, 20), 1)
+            confidence_score = 100 * (
+                app_ratio * 0.55 + innings_ratio * 0.35
+                + coverage_ratio * 0.10
+            )
         pitchers.append({
             "player_key": p.get("key"), "player_id": p.get("player_id"),
             "name": p.get("name"), "team": p.get("team"), "league": lg,
             "role": role_name,
+            "confidence": _confidence(confidence_score),
+            "context": context,
             "raw": {
                 "pitching": pitching_raw, "dominance": dominance_raw,
                 "run_prevention": run_raw, "role": role_raw,
@@ -409,9 +626,12 @@ def calculate(players, teams, batting_lines, pitching_lines, atbats,
             },
             "stats": {
                 "games": games, "innings": round(ip, 1), "era": pitching.get("era"),
+                "era_context_adjusted": round(era_neutral, 2),
                 "qualified_ip": bool(required_innings and ip >= required_innings),
                 "required_innings": required_innings,
-                "fip": pitching.get("fip"), "k9": pitching.get("k9"),
+                "fip": pitching.get("fip"),
+                "fip_context_adjusted": round(fip_neutral, 2),
+                "k9": pitching.get("k9"),
                 "bb9": pitching.get("bb9"), "hr9": pitching.get("hr9"),
                 "whip": pitching.get("whip"), "k_bb": pitching.get("k_bb"),
                 "k_pct": pitching.get("k_pct"), "bb_pct": pitching.get("bb_pct"),
@@ -470,9 +690,13 @@ def calculate(players, teams, batting_lines, pitching_lines, atbats,
                 "batter_w_rating": None, "pitcher_w_rating": None,
                 "batting_games": 0, "pitching_games": 0,
                 "qualified_pa": False, "qualified_ip": False,
+                "batter_confidence": None, "pitcher_confidence": None,
+                "batter_context": None, "pitcher_context": None,
             })
             item[f"{kind}_w_value"] = row["w_value"]
             item[f"{kind}_w_rating"] = row["w_rating"]
+            item[f"{kind}_confidence"] = row.get("confidence")
+            item[f"{kind}_context"] = row.get("context")
             if kind == "batter":
                 item["batting_games"] = row["stats"]["games"]
                 item["qualified_pa"] = row["stats"]["qualified_pa"]
@@ -493,9 +717,46 @@ def calculate(players, teams, batting_lines, pitching_lines, atbats,
             round(sum(rating * weight for rating, weight in rating_values) / total_weight, 1)
             if total_weight else None
         )
+        confidence_values = (
+            (row.get("batter_confidence"), abs(row["batter_w_value"])),
+            (row.get("pitcher_confidence"), abs(row["pitcher_w_value"])),
+        )
+        confidence_values = [
+            (value, max(weight, 0.01)) for value, weight in confidence_values
+            if value is not None
+        ]
+        confidence_weight = sum(weight for _, weight in confidence_values)
+        confidence_score = (
+            sum(value["score"] * weight for value, weight in confidence_values)
+            / confidence_weight if confidence_weight else 0
+        )
+        row["confidence"] = _confidence(confidence_score)
+        context_values = (
+            (row.get("batter_context"), abs(row["batter_w_value"])),
+            (row.get("pitcher_context"), abs(row["pitcher_w_value"])),
+        )
+        context_values = [
+            (value, max(weight, 0.01)) for value, weight in context_values
+            if value is not None
+        ]
+        context_weight = sum(weight for _, weight in context_values)
+        if context_weight:
+            row["context"] = {
+                field: round(sum(value[field] * weight for value, weight in context_values)
+                             / context_weight, 3)
+                for field in ("park_factor", "opponent_factor", "adjustment")
+            }
     overall.sort(key=lambda x: (-x["w_value"], -(x["w_rating"] or 0)))
 
     return {
         "batters": batters, "pitchers": pitchers, "overall": overall,
         "runner_event_diagnostics": runner_diag,
+        "context_adjustment": {
+            "method": context_model["method"],
+            "park_factors": context_model["park_factors"],
+            "note": (
+                "球場得点係数と対戦相手の攻守強度をシーズン実績から算出し、"
+                "少標本はリーグ平均へ縮小。補正倍率は0.90〜1.10に制限"
+            ),
+        },
     }
