@@ -1,7 +1,7 @@
 name: Update Player Profiles
 
-# NPB公式の個人年度別成績からプロフィールと通算成績を週1回更新する。
-# 現役支配下選手を1ページずつ、2秒間隔で取得するため30分前後かかる。
+# NPB公式から年度別・通算成績、Yahoo選手ページから確認できる出身地を週1回更新する。
+# 初回は出身地取得を含め45分前後。取得済み出身地は再利用するため通常は30分前後。
 
 on:
   schedule:
@@ -29,7 +29,7 @@ permissions:
 jobs:
   profiles:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -37,7 +37,7 @@ jobs:
           python-version: "3.12"
       - run: pip install -r requirements.txt
 
-      - name: Fetch profiles and career totals
+      - name: Fetch profiles, yearly stats and career totals
         env:
           PROFILE_TEAM: ${{ github.event.inputs.team }}
           PROFILE_LIMIT: ${{ github.event.inputs.limit }}
