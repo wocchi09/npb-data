@@ -57,6 +57,10 @@ jobs:
         if: ${{ github.event.inputs.apply == 'yes' }}
         run: python scraper/build_dataset.py --season "${{ github.event.inputs.season }}" --format both
 
+      - name: Build analytics lab
+        if: ${{ github.event.inputs.apply == 'yes' }}
+        run: python scraper/build_analysis_lab.py --season "${{ github.event.inputs.season }}"
+
       - name: Build player matchup data
         if: ${{ github.event.inputs.apply == 'yes' }}
         run: |

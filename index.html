@@ -6,6 +6,7 @@
 <title>NPB SCOREBOARD</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700;800&family=Roboto:wght@500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="insights.css">
+<link rel="stylesheet" href="analysis_lab.css">
 <style>
   :root{
     --font-ui:'Noto Sans JP','BIZ UDPGothic','Yu Gothic UI','Meiryo',sans-serif;
@@ -1433,6 +1434,7 @@
           <button class="navitem" id="vb-daily" onclick="setView('daily')">日別分析</button>
           <button class="navitem" id="vb-rankmove" onclick="setView('rankmove')">今日のランキング変動</button>
           <button class="navitem" id="vb-insights" onclick="setView('insights')">インサイト</button>
+          <button class="navitem" id="vb-analysislab" onclick="setView('analysislab')">分析ラボ</button>
           <button class="navitem" id="vb-playergraph" onclick="setView('playergraph')">選手グラフ</button>
           <button class="navitem" id="vb-correlation" onclick="setView('correlation')">相関分析</button>
           <button class="navitem" id="vb-teamstyle" onclick="setView('teamstyle')">球団スタイル</button>
@@ -1483,6 +1485,7 @@
     <div id="dailyView" style="display:none"></div>
     <div id="rankMoveView" style="display:none"></div>
     <div id="insightsView" style="display:none"></div>
+    <div id="analysisLabView" style="display:none"></div>
     <div id="playerGraphView" style="display:none"></div>
 
     <div id="awardsView" style="display:none"></div>
@@ -2997,7 +3000,7 @@
     curView = v;
     closeNavGroups();
     var ids={dash:"dashView", games:"gameView", season:"seasonView", grade:"gradeView",
-             players:"playersView", roster:"rosterView", matchup:"matchupView", compare:"compareView", daily:"dailyView", rankmove:"rankMoveView", insights:"insightsView",
+             players:"playersView", roster:"rosterView", matchup:"matchupView", compare:"compareView", daily:"dailyView", rankmove:"rankMoveView", insights:"insightsView", analysislab:"analysisLabView",
              playergraph:"playerGraphView", awards:"awardsView",
              awardsGuide:"awardsGuideView", sabermetrics:"sabermetricsView",
              glossary:"glossaryView",
@@ -3013,7 +3016,7 @@
     }
     var navGroups={
       stats:["season","grade","players","roster","matchup","compare"],
-      analysis:["daily","rankmove","insights","playergraph","correlation","teamstyle"],
+      analysis:["daily","rankmove","insights","analysislab","playergraph","correlation","teamstyle"],
       metrics:["sabermetrics","glossary","war","warGuide","impact","impactGuide"]
     };
     Object.keys(navGroups).forEach(function(group){
@@ -3032,6 +3035,7 @@
     else if(v==="daily") loadDaily();
     else if(v==="rankmove") loadRankMovers();
     else if(v==="insights"&&typeof loadInsights==="function") loadInsights();
+    else if(v==="analysislab"&&typeof loadAnalysisLab==="function") loadAnalysisLab();
     else if(v==="playergraph") loadPlayerGraph();
     else if(v==="awards") loadAwards();
     else if(v==="awardsGuide"){
@@ -7930,10 +7934,10 @@
        formula:"併殺機会に対する併殺率をリーグ平均と比較して得点換算",
        desc:"併殺打を避けたことによる貢献。",
        note:"併殺打と併殺機会は集計を開始しましたが、NPB向け得点係数を検証中のため表示しません。"},
-      {abbr:"WPA / RE24", name:"勝利確率・得点期待値貢献", status:"unavailable",
+      {abbr:"WPA / RE24", name:"勝利確率・得点期待値貢献", status:"estimate",
        formula:"試合状況の前後で勝利確率または24塁状況の得点期待値がどう変わったかを合計",
        desc:"同じ安打でも、試合状況に応じた価値の違いを評価する。",
-       note:"NPB用の勝利確率表・得点期待値表をまだ構築していません。"},
+       note:"RE24は収集打席から実測。WPAはロジスティック事前分布と同一状況実績を縮小した当サイト推定値です。分析ラボで標本数と注意点を確認できます。"},
     ]},
     {group:"総合", items:[
       {abbr:"W-Rating", name:"役割調整済み貢献度", status:"impl",
@@ -10135,7 +10139,7 @@
     motionTimers[key]=setTimeout(function(){motionRun(root);},45);
   }
   function motionSetup(){
-    var ids=["dashView","gameView","seasonView","gradeView","playersView","rosterView","matchupView","compareView","dailyView","rankMoveView","playerGraphView",
+    var ids=["dashView","gameView","seasonView","gradeView","playersView","rosterView","matchupView","compareView","dailyView","rankMoveView","insightsView","analysisLabView","playerGraphView",
       "awardsView","awardsGuideView","sabermetricsView","glossaryView","warView",
       "warGuideView","impactView","impactGuideView","correlationView","teamstyleView","exportView","socialView"];
     ids.forEach(function(id){
@@ -10216,11 +10220,13 @@
     else if(requestedView==="matchup")initialView="matchup";
     else if(requestedView==="roster")initialView="roster";
     else if(requestedView==="grade")initialView="grade";
+    else if(requestedView==="analysislab")initialView="analysislab";
     // インサイトは外部スクリプト読込後に初期表示する
     else if(requestedView==="social"&&personalPostingMode)initialView="social";
   }catch(e){}
   setView(initialView);
 </script>
 <script src="insights.js"></script>
+<script src="analysis_lab.js"></script>
 </body>
 </html>
