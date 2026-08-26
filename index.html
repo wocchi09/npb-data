@@ -2847,7 +2847,8 @@
       var lp = players.filter(function(p){
         return dashLeague==="all" || tLeague(p.team)===dashLeague;
       });
-      // 率の指標用（規定到達者がいなければ全選手にフォールバック）
+      // 率の指標用。打率・防御率は従来どおり到達者ゼロ時のみフォールバックするが、
+      // OPS・勝率ランキングは規定到達者だけを厳密に対象とする。
       var qb = lp.filter(isQualifiedBatter);
       var qp = lp.filter(isQualifiedPitcher);
       var usedQual = (qb.length>0 || qp.length>0);
@@ -2873,7 +2874,7 @@
         h+=rankBlock("本塁打", lp, bat(function(b){return b.hr;}), fmtN);
         h+=rankBlock("打点", lp, bat(function(b){return b.rbi;}), fmtN);
         h+=rankBlock("安打", lp, bat(function(b){return b.hits;}), fmtN);
-        h+=rankBlock("OPS", lp, bat(function(b){return b.pa>=1?b.ops:null;}), fmtO);
+        h+=rankBlock("OPS", qb, bat(function(b){return b.pa>=1?b.ops:null;}), fmtO);
         h+=rankBlock("盗塁", lp, bat(function(b){return b.sb;}), fmtN);
         h+=rankBlock("防御率", pitList, pit(function(q){return q.era;}), fmtE, true);
         h+=rankBlock("奪三振", lp, pit(function(q){return q.so;}), fmtN);
@@ -2881,14 +2882,15 @@
         h+=rankBlock("セーブ", lp, pit(function(q){return q.saves;}), fmtN);
         h+=rankBlock("ホールド", lp, pit(function(q){return holdsOf(q);}), fmtN);
         h+=rankBlock("HP", lp, pit(function(q){return q.hp;}), fmtN);
-        h+=rankBlock("勝率", lp, pit(function(q){
+        h+=rankBlock("勝率", qp, pit(function(q){
               return ((q.wins||0)+(q.losses||0))>=1 ? q.win_pct : null;
             }), fmtO);
         h+='</div>';
         h+='<div class="sub" style="font-size:11px;margin-bottom:8px">'+
            (usedQual ? '打率・防御率は規定到達者のみ（規定＝収集済み試合数×3.1打席／×1.0回）'
                      : '規定到達者がまだいないため、打率・防御率も全選手で表示しています')+
-           '／勝率は勝敗がついた投手のみ／ホールドとHPはルールから算出した推定値です</div>';
+           '／OPSは規定打席、勝率は規定投球回到達者のみ（勝率は勝敗がついた投手）'+
+           '／ホールドとHPはルールから算出した推定値です</div>';
       }
       h+='<button class="btn" onclick="setView(\'season\')">シーズン成績をすべて見る ▶</button></div>';
     }
@@ -2943,9 +2945,10 @@
     renderSeason();
   }
 
-  /* 自動モードで規定到達者だけに絞る指標。
-     打率と防御率はタイトル同様に規定到達が前提なので、この2つだけを対象にする。 */
-  var RATE_STATS = {avg:1, era:1};
+  /* 自動モードで規定到達者だけに絞る率指標。 */
+  var RATE_STATS = {avg:1, ops:1, era:1, win_pct:1};
+  /* OPS・勝率は到達者ゼロでも全選手へフォールバックしない。 */
+  var STRICT_QUALIFIED_STATS = {ops:1, win_pct:1};
 
   /* 実際に適用する規定モードを決める */
   function qualMode(){
@@ -3216,7 +3219,7 @@
       });
       if(q.length){
         list=q;
-      }else if(seasonQualified==="auto"){
+      }else if(seasonQualified==="auto" && !STRICT_QUALIFIED_STATS[seasonSort]){
         // 自動モードで到達者ゼロなら、空表示を避けて全選手に戻す
         list=base; fellBack=true;
       }else{
