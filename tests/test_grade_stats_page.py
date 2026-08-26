@@ -15,6 +15,7 @@ class GradeStatsPageTests(unittest.TestCase):
         self.assertIn("setView('grade')", self.html)
         self.assertIn('id="gradeView"', self.html)
         self.assertIn('else if(v==="grade") loadGradeStats();', self.html)
+        self.assertIn('requestedView==="grade"', self.html)
 
     def test_academic_year_uses_april_second_boundary(self):
         self.assertIn("function academicYearFromBirthdate", self.html)
