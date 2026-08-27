@@ -28,6 +28,14 @@ class NpbChatPageTest(unittest.TestCase):
         self.assertIn("npb-chat-v1", js)
         self.assertIn("学習メモリを消す", js)
 
+    def test_chat_footer_stays_visible_in_short_viewports(self):
+        css = self.read("npb_chat.css")
+        js = self.read("npb_chat.js")
+        self.assertIn("grid-template-rows:auto auto minmax(0,1fr) auto", css)
+        self.assertIn(".npc-log{min-height:0", css)
+        self.assertIn(".npc-footer{box-sizing:border-box;min-width:0;width:100%", css)
+        self.assertIn('class="npc-footer"', js)
+
 
 if __name__ == "__main__":
     unittest.main()
