@@ -157,7 +157,8 @@ def build_period(kind, label, date_from, date_to, season, base="data", cfg=None)
             "rbi": num(r.get("rbi")), "runs": num(r.get("runs")), "sb": num(r.get("sb")),
             "caught_stealing": num(r.get("caught_stealing")),
             "baserunning_outs": num(r.get("baserunning_outs")),
-            "baserunning_runs": num(r.get("baserunning_runs")),
+            # 得点価値は盗塁+0.20等の小数。int変換すると0へ落ちる。
+            "baserunning_runs": num(r.get("baserunning_runs"), float),
             "errors": num(r.get("errors")), "is_starter": bool_(r.get("is_starter")),
         } for r in rows]
         agg = aggregate_batter_period(numeric)

@@ -9,6 +9,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "scraper"))
 
 import build_dataset
+import build_period_awards
 import rebuild_stats
 import validate_data
 from lib.awards import (
@@ -21,6 +22,10 @@ from rebuild_stats import blank_batting, calc_rate_stats, merge_official_batting
 
 
 class PeriodHitTypesTest(unittest.TestCase):
+    def test_period_baserunning_run_value_keeps_decimals(self):
+        self.assertEqual(build_period_awards.num("0.20", float), 0.2)
+        self.assertEqual(build_period_awards.num("-0.40", float), -0.4)
+
     def test_awards_json_is_not_a_game(self):
         self.assertFalse(build_dataset._is_game_file(
             "data/2026/awards/weekly/2026-07-20.json"))
@@ -137,6 +142,31 @@ class PeriodHitTypesTest(unittest.TestCase):
         self.assertLess(scored["sample_coverage"], 0.1)
         self.assertLess(scored["sample_multiplier"], 0.7)
         self.assertEqual(scored["team_games"], 24)
+
+    def test_period_baserunning_uses_common_run_value(self):
+        agg = aggregate_batter_period([{
+            "ab": 20, "hits": 6, "singles": 6, "doubles": 0,
+            "triples": 0, "hr": 0, "bb": 0, "hbp": 0,
+            "sb": 4, "caught_stealing": 0, "baserunning_outs": 0,
+            "baserunning_runs": 0.8,
+        }])
+        scored = score_weekly_batter(
+            "テスト 選手", "巨人", "外", agg, [agg], 5,
+        )
+        self.assertEqual(scored["breakdown"]["defenseBaser"], 0.8)
+
+    def test_period_baserunning_does_not_double_penalize_outs(self):
+        agg = aggregate_batter_period([{
+            "ab": 20, "hits": 6, "singles": 6, "doubles": 0,
+            "triples": 0, "hr": 0, "bb": 0, "hbp": 0,
+            "sb": 0, "caught_stealing": 1, "baserunning_outs": 1,
+            "baserunning_runs": -0.8,
+        }])
+        scored = score_weekly_batter(
+            "テスト 選手", "巨人", "外", agg, [agg], 5,
+        )
+        self.assertEqual(scored["breakdown"]["defenseBaser"], -0.8)
+        self.assertGreater(scored["breakdown"]["penalty"], -2)
 
     def test_one_start_is_penalized_in_month_but_not_week(self):
         agg = aggregate_pitcher_period([{

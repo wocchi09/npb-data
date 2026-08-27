@@ -975,10 +975,17 @@ def score_weekly_batter(name, team, position, agg, league_pool, team_games, cfg=
     pt = _cap(pt, cats["playingTime"]["max"])
 
     # --- 走塁・守備 ---
+    # 共通走塁イベントで既に盗塁+0.20、盗塁死/走塁死-0.40へ換算済み。
+    # 盗塁数を別係数で再加点すると1盗塁でカテゴリ満点になり得るため、
+    # 期間表彰も同じ得点価値へ統一する。
     D = c["defenseBaser"]
-    db = _cap(agg["sb"] * D["sb"], cats["defenseBaser"]["available_max"])
+    db_limit = cats["defenseBaser"]["available_max"]
+    db = agg["baserunning_runs"] * D.get("baserunning_run_multiplier", 1.0)
+    db = max(-db_limit, min(db, db_limit))
     if agg["sb"]:
         reasons.append(f"盗塁{agg['sb']}")
+    if agg["baserunning_runs"]:
+        reasons.append(f"走塁得点{agg['baserunning_runs']:+.2f}")
 
     # --- 勝負強さ（得点圏は集計に含まれないため、現状は0で明示）---
     clutch = 0
@@ -993,8 +1000,7 @@ def score_weekly_batter(name, team, position, agg, league_pool, team_games, cfg=
         so_rate = agg["so"] / agg["ab"]
         pen += max(-so_rate * 10, P["so_rate_max"])
     pen += agg["errors"] * P["error_each"]
-    pen += agg["caught_stealing"] * P.get("caught_stealing_each", 0)
-    pen += agg["baserunning_outs"] * P.get("baserunning_out_each", 0)
+    # 盗塁死・走塁死は上の共通走塁得点に含まれるため二重減点しない。
     minus_reasons = []
     if agg["caught_stealing"]:
         minus_reasons.append(f"盗塁失敗{agg['caught_stealing']}")
