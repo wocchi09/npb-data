@@ -12,8 +12,8 @@ class NpbChatPageTest(unittest.TestCase):
 
     def test_chat_assets_are_loaded(self):
         html = self.read("index.html")
-        self.assertIn('href="npb_chat.css"', html)
-        self.assertIn('src="npb_chat.js"', html)
+        self.assertRegex(html, r'href="npb_chat\.css\?v=[^"]+"')
+        self.assertRegex(html, r'src="npb_chat\.js\?v=[^"]+"')
 
     def test_chat_has_grounded_ai_and_fallback(self):
         js = self.read("npb_chat.js")
