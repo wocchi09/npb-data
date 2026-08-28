@@ -35,6 +35,8 @@ class NpbChatPageTest(unittest.TestCase):
         self.assertIn(".npc-log{min-height:0", css)
         self.assertIn(".npc-footer{box-sizing:border-box;min-width:0;width:100%", css)
         self.assertIn('class="npc-footer"', js)
+        self.assertIn("window.visualViewport", js)
+        self.assertIn("vv.offsetTop+vv.height-height-pad", js)
 
 
 if __name__ == "__main__":
