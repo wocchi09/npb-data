@@ -243,26 +243,53 @@ def summarize_hand(bucket):
             "top_pitch":top[0][0] if top else None,"top_pitch_share":rounded(top[0][1]/total) if top else None}
 
 
-def build_two_strike(path, min_pitches=25):
+def is_verified_strikeout_finish(row):
+    """Return True only when this pitch actually ended the plate appearance in a strikeout."""
+    if not truthy(row.get("is_last_pitch")):
+        return False
+    out_type = str(row.get("ab_out_type") or "").strip()
+    result = str(row.get("ab_result") or "").strip()
+    return out_type == "三振" and "三振" in result
+
+
+def is_swinging_strikeout_finish(row):
+    return is_verified_strikeout_finish(row) and str(row.get("ab_result") or "").strip().startswith("空振り三振")
+
+
+def is_called_strikeout_finish(row):
+    return is_verified_strikeout_finish(row) and str(row.get("ab_result") or "").strip().startswith("見逃し三振")
+
+
+def build_two_strike(path, min_pitches=25, include_quality=False):
     pitchers={}
-    if not os.path.exists(path): return []
+    quality={"definition_version":2,"validated":False,"two_strike_pitches":0,"strikeout_finishes":0,
+             "swinging_strikeout_finishes":0,"called_strikeout_finishes":0,"legacy_is_miss_true":0,
+             "source_fields":["strikes_before","is_last_pitch","ab_result","ab_out_type"]}
+    if not os.path.exists(path): return ([],quality) if include_quality else []
     with open(path, encoding="utf-8-sig", newline="") as handle:
         for row in csv.DictReader(handle):
             if integer(row.get("strikes_before"),-1)!=2: continue
+            quality["two_strike_pitches"]+=1
+            if truthy(row.get("is_miss")): quality["legacy_is_miss_true"]+=1
             key=row.get("pitcher_key") or row.get("pitcher_id") or row.get("pitcher")
             if not key: continue
             bucket=pitchers.setdefault(key,new_pitcher_bucket(row)); bucket["pitches"]+=1
-            k_finish=truthy(row.get("is_miss")) or truthy(row.get("is_called"))
+            k_finish=is_verified_strikeout_finish(row)
+            swing_finish=is_swinging_strikeout_finish(row)
+            called_finish=is_called_strikeout_finish(row)
+            if k_finish: quality["strikeout_finishes"]+=1
+            if swing_finish: quality["swinging_strikeout_finishes"]+=1
+            if called_finish: quality["called_strikeout_finishes"]+=1
             if k_finish: bucket["k_finish"]+=1
-            if truthy(row.get("is_miss")): bucket["miss"]+=1
-            if truthy(row.get("is_called")): bucket["called"]+=1
+            if swing_finish: bucket["miss"]+=1
+            if called_finish: bucket["called"]+=1
             inz=str(row.get("in_zone") or "").strip()
             if inz:
                 bucket["zone_seen"]+=1
                 if not truthy(inz): bucket["out_zone"]+=1
             pitch_type=row.get("pitch_type") or "不明"; ptype=bucket["types"][pitch_type]; ptype["pitches"]+=1
             if k_finish: ptype["k_finish"]+=1
-            if truthy(row.get("is_miss")): ptype["miss"]+=1
+            if swing_finish: ptype["miss"]+=1
             speed=num(row.get("speed_kmh"),0)
             if speed>0: ptype["speed_sum"]+=speed; ptype["speed_n"]+=1
             zone=row.get("zone_label")
@@ -292,19 +319,22 @@ def build_two_strike(path, min_pitches=25):
                     "pitch_types":types[:8],"best_finisher":best,
                     "vs_right":summarize_hand(bucket["hands"]["right"]),"vs_left":summarize_hand(bucket["hands"]["left"])})
     out.sort(key=lambda item:(item["team"],item["name"]))
-    return out
+    quality["validated"]=quality["two_strike_pitches"]>0 and quality["strikeout_finishes"]>0
+    return (out,quality) if include_quality else out
 
 
 def build(season, base="data"):
     root=os.path.join(base,str(season)); dataset=os.path.join(root,"dataset")
     games=load_csv(os.path.join(dataset,"games.csv")); batting=load_csv(os.path.join(dataset,"batting_lines.csv")); pitching=load_csv(os.path.join(dataset,"pitching_lines.csv"))
     if not games: raise FileNotFoundError(f"games.csv がありません: {dataset}")
+    two_strike, two_strike_quality=build_two_strike(os.path.join(dataset,"pitches.csv"),include_quality=True)
     output={"season":str(season),"generated_at":datetime.now(JST).isoformat(),
             "latest_games":latest_game_stories(games,batting,pitching),
-            "two_strike_pitchers":build_two_strike(os.path.join(dataset,"pitches.csv")),
+            "two_strike_pitchers":two_strike,
             "team_trends":build_team_trends(games,batting,pitching),
+            "quality":{"two_strike":two_strike_quality},
             "notes":{"win_factors":"勝因の因果推定ではなく、当日のボックススコアから目立った要素を抽出。",
-                     "two_strike":"strikes_before=2 の投球のみを集計。三振決着球率は、その投球が見逃し/空振りの第3ストライクになった割合。",
+                     "two_strike":"strikes_before=2 の投球のみを集計。is_last_pitch=true かつ ab_out_type=三振で、ab_resultにも三振が記録された投球だけを三振決着として扱う。",
                      "team_trends":"直近10試合と収集済みシーズン全体を比較。短期成績は対戦相手・球場・日程の影響を受ける。"}}
     path=os.path.join(root,"_story_insights.json")
     with open(path,"w",encoding="utf-8") as handle: json.dump(output,handle,ensure_ascii=False,separators=(",",":"))

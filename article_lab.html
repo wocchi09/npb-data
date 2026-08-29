@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#111827">
+  <title>NPB ARTICLE LAB</title>
+  <link rel="stylesheet" href="article_lab.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="back" href="./" aria-label="NPB SCOREBOARDへ戻る">← NPB SCOREBOARD</a>
+    <div class="brand">
+      <span class="eyebrow">DATA → IDEA → ARTICLE</span>
+      <h1>NPB ARTICLE LAB</h1>
+      <p>NPBデータから、今日書く記事の切り口を見つける編集ラボ。</p>
+    </div>
+    <div id="statusBadge" class="status">loading…</div>
+  </header>
+
+  <main>
+    <section class="intro">
+      <div>
+        <span class="section-label">EDITOR'S DESK</span>
+        <h2>今日の記事ネタ</h2>
+        <p id="dataDateText">収集済みデータを確認しています…</p>
+      </div>
+      <a class="story-link" href="story_insights.html">STORY LABを見る →</a>
+    </section>
+
+    <section class="filters" aria-label="記事候補フィルター">
+      <div class="field">
+        <label for="scopeFilter">球団</label>
+        <select id="scopeFilter">
+          <option value="hawksPriority">ソフトバンク優先</option>
+          <option value="pacific">パ・リーグ</option>
+          <option value="all">全12球団</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="typeFilter">記事タイプ</label>
+        <select id="typeFilter">
+          <option value="all">すべて</option>
+          <option value="game">試合</option>
+          <option value="player">選手</option>
+          <option value="trend">トレンド</option>
+        </select>
+      </div>
+      <p id="selectionNote" class="selection-note"></p>
+    </section>
+
+    <section id="ideas" class="ideas" aria-live="polite">
+      <div class="loading-card">記事候補を読み込んでいます…</div>
+    </section>
+  </main>
+
+  <footer>
+    <p>ARTICLE LABは記事の切り口と根拠データを整理する筆者用ツールです。傾向は原因を意味せず、短期成績は対戦相手・球場・日程の影響を受けます。</p>
+  </footer>
+
+  <div id="workspace" class="workspace" hidden>
+    <button class="workspace-backdrop" type="button" data-close aria-label="閉じる"></button>
+    <section class="workspace-panel" role="dialog" aria-modal="true" aria-labelledby="workspaceTitle">
+      <header class="workspace-head">
+        <div>
+          <span id="workspaceKicker" class="section-label">CLAUDE HANDOFF</span>
+          <h2 id="workspaceTitle">Claude用プロンプト</h2>
+        </div>
+        <button class="close-button" type="button" data-close aria-label="閉じる">×</button>
+      </header>
+      <textarea id="workspaceText" readonly spellcheck="false"></textarea>
+      <div class="workspace-actions">
+        <button id="copyButton" class="button primary" type="button">コピー</button>
+        <button id="downloadButton" class="button" type="button">.mdでダウンロード</button>
+        <span id="actionStatus" role="status"></span>
+      </div>
+    </section>
+  </div>
+
+  <script src="article_lab.js"></script>
+</body>
+</html>
