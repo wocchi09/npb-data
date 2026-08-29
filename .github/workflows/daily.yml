@@ -52,7 +52,6 @@ jobs:
         run: |
           ARGS=""
           if [ -n "${{ github.event.inputs.from_date }}" ]; then
-            # 期間収集モード（安全弁はmain.py側で最大7日にチェック済み）
             ARGS="--from-date ${{ github.event.inputs.from_date }} --to-date ${{ github.event.inputs.to_date }}"
           else
             if [ -n "${{ github.event.inputs.date }}" ]; then
@@ -66,7 +65,6 @@ jobs:
 
       - name: Rebuild season stats (idempotent)
         run: |
-          # 収集対象日からシーズンを決定（空なら今年）
           SEASON="${{ github.event.inputs.from_date }}"
           if [ -z "$SEASON" ]; then SEASON="${{ github.event.inputs.date }}"; fi
           SEASON="${SEASON%%-*}"
@@ -80,6 +78,14 @@ jobs:
           SEASON="${SEASON%%-*}"
           if [ -z "$SEASON" ]; then SEASON=$(date +%Y); fi
           python scraper/build_dataset.py --season "$SEASON" --format both
+
+      - name: Build story insights
+        run: |
+          SEASON="${{ github.event.inputs.from_date }}"
+          if [ -z "$SEASON" ]; then SEASON="${{ github.event.inputs.date }}"; fi
+          SEASON="${SEASON%%-*}"
+          if [ -z "$SEASON" ]; then SEASON=$(date +%Y); fi
+          python scraper/build_story_insights.py --season "$SEASON"
 
       - name: Build analytics lab
         run: |
@@ -125,12 +131,10 @@ jobs:
           SEASON="${SEASON%%-*}"
           if [ -z "$SEASON" ]; then SEASON=$(date +%Y); fi
           python scraper/build_notebooklm.py --season "$SEASON"
-          # 必須CSVの欠落やヘッダー不一致は明示的に失敗させる。
           python scraper/build_notebooklm.py --output data/notebooklm --validate-only
 
       - name: Validate data
         run: |
-          # 不整合を検出した場合は停止し、壊れた集計結果をpushしない。
           python scraper/validate_data.py
 
       - name: Commit and push
@@ -148,8 +152,6 @@ jobs:
 
           for i in 1 2 3; do
             git fetch origin main
-            # index.json のような生成ファイルは中身が競合しやすい。
-            # 競合したらこちらの変更を採用し、そのあと実ファイルから作り直す。
             if git rebase -X theirs origin/main; then
               python scraper/fix_index.py || true
               if ! git diff --quiet; then
