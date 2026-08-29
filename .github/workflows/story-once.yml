@@ -1,0 +1,40 @@
+name: Build Story Insights Once
+
+on:
+  push:
+    paths:
+      - ".github/workflows/story-once.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: npb-data-write
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build Story Insights
+        run: python scraper/build_story_insights.py --season 2026
+
+      - name: Commit generated data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/2026/_story_insights.json
+          if git diff --cached --quiet; then
+            echo "No changes"
+            exit 0
+          fi
+          git commit -m "data: build story insights"
+          git push
