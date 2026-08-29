@@ -115,3 +115,42 @@
 
   return {buildGameStory:buildGameStory,gameStoryEventType:eventType};
 });
+
+(function(){
+  "use strict";
+  if(typeof document==="undefined") return;
+
+  function addStoryLabHomeLink(){
+    if(document.getElementById("story-lab-home-link")) return;
+    var nav=document.querySelector(".viewswitch");
+    if(!nav) return;
+
+    var link=document.createElement("a");
+    link.id="story-lab-home-link";
+    link.href="story_insights.html";
+    link.setAttribute("aria-label","NPB STORY LABを開く");
+    link.innerHTML='<span style="font-size:18px">⚾</span><span><b>NPB STORY LAB</b><small>勝利のポイント・追い込んでからの配球・直近10試合の変化を見る</small></span><strong>開く →</strong>';
+    link.style.cssText=[
+      "display:flex","align-items:center","gap:10px","width:100%","margin:10px 0 4px",
+      "padding:11px 14px","border:2px solid var(--accent)","border-radius:12px",
+      "background:linear-gradient(135deg,var(--panel),var(--panel2))","color:var(--ink)",
+      "text-decoration:none","box-shadow:var(--shadow)","font-family:var(--font-ui)"
+    ].join(";");
+
+    var label=link.querySelector("span:nth-child(2)");
+    if(label) label.style.cssText="display:flex;flex:1;min-width:0;flex-direction:column;line-height:1.4";
+    var title=link.querySelector("b");
+    if(title) title.style.cssText="font-size:13px;color:var(--accent);letter-spacing:.04em";
+    var sub=link.querySelector("small");
+    if(sub) sub.style.cssText="font-size:10px;color:var(--muted);font-weight:500;margin-top:2px";
+    var action=link.querySelector("strong");
+    if(action) action.style.cssText="font-size:12px;color:var(--accent);white-space:nowrap";
+
+    link.addEventListener("mouseenter",function(){link.style.transform="translateY(-1px)";});
+    link.addEventListener("mouseleave",function(){link.style.transform="none";});
+    nav.insertAdjacentElement("afterend",link);
+  }
+
+  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",addStoryLabHomeLink);
+  else addStoryLabHomeLink();
+})();
