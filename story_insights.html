@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#111827">
+  <title>NPB STORY LAB</title>
+  <link rel="stylesheet" href="story_insights.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="back" href="./" aria-label="トップへ戻る">← NPB SCOREBOARD</a>
+    <div class="brand">
+      <span class="eyebrow">DATA × STORY</span>
+      <h1>NPB STORY LAB</h1>
+      <p>数字を「試合の読みどころ」に変える実験室。</p>
+    </div>
+    <div id="statusBadge" class="status">loading…</div>
+  </header>
+
+  <main>
+    <nav class="tabs" aria-label="分析メニュー">
+      <button class="tab on" data-tab="wins">今日なぜ勝った？</button>
+      <button class="tab" data-tab="twoStrike">追い込んでから</button>
+      <button class="tab" data-tab="trend">直近10試合</button>
+    </nav>
+    <section id="app" class="app" aria-live="polite">
+      <div class="loading-card">分析データを読み込んでいます…</div>
+    </section>
+  </main>
+
+  <footer>
+    <p>公開済みの収集データを再集計した参考分析です。短期成績や単試合の数字は、対戦相手・球場・役割の影響を受けます。</p>
+  </footer>
+  <script src="story_insights.js"></script>
+</body>
+</html>
