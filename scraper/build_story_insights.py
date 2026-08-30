@@ -17,6 +17,21 @@ import sys
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
 
+try:
+    from scraper.lib.pitch_metrics import (
+        is_called_strikeout_finish,
+        is_swinging_strikeout_finish,
+        is_verified_strikeout_finish,
+        truthy,
+    )
+except ModuleNotFoundError:  # Direct execution: python scraper/build_story_insights.py
+    from lib.pitch_metrics import (
+        is_called_strikeout_finish,
+        is_swinging_strikeout_finish,
+        is_verified_strikeout_finish,
+        truthy,
+    )
+
 JST = timezone(timedelta(hours=9))
 
 
@@ -41,10 +56,6 @@ def integer(value, default=0):
         return int(float(value))
     except (TypeError, ValueError):
         return default
-
-
-def truthy(value):
-    return str(value or "").strip().lower() in {"1", "true", "yes", "y"}
 
 
 def ratio(a, b):
@@ -241,23 +252,6 @@ def summarize_hand(bucket):
     top=bucket["types"].most_common(1)
     return {"pitches":total,"k_finish_rate":rounded(bucket["k_finish"]/total),
             "top_pitch":top[0][0] if top else None,"top_pitch_share":rounded(top[0][1]/total) if top else None}
-
-
-def is_verified_strikeout_finish(row):
-    """Return True only when this pitch actually ended the plate appearance in a strikeout."""
-    if not truthy(row.get("is_last_pitch")):
-        return False
-    out_type = str(row.get("ab_out_type") or "").strip()
-    result = str(row.get("ab_result") or "").strip()
-    return out_type == "三振" and "三振" in result
-
-
-def is_swinging_strikeout_finish(row):
-    return is_verified_strikeout_finish(row) and str(row.get("ab_result") or "").strip().startswith("空振り三振")
-
-
-def is_called_strikeout_finish(row):
-    return is_verified_strikeout_finish(row) and str(row.get("ab_result") or "").strip().startswith("見逃し三振")
 
 
 def build_two_strike(path, min_pitches=25, include_quality=False):
