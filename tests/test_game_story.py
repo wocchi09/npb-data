@@ -20,6 +20,14 @@ class GameStoryTest(unittest.TestCase):
         self.assertIn("story.pitching_changes", self.html)
         self.assertIn('src="game_story.js"', self.html)
 
+    def test_home_has_direct_story_and_article_lab_links(self):
+        script = (ROOT / "game_story.js").read_text(encoding="utf-8")
+        self.assertIn('id:"story-lab-home-link"', script)
+        self.assertIn('href:"story_insights.html"', script)
+        self.assertIn('id:"article-lab-home-link"', script)
+        self.assertIn('href:"article_lab.html"', script)
+        self.assertIn("最新データから今日の記事ネタを見つけ", script)
+
     @unittest.skipUnless(shutil.which("node"), "Node.js is required")
     def test_story_classifies_lead_events(self):
         script = r"""

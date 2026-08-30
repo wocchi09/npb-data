@@ -120,35 +120,55 @@
   "use strict";
   if(typeof document==="undefined") return;
 
-  function addStoryLabHomeLink(){
-    if(document.getElementById("story-lab-home-link")) return;
-    var nav=document.querySelector(".viewswitch");
-    if(!nav) return;
-
+  function makeLabHomeLink(config){
     var link=document.createElement("a");
-    link.id="story-lab-home-link";
-    link.href="story_insights.html";
-    link.setAttribute("aria-label","NPB STORY LABを開く");
-    link.innerHTML='<span style="font-size:18px">⚾</span><span><b>NPB STORY LAB</b><small>勝利のポイント・追い込んでからの配球・直近10試合の変化を見る</small></span><strong>開く →</strong>';
+    link.id=config.id;
+    link.href=config.href;
+    link.setAttribute("aria-label",config.ariaLabel);
+    link.innerHTML='<span style="font-size:18px">'+config.icon+'</span><span><b>'+config.title+'</b><small>'+config.description+'</small></span><strong>開く →</strong>';
     link.style.cssText=[
-      "display:flex","align-items:center","gap:10px","width:100%","margin:10px 0 4px",
-      "padding:11px 14px","border:2px solid var(--accent)","border-radius:12px",
+      "display:flex","align-items:center","gap:10px","width:100%","margin:"+config.margin,
+      "padding:11px 14px","border:2px solid "+config.color,"border-radius:12px",
       "background:linear-gradient(135deg,var(--panel),var(--panel2))","color:var(--ink)",
-      "text-decoration:none","box-shadow:var(--shadow)","font-family:var(--font-ui)"
+      "text-decoration:none","box-shadow:var(--shadow)","font-family:var(--font-ui)","transition:transform .18s ease"
     ].join(";");
 
     var label=link.querySelector("span:nth-child(2)");
     if(label) label.style.cssText="display:flex;flex:1;min-width:0;flex-direction:column;line-height:1.4";
     var title=link.querySelector("b");
-    if(title) title.style.cssText="font-size:13px;color:var(--accent);letter-spacing:.04em";
+    if(title) title.style.cssText="font-size:13px;color:"+config.color+";letter-spacing:.04em";
     var sub=link.querySelector("small");
     if(sub) sub.style.cssText="font-size:10px;color:var(--muted);font-weight:500;margin-top:2px";
     var action=link.querySelector("strong");
-    if(action) action.style.cssText="font-size:12px;color:var(--accent);white-space:nowrap";
+    if(action) action.style.cssText="font-size:12px;color:"+config.color+";white-space:nowrap";
 
     link.addEventListener("mouseenter",function(){link.style.transform="translateY(-1px)";});
     link.addEventListener("mouseleave",function(){link.style.transform="none";});
-    nav.insertAdjacentElement("afterend",link);
+    return link;
+  }
+
+  function addStoryLabHomeLink(){
+    var nav=document.querySelector(".viewswitch");
+    if(!nav) return;
+
+    var storyLink=document.getElementById("story-lab-home-link");
+    if(!storyLink){
+      storyLink=makeLabHomeLink({
+        id:"story-lab-home-link",href:"story_insights.html",ariaLabel:"NPB STORY LABを開く",icon:"⚾",
+        title:"NPB STORY LAB",description:"勝利のポイント・追い込んでからの配球・直近10試合の変化を見る",
+        color:"var(--accent)",margin:"10px 0 4px"
+      });
+      nav.insertAdjacentElement("afterend",storyLink);
+    }
+
+    if(!document.getElementById("article-lab-home-link")){
+      var articleLink=makeLabHomeLink({
+        id:"article-lab-home-link",href:"article_lab.html",ariaLabel:"NPB ARTICLE LABを開く",icon:"✍️",
+        title:"NPB ARTICLE LAB",description:"最新データから今日の記事ネタを見つけ、Claude用Briefを作る",
+        color:"var(--accent2)",margin:"8px 0 4px"
+      });
+      storyLink.insertAdjacentElement("afterend",articleLink);
+    }
   }
 
   if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",addStoryLabHomeLink);
