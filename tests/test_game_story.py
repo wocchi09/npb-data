@@ -28,6 +28,17 @@ class GameStoryTest(unittest.TestCase):
         self.assertIn('href:"article_lab.html"', script)
         self.assertIn("最新データから今日の記事ネタを見つけ", script)
 
+    def test_every_game_has_inning_pitch_summary_and_filters(self):
+        self.assertIn("回別配球サマリー", self.html)
+        self.assertIn("function summarizeInningPitches(ps)", self.html)
+        self.assertIn("function renderInningPitchSummary(ps,active,g)", self.html)
+        self.assertIn('pitchFilter = {team:"all", pitcher:"all", type:"all", inning:"all"}', self.html)
+        self.assertIn('<span class="lb">回</span><select id="fi"', self.html)
+        self.assertIn("function setAnalysisInning(key)", self.html)
+        self.assertIn('team: ab.fielding_team||"", batTeam: ab.batting_team||""', self.html)
+        self.assertIn("ゾーン内率は5×5コース座標の中央3×3", self.html)
+        self.assertNotIn("function renderHawksInningPitchSummary", self.html)
+
     @unittest.skipUnless(shutil.which("node"), "Node.js is required")
     def test_story_classifies_lead_events(self):
         script = r"""

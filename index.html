@@ -267,6 +267,42 @@
   .rolebadge{display:inline-block;font-size:10.5px;font-weight:700;color:#fff;
     padding:2px 7px;border-radius:20px;vertical-align:middle;line-height:1.4;}
 
+  /* ---- 試合詳細：回別配球 ---- */
+  .pitch-inning-head{display:flex;align-items:flex-start;justify-content:space-between;
+    gap:10px;margin-bottom:10px;}
+  .pitch-inning-head h3{margin:0;}
+  .pitch-inning-note{font-size:10.5px;line-height:1.6;color:var(--muted);text-align:right;}
+  .pitch-inning-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:9px;}
+  .pitch-inning-card{font-family:inherit;text-align:left;color:var(--ink);cursor:pointer;
+    border:1px solid var(--line);border-left:5px solid var(--team-color,var(--accent));
+    border-radius:11px;background:linear-gradient(145deg,var(--panel2),var(--panel));
+    padding:10px 11px;min-width:0;box-shadow:0 2px 7px rgba(70,45,20,.05);
+    transition:transform .16s,border-color .16s,box-shadow .16s;}
+  .pitch-inning-card:hover{transform:translateY(-2px);border-color:var(--accent);
+    box-shadow:0 7px 18px rgba(120,70,20,.11);}
+  .pitch-inning-card.on{outline:2px solid var(--accent);background:var(--zone);}
+  .pitch-inning-card-head{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+  .pitch-inning-card-head strong{font-size:15px;color:var(--accent);}
+  .pitch-inning-team{font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .pitch-inning-pitchers{font-size:12px;font-weight:700;margin-top:3px;white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis;}
+  .pitch-inning-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;margin-top:8px;}
+  .pitch-inning-kpis span{display:block;text-align:center;border:1px solid var(--line);
+    border-radius:7px;background:var(--panel);padding:4px 2px;font-size:8.5px;color:var(--muted);}
+  .pitch-inning-kpis b{display:block;font:800 13px 'Roboto Mono',monospace;color:var(--ink);}
+  .pitch-inning-mix{display:flex;gap:4px;flex-wrap:wrap;margin-top:8px;}
+  .pitch-inning-mix span{border-radius:999px;background:var(--panel);border:1px solid var(--line);
+    padding:2px 6px;font-size:9.5px;color:var(--ink2);}
+  .pitch-inning-flags{margin-top:7px;font-size:9.5px;color:var(--muted);line-height:1.6;}
+  .pitch-filter-status{margin:9px 0 0;padding:7px 10px;border-radius:9px;background:var(--zone);
+    border:1px solid var(--line2);font-size:11px;color:var(--ink2);}
+  @media(max-width:560px){
+    .pitch-inning-head{display:block;}
+    .pitch-inning-note{text-align:left;margin-top:3px;}
+    .pitch-inning-grid{grid-template-columns:1fr;}
+    .pitch-inning-card{padding:11px 12px;}
+  }
+
   /* ---- 選手比較 ---- */
   .cmpbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;
     background:var(--zone);border:1px solid var(--line2);border-radius:10px;
@@ -1940,7 +1976,7 @@
       curGame=await r.json();
       inferRunnerNames(curGame.atbats||[]);
       curTab="summary";
-      pitchFilter={team:"all", pitcher:"all", type:"all"};
+      pitchFilter={team:"all", pitcher:"all", type:"all", inning:"all"};
       render();
       detailEl.scrollIntoView({behavior:"smooth",block:"start"});
     }catch(e){
@@ -9722,7 +9758,7 @@
   }
 
   /* ===== 配球分析タブ ===== */
-  var pitchFilter = {team:"all", pitcher:"all", type:"all"};
+  var pitchFilter = {team:"all", pitcher:"all", type:"all", inning:"all"};
 
   /* 投手ロール（先発・中継ぎ・抑え）を判定する。
      scraper/lib/awards.py の _role_of と同じ考え方をJS側でも使う。
@@ -9788,9 +9824,11 @@
           // 投げている側＝守備側のチーム
           team: ab.fielding_team||"", batTeam: ab.batting_team||"",
           inning: ab.inning, tb: ab.top_bottom,
+          atbatIndex: ab.index||"", pitchNo: pt.no,
           type: pt.type||"不明", speed: pt.speed_kmh,
           result: pt.result||"", kind: pt.kind||"",
           course: pt.course||null,
+          abResult: ab.result_summary||"",
           last: false
         });
       });
@@ -9798,6 +9836,83 @@
       if(out.length && (ab.pitches||[]).length) out[out.length-1].last=true;
     });
     return out;
+  }
+
+  function pitchHalfKey(p){
+    return String(p.inning||"")+"-"+String(p.tb||"");
+  }
+
+  function pitchHalfSort(a,b){
+    var aa=String(a).split("-"),bb=String(b).split("-");
+    var diff=(parseInt(aa[0],10)||0)-(parseInt(bb[0],10)||0);
+    if(diff) return diff;
+    return aa[1]===bb[1]?0:(aa[1]==="表"?-1:1);
+  }
+
+  function summarizeInningPitches(ps){
+    var types={},pitchers={},atbats={},speeds=[],zoneSeen=0,inZone=0;
+    var whiffs=0,called=0,strikeouts=0;
+    (ps||[]).forEach(function(p){
+      types[p.type]=(types[p.type]||0)+1;
+      if(p.pitcher) pitchers[p.pitcher]=true;
+      if(p.atbatIndex) atbats[p.atbatIndex]=true;
+      if(p.speed) speeds.push(Number(p.speed));
+      if(/空振|空三振/.test(p.result||"")) whiffs++;
+      if(/見逃/.test(p.result||"")) called++;
+      if(p.last&&/三振/.test(p.abResult||"")) strikeouts++;
+      var c=p.course;
+      if(c&&c.grid_row!=null&&c.grid_col!=null){
+        zoneSeen++;
+        if(c.grid_row>=1&&c.grid_row<=3&&c.grid_col>=1&&c.grid_col<=3) inZone++;
+      }
+    });
+    var mix=Object.keys(types).map(function(type){
+      return {type:type,count:types[type],share:ps.length?types[type]/ps.length:0};
+    }).sort(function(a,b){return b.count-a.count;});
+    return {
+      pitches:ps.length,batters:Object.keys(atbats).length,pitchers:Object.keys(pitchers),mix:mix,
+      avgSpeed:speeds.length?Math.round(speeds.reduce(function(a,b){return a+b;},0)/speeds.length):null,
+      maxSpeed:speeds.length?Math.max.apply(null,speeds):null,
+      whiffs:whiffs,called:called,strikeouts:strikeouts,zoneSeen:zoneSeen,
+      zoneRate:zoneSeen?Math.round(inZone/zoneSeen*1000)/10:null
+    };
+  }
+
+  function renderInningPitchSummary(ps,active,g){
+    var groups={},keys=[];
+    (ps||[]).forEach(function(p){
+      var key=pitchHalfKey(p);
+      if(!groups[key]){groups[key]=[];keys.push(key);}
+      groups[key].push(p);
+    });
+    keys.sort(pitchHalfSort);
+    if(!keys.length) return "";
+    var h='<div class="card2"><div class="pitch-inning-head"><h3>回別配球サマリー</h3>'+
+      '<div class="pitch-inning-note">カードを押すと下の球種・球速・コースもその回だけに切り替わります</div></div>'+
+      '<div class="pitch-inning-grid">';
+    keys.forEach(function(key){
+      var rows=groups[key],first=rows[0],s=summarizeInningPitches(rows);
+      var label=esc(first.inning)+"回"+esc(first.tb||"");
+      var mix=s.mix.slice(0,4).map(function(item){
+        return '<span>'+esc(item.type)+' '+Math.round(item.share*100)+'%</span>';
+      }).join("");
+      var flagParts=["空振り "+s.whiffs,"見逃し "+s.called];
+      if(s.zoneRate!=null) flagParts.push("ゾーン内 "+s.zoneRate+"%");
+      flagParts.push("三振決着 "+s.strikeouts);
+      h+='<button type="button" class="pitch-inning-card'+(active===key?' on':'')+'" '+
+        'style="--team-color:'+(tColor(first.team)||'var(--accent)')+'" '+
+        'onclick="setAnalysisInning(\''+esc(key)+'\')">'+
+        '<span class="pitch-inning-card-head"><strong>'+label+'</strong>'+
+        '<span class="pitch-inning-team">'+teamBadge(first.team)+' '+esc(first.team||"-")+'の投球</span></span>'+
+        '<span class="pitch-inning-pitchers">'+esc(s.pitchers.join(" → ")||"投手不明")+'</span>'+
+        '<span class="pitch-inning-kpis">'+
+          '<span><b>'+s.pitches+'</b>球数</span><span><b>'+s.batters+'</b>打席</span>'+
+          '<span><b>'+(s.avgSpeed==null?"-":s.avgSpeed)+'</b>平均km/h</span>'+
+          '<span><b>'+(s.maxSpeed==null?"-":s.maxSpeed)+'</b>最速km/h</span>'+
+        '</span><span class="pitch-inning-mix">'+mix+'</span>'+
+        '<span class="pitch-inning-flags">'+flagParts.join(" ／ ")+'</span></button>';
+    });
+    return h+'</div><div class="sub" style="font-size:10px;margin-top:9px">空振り・見逃しは収集済み投球結果の文字列、ゾーン内率は5×5コース座標の中央3×3から算出しています。</div></div>';
   }
 
   function renderAnalysis(g){
@@ -9828,11 +9943,20 @@
     var typeList=Object.keys(types).sort(function(a,b){return types[b]-types[a];});
     if(pitchFilter.type!=="all" && !types[pitchFilter.type]) pitchFilter.type="all";
 
-    // フィルタ適用
-    var ps=pool.filter(function(p){
+    // 投手・球種フィルタを適用。回別カードはこの母集合から作る。
+    var analysisBase=pool.filter(function(p){
       if(pitchFilter.pitcher!=="all" && p.pitcher!==pitchFilter.pitcher) return false;
       if(pitchFilter.type!=="all" && p.type!==pitchFilter.type) return false;
       return true;
+    });
+    var halfCounts={};
+    analysisBase.forEach(function(p){
+      var key=pitchHalfKey(p);halfCounts[key]=(halfCounts[key]||0)+1;
+    });
+    var halfList=Object.keys(halfCounts).sort(pitchHalfSort);
+    if(pitchFilter.inning!=="all"&&!halfCounts[pitchFilter.inning]) pitchFilter.inning="all";
+    var ps=analysisBase.filter(function(p){
+      return pitchFilter.inning==="all"||pitchHalfKey(p)===pitchFilter.inning;
     });
 
     // チームはタブで切り替える（1試合に2球団なので選びやすい）
@@ -9866,6 +9990,14 @@
         return '<option value="'+esc(t)+'"'+(pitchFilter.type===t?" selected":"")+'>'+
                esc(t)+'</option>';
       }).join("")+
+      '</select>'+
+      '<span class="lb">回</span><select id="fi" onchange="onAnalysisFilter()">'+
+      '<option value="all">全回</option>'+
+      halfList.map(function(key){
+        var parts=key.split("-");
+        return '<option value="'+esc(key)+'"'+(pitchFilter.inning===key?" selected":"")+'>'+
+          esc(parts[0])+"回"+esc(parts[1]||"")+"（"+halfCounts[key]+"球）</option>";
+      }).join("")+
       '</select></div>';
 
     // 選択中の投手の役割バッジ（先発・中継ぎ・抑え）
@@ -9877,6 +10009,15 @@
       if(curRole){
         h+='<div style="margin:-4px 0 10px">'+esc(pitchFilter.pitcher)+' '+roleBadge(curRole)+'</div>';
       }
+    }
+
+    if(analysisBase.length){
+      h+=renderInningPitchSummary(analysisBase,pitchFilter.inning,g);
+    }
+    if(pitchFilter.inning!=="all"){
+      var activeParts=pitchFilter.inning.split("-");
+      h+='<div class="pitch-filter-status"><b>'+esc(activeParts[0])+"回"+esc(activeParts[1]||"")+
+        '</b> の配球を下に表示中　<button class="btn" style="padding:3px 8px;margin-left:6px" onclick="setAnalysisInning(\'all\')">全回へ戻す</button></div>';
     }
 
     if(!ps.length) return h+'<div class="msg">該当する投球がありません</div>';
@@ -9935,13 +10076,20 @@
     // チームを変えたら投手と球種の選択はリセットする
     pitchFilter.pitcher="all";
     pitchFilter.type="all";
+    pitchFilter.inning="all";
+    document.getElementById("tabbody").innerHTML=renderAnalysis(curGame);
+  }
+
+  function setAnalysisInning(key){
+    pitchFilter.inning=(pitchFilter.inning===key&&key!=="all")?"all":key;
     document.getElementById("tabbody").innerHTML=renderAnalysis(curGame);
   }
 
   function onAnalysisFilter(){
-    var fp=document.getElementById("fp"), ft=document.getElementById("ft");
+    var fp=document.getElementById("fp"), ft=document.getElementById("ft"), fi=document.getElementById("fi");
     if(fp) pitchFilter.pitcher=fp.value;
     if(ft) pitchFilter.type=ft.value;
+    if(fi) pitchFilter.inning=fi.value;
     document.getElementById("tabbody").innerHTML=renderAnalysis(curGame);
   }
 
