@@ -12,7 +12,7 @@ sys.path.insert(0, str(ROOT))
 
 from scraper.build_article_ideas import build
 from scraper.build_story_insights import build_two_strike
-from scraper.lib.pitch_metrics import summarize_batter_pitches, summarize_pitcher_pitches
+from scraper.lib.pitch_metrics import summarize_batter_pitches, summarize_pitcher_pitches, summarize_times_through_order
 
 
 def write_csv(path, rows):
@@ -38,12 +38,31 @@ class ArticleLabTests(unittest.TestCase):
         self.assertEqual(pitcher["strikeout_finish_by_pitch"], [{"pitch_type": "ストレート", "strikeouts": 1}])
         self.assertEqual(pitcher["two_strike_pitches"], 2)
         self.assertEqual(pitcher["in_zone_rate"], 0.333)
+        self.assertEqual(pitcher["pitch_type_velocity"][0]["avg_speed_kmh"], 149.0)
+        self.assertEqual(pitcher["velocity_gap"]["gap_kmh"], 11.0)
         self.assertEqual(batter["whiff_rate"], 0.5)
         self.assertEqual(batter["called_strike_rate"], 1.0)
+        self.assertEqual(batter["plate_appearances"], 2)
         self.assertEqual(sum(row["hits"] for row in batter["terminal_results_by_pitch"]), 1)
+        self.assertEqual(sum(row["recorded_outs"] for row in batter["terminal_results_by_pitch"]), 1)
+        self.assertIn("見逃し三振", {item["result"] for row in batter["terminal_results_by_pitch"] for item in row["results"]})
         missing_flags = summarize_batter_pitches([{"date": "2026-08-10", "game_id": "g10", "pitch_type": "ストレート"}])
         self.assertIsNone(missing_flags["whiff_rate"])
         self.assertIsNone(missing_flags["called_strike_rate"])
+
+    def test_times_through_order_requires_two_observed_turns(self):
+        rows = [
+            {"date": "2026-08-10", "game_id": "g10", "atbat_no": "1", "atbat_index": "a1", "pitch_no": "1", "batter_key": "b1", "pitch_type": "ストレート", "speed_kmh": "150", "is_last_pitch": "True"},
+            {"date": "2026-08-10", "game_id": "g10", "atbat_no": "2", "atbat_index": "a2", "pitch_no": "1", "batter_key": "b2", "pitch_type": "カーブ", "speed_kmh": "120", "is_last_pitch": "True"},
+            {"date": "2026-08-10", "game_id": "g10", "atbat_no": "10", "atbat_index": "a10", "pitch_no": "1", "batter_key": "b1", "pitch_type": "フォーク", "speed_kmh": "138", "is_last_pitch": "False"},
+            {"date": "2026-08-10", "game_id": "g10", "atbat_no": "10", "atbat_index": "a10", "pitch_no": "2", "batter_key": "b1", "pitch_type": "フォーク", "speed_kmh": "139", "is_last_pitch": "True"},
+        ]
+        turns = summarize_times_through_order(rows)
+        self.assertEqual([row["turn"] for row in turns], [1, 2])
+        self.assertEqual(turns[0]["plate_appearances"], 2)
+        self.assertEqual(turns[1]["pitches"], 2)
+        self.assertEqual(turns[1]["pitch_mix"][0]["pitch_type"], "フォーク")
+        self.assertEqual(summarize_times_through_order(rows[:2]), [])
 
     def test_two_strike_uses_verified_plate_appearance_end(self):
         rows = [
@@ -98,8 +117,17 @@ class ArticleLabTests(unittest.TestCase):
         pitcher_idea = next(i for i in saved["ideas"] if i["id"] == "hawks-two-strike-p-pit")
         self.assertIn("先発の投球数", {item["label"] for item in game_idea["facts"]})
         self.assertIn("ホークス打線で見た球種", {item["label"] for item in game_idea["facts"]})
+        self.assertIn("1球データ素材", {item["label"] for item in game_idea["facts"]})
         self.assertTrue(any(item["source"]["dataset"] == "pitches.csv" for item in hitter_idea["facts"]))
         self.assertTrue(any(item["source"]["dataset"] == "pitches.csv" for item in pitcher_idea["facts"]))
+        game_pitch = game_idea["extra_stats"]["pitch_data"]
+        self.assertEqual(len(game_pitch["pitchers"]), 2)
+        self.assertEqual(len(game_pitch["team_batting"]), 2)
+        self.assertEqual(len(game_pitch["batters"]), 2)
+        self.assertEqual(next(row for row in game_pitch["pitchers"] if row["name"] == "実在 投手")["role"], "先発")
+        self.assertIn("player_batting", hitter_idea["extra_stats"])
+        self.assertIn("player_pitching", pitcher_idea["extra_stats"])
+        self.assertTrue(all(row["source"]["dataset"] == "pitches.csv" for row in game_pitch["pitchers"]))
         for idea in (game_idea, hitter_idea, pitcher_idea):
             for item in (fact for fact in idea["facts"] if fact["source"]["dataset"] == "pitches.csv"):
                 self.assertEqual(item["source"]["date"], "2026-08-10")

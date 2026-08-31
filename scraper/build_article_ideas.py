@@ -18,15 +18,16 @@ from datetime import datetime, timedelta, timezone
 
 try:
     from scraper.build_story_insights import aggregate_batting, aggregate_pitching, build as build_story, integer, load_csv, num
-    from scraper.lib.pitch_metrics import summarize_batter_pitches, summarize_pitcher_pitches, truthy
+    from scraper.lib.pitch_metrics import summarize_batter_pitches, summarize_pitcher_pitches, summarize_times_through_order, truthy
 except ModuleNotFoundError:  # Direct execution: python scraper/build_article_ideas.py
     from build_story_insights import aggregate_batting, aggregate_pitching, build as build_story, integer, load_csv, num
-    from lib.pitch_metrics import summarize_batter_pitches, summarize_pitcher_pitches, truthy
+    from lib.pitch_metrics import summarize_batter_pitches, summarize_pitcher_pitches, summarize_times_through_order, truthy
 
 JST = timezone(timedelta(hours=9))
 HAWKS = "ソフトバンク"
 PACIFIC = {"ソフトバンク", "日本ハム", "オリックス", "楽天", "西武", "ロッテ"}
 TYPE_LABELS = {"game": "試合", "player": "選手", "trend": "トレンド"}
+MIN_GAME_BATTER_PA = 3
 
 
 def read_json(path):
@@ -131,6 +132,15 @@ def pitcher_pitch_facts(summary, label_prefix="投手"):
             f"平均{fastball['avg_speed_kmh']:.1f}km/h / 最速{fastball['max_speed_kmh']:.1f}km/h",
             "fastball_velocity", fastball, src,
         ))
+    gap = summary.get("velocity_gap") or {}
+    if gap.get("gap_kmh") is not None:
+        facts.append(fact(
+            "球種間の球速差",
+            f"{gap['fastest_pitch_type']}平均{gap['fastest_avg_speed_kmh']:.1f}km/h → "
+            f"{gap['slowest_pitch_type']}平均{gap['slowest_avg_speed_kmh']:.1f}km/h "
+            f"（差{gap['gap_kmh']:.1f}km/h）",
+            "pitch_velocity_gap", gap, src,
+        ))
     finishers = summary.get("strikeout_finish_by_pitch") or []
     finisher_text = "、".join(f"{row['pitch_type']} {integer(row.get('strikeouts'))}個" for row in finishers)
     if finisher_text:
@@ -185,6 +195,7 @@ def batter_pitch_facts(summary, label_prefix="打撃"):
         f"{row['pitch_type']} {integer(row.get('pa'))}打席{integer(row.get('hits'))}安打"
         + (f"{integer(row.get('hr'))}本塁打" if integer(row.get("hr")) else "")
         + (f"{integer(row.get('strikeouts'))}三振" if integer(row.get("strikeouts")) else "")
+        + (f"{integer(row.get('recorded_outs'))}記録アウト" if integer(row.get("recorded_outs")) else "")
         for row in results
     )
     if result_text:
@@ -195,8 +206,210 @@ def batter_pitch_facts(summary, label_prefix="打撃"):
     return facts, cautions, [src]
 
 
-def make_idea(*, idea_id, idea_type, team, title, theme, reason, facts, angles, cautions, source_refs, score):
+def innings_text(outs):
+    if outs in (None, ""):
+        return None
+    outs = integer(outs)
+    return f"{outs // 3}.{outs % 3}"
+
+
+def player_identity(row, prefix):
+    key = row.get(f"{prefix}_key") or row.get(f"{prefix}_id")
+    name = row.get(prefix)
+    team_field = "fielding_team" if prefix == "pitcher" else "batting_team"
+    return str(key or name or ""), name or "", row.get(team_field) or ""
+
+
+def matching_pitching_lines(rows, player_key, name, team):
+    exact = [row for row in rows or [] if player_key and str(row.get("player_key") or row.get("player_id") or "") == str(player_key)]
+    if exact:
+        return exact
+    return [row for row in rows or [] if row.get("player") == name and (not team or row.get("team") == team)]
+
+
+def pitcher_material(rows, pitching_lines=None):
+    rows = list(rows or [])
+    summary = summarize_pitcher_pitches(rows)
+    if not summary:
+        return None
+    _, name, team = player_identity(rows[0], "pitcher")
+    player_key = rows[0].get("pitcher_key") or rows[0].get("pitcher_id")
+    lines = matching_pitching_lines(pitching_lines, player_key, name, team)
+    starts = sum(truthy(row.get("is_starter")) for row in lines)
+    relief = max(0, len(lines) - starts)
+    if starts and relief:
+        role = "先発・救援"
+    elif starts:
+        role = "先発"
+    elif relief:
+        role = "救援"
+    else:
+        role = "データ不足"
+    outs = sum(integer(row.get("outs")) for row in lines) if lines else None
+    tto = summarize_times_through_order(rows)
+    src = pitch_source(
+        summary,
+        ["game_id", "atbat_no", "atbat_index", "pitch_no", "batter_key", "pitcher_key", "pitch_type", "speed_kmh", "strikes_before", "in_zone", "is_last_pitch", "ab_result", "ab_out_type"],
+    )
+    sample_note = None
+    if role in {"救援", "先発・救援"}:
+        sample_note = f"救援登板を含むn={integer(summary.get('pitches'))}球。小標本では傾向を断定しない"
+    elif integer(summary.get("pitches")) < 50:
+        sample_note = f"n={integer(summary.get('pitches'))}球の小標本。傾向を断定しない"
     return {
+        "player_key": player_key,
+        "name": name,
+        "team": team,
+        "role": role,
+        "appearances": len({str(row.get("game_id") or "") for row in lines}) if lines else len(summary.get("game_ids") or []),
+        "starts": starts,
+        "relief_appearances": relief,
+        "innings": innings_text(outs),
+        "outs": outs,
+        "pitches": summary.get("pitches"),
+        "pitch_mix": summary.get("pitch_mix"),
+        "fastball": summary.get("fastball"),
+        "pitch_type_velocity": summary.get("pitch_type_velocity"),
+        "velocity_gap": summary.get("velocity_gap"),
+        "strikeout_finish_by_pitch": summary.get("strikeout_finish_by_pitch"),
+        "two_strike": {
+            "pitches": summary.get("two_strike_pitches"),
+            "pitch_mix": summary.get("two_strike_mix"),
+        },
+        "zone": {
+            "seen": summary.get("zone_seen"),
+            "in_zone": summary.get("in_zone"),
+            "out_zone": summary.get("out_zone"),
+            "in_zone_rate": summary.get("in_zone_rate"),
+            "out_zone_rate": summary.get("out_zone_rate"),
+        },
+        "times_through_order": tto,
+        "sample_note": sample_note,
+        "source": src,
+    }
+
+
+def batter_material(rows, minimum_pa=MIN_GAME_BATTER_PA):
+    rows = list(rows or [])
+    summary = summarize_batter_pitches(rows)
+    if not summary:
+        return None
+    player_key, name, team = player_identity(rows[0], "batter")
+    pa = integer(summary.get("plate_appearances"))
+    game_count = len(summary.get("game_ids") or [])
+    sample_note = (
+        f"{pa}打席・{integer(summary.get('pitches_seen'))}球の1試合標本。傾向を断定しない"
+        if game_count <= 1 else
+        f"{game_count}試合・{pa}打席・{integer(summary.get('pitches_seen'))}球。1試合より信頼度は高いが短期傾向の理由は断定しない"
+    )
+    src = pitch_source(
+        summary,
+        ["game_id", "atbat_no", "atbat_index", "pitch_no", "batter_key", "pitcher_key", "pitch_type", "is_swing", "is_miss", "is_called", "is_last_pitch", "ab_result", "ab_out_type", "ab_hit"],
+    )
+    return {
+        "player_key": player_key or None,
+        "name": name,
+        "team": team,
+        "plate_appearances": pa,
+        "pitches_seen": summary.get("pitches_seen"),
+        "article_eligible": pa >= minimum_pa,
+        "minimum_pa_for_article": minimum_pa,
+        "pitch_mix": summary.get("pitch_mix"),
+        "swings": summary.get("swings"),
+        "misses": summary.get("misses"),
+        "whiff_rate": summary.get("whiff_rate"),
+        "taken_pitches": summary.get("taken_pitches"),
+        "called_strikes": summary.get("called_strikes"),
+        "called_strike_rate": summary.get("called_strike_rate"),
+        "terminal_results_by_pitch": summary.get("terminal_results_by_pitch"),
+        "sample_note": sample_note,
+        "source": src,
+    }
+
+
+def team_batting_material(rows):
+    rows = list(rows or [])
+    summary = summarize_batter_pitches(rows)
+    if not summary:
+        return None
+    src = pitch_source(
+        summary,
+        ["game_id", "batting_team", "pitch_type", "is_swing", "is_miss", "is_called", "is_last_pitch", "ab_result", "ab_out_type", "ab_hit"],
+    )
+    return {
+        "team": rows[0].get("batting_team") or "",
+        "plate_appearances": summary.get("plate_appearances"),
+        "pitches_seen": summary.get("pitches_seen"),
+        "pitch_mix": summary.get("pitch_mix"),
+        "whiff_rate": summary.get("whiff_rate"),
+        "called_strike_rate": summary.get("called_strike_rate"),
+        "terminal_results_by_pitch": summary.get("terminal_results_by_pitch"),
+        "source": src,
+    }
+
+
+def build_game_pitch_material(pitches, pitching_lines, game_id):
+    game_rows = pitch_rows_for(pitches, game_ids=[game_id])
+    if not game_rows:
+        return None
+    game_lines = [row for row in pitching_lines or [] if str(row.get("game_id") or "") == str(game_id)]
+    pitcher_groups = defaultdict(list)
+    team_groups = defaultdict(list)
+    batter_groups = defaultdict(list)
+    for row in game_rows:
+        pitcher_key, pitcher_name, fielding_team = player_identity(row, "pitcher")
+        if pitcher_key:
+            pitcher_groups[(fielding_team, pitcher_key, pitcher_name)].append(row)
+        batting_team = row.get("batting_team") or ""
+        if batting_team:
+            team_groups[batting_team].append(row)
+        batter_key, batter_name, _ = player_identity(row, "batter")
+        if batter_key:
+            batter_groups[(batting_team, batter_key, batter_name)].append(row)
+    pitchers = [pitcher_material(rows, game_lines) for rows in pitcher_groups.values()]
+    teams = [team_batting_material(rows) for rows in team_groups.values()]
+    batters = [batter_material(rows) for rows in batter_groups.values()]
+    pitchers = [row for row in pitchers if row]
+    teams = [row for row in teams if row]
+    batters = [row for row in batters if row]
+    pitchers.sort(key=lambda row: (row.get("team") or "", 0 if row.get("role") == "先発" else 1, row.get("name") or ""))
+    teams.sort(key=lambda row: row.get("team") or "")
+    batters.sort(key=lambda row: (row.get("team") or "", -integer(row.get("plate_appearances")), row.get("name") or ""))
+    summary = summarize_batter_pitches(game_rows)
+    return {
+        "scope": {
+            "date": summary.get("date_start") if summary else None,
+            "game_id": str(game_id),
+            "dataset": "pitches.csv",
+            "pitches": len(game_rows),
+            "minimum_pa_for_batter_article": MIN_GAME_BATTER_PA,
+        },
+        "pitchers": pitchers,
+        "team_batting": teams,
+        "batters": batters,
+    }
+
+
+def tto_fact(material, label_prefix):
+    turns = (material or {}).get("times_through_order") or []
+    if len(turns) < 2:
+        return None
+    parts = []
+    for row in turns:
+        top = (row.get("pitch_mix") or [{}])[0]
+        top_text = f" / 最多{top.get('pitch_type')} {num(top.get('share')) * 100:.1f}%" if top.get("pitch_type") else ""
+        parts.append(f"{integer(row.get('turn'))}巡目 n={integer(row.get('pitches'))}球{top_text}")
+    return fact(
+        f"{label_prefix}の巡目別配球",
+        "、".join(parts),
+        "times_through_order",
+        turns,
+        material.get("source"),
+    )
+
+
+def make_idea(*, idea_id, idea_type, team, title, theme, reason, facts, angles, cautions, source_refs, score, extra_stats=None):
+    idea = {
         "id": idea_id,
         "type": idea_type,
         "type_label": TYPE_LABELS[idea_type],
@@ -212,6 +425,9 @@ def make_idea(*, idea_id, idea_type, team, title, theme, reason, facts, angles, 
         "source_refs": source_refs,
         "_score": score,
     }
+    if extra_stats:
+        idea["extra_stats"] = extra_stats
+    return idea
 
 
 def latest_hawks_game(story, data_date, pitching_lines=None, pitches=None):
@@ -273,6 +489,34 @@ def latest_hawks_game(story, data_date, pitching_lines=None, pitches=None):
     batting_summary = summarize_batter_pitches(team_batting_rows)
     extra, cautions, refs = batter_pitch_facts(batting_summary, "ホークス打線")
     facts.extend(extra); pitch_cautions.extend(cautions); pitch_refs.extend(refs)
+    game_pitch_material = build_game_pitch_material(pitches, pitching_lines, game_id)
+    if game_pitch_material:
+        scope = game_pitch_material.get("scope") or {}
+        material_src = source(
+            "pitches.csv", data_date, game_id,
+            ["pitcher_key", "batter_key", "atbat_no", "pitch_no", "pitch_type", "speed_kmh", "is_swing", "is_miss", "is_called", "is_last_pitch"],
+        )
+        facts.append(fact(
+            "1球データ素材",
+            f"{integer(scope.get('pitches'))}球 / 登板{len(game_pitch_material.get('pitchers') or [])}投手 / 打者{len(game_pitch_material.get('batters') or [])}人",
+            "pitch_material_coverage",
+            [scope.get("pitches"), len(game_pitch_material.get("pitchers") or []), len(game_pitch_material.get("batters") or [])],
+            material_src,
+        ))
+        if starter:
+            starter_material = next((row for row in game_pitch_material.get("pitchers") or []
+                                     if row.get("team") == HAWKS and
+                                     ((starter.get("key") and str(row.get("player_key") or "") == str(starter.get("key")))
+                                      or row.get("name") == starter.get("name"))), None)
+            round_fact = tto_fact(starter_material, starter.get("name") or "先発")
+            if round_fact:
+                facts.append(round_fact)
+        pitch_refs.append(material_src)
+        pitch_cautions.extend([
+            "救援投手は1試合の投球数が少ないため、extra_stats内のn（投球数）を確認し傾向を断定しない",
+            "個人打者は1試合4〜5打席程度の小標本。extra_statsは記事素材であり、単独で傾向を断定しない",
+            "巡目別配球は同一打者の登場回数による観測上の区分。配球を変えた理由はデータから断定しない",
+        ])
     if result == "勝利":
         title = f"ホークスが{opponent}戦を{hawks_score}－{opponent_score}で勝利　数字から見えたポイント"
         reason = f"最新データ日のホークス戦は{result}。スコアだけで勝因を断定せず、打線・先発・救援のどこに目立つ数字があったかを整理できる。"
@@ -286,6 +530,7 @@ def latest_hawks_game(story, data_date, pitching_lines=None, pitches=None):
         angles=["得点と安打・四球の関係", "先発が作った試合展開", "救援陣が残した数字"],
         cautions=["勝因の因果推定ではなく、当日の集計値から目立つ要素を扱う", "守備位置や打球品質など未収集要素は評価しない", *pitch_cautions],
         source_refs=[src_game, source("batting_lines.csv", data_date, game_id), source("pitching_lines.csv", data_date, game_id), *pitch_refs], score=100,
+        extra_stats={"pitch_data": game_pitch_material} if game_pitch_material else None,
     )
 
 
@@ -369,16 +614,18 @@ def hawks_player_idea(games, batting, season_batting, pitches, data_date):
     pitch_summary = summarize_batter_pitches(player_pitch_rows)
     pitch_facts, pitch_cautions, pitch_refs = batter_pitch_facts(pitch_summary, name)
     facts.extend(pitch_facts)
+    player_material = batter_material(player_pitch_rows)
     return make_idea(
         idea_id=f"hawks-player-{key}", idea_type="player", team=HAWKS, title=title,
         theme=f"{name}の直近成績とシーズン成績の差を調べる", reason=reason, facts=facts,
         angles=["OPS変化を出塁と長打に分ける", "安打・本塁打・四球・三振の変化", "チームの得点や勝敗との同時期の動き"],
-        cautions=["直近10試合の短期サンプル", "対戦投手・球場の影響は未調整", "OPSの変化だけで技術的原因は断定できない", *pitch_cautions],
+        cautions=["直近10試合の短期サンプル", "対戦投手・球場の影響は未調整", "OPSの変化だけで技術的原因は断定できない", "複数試合の横断集計は1試合より信頼度が高いが、配球の理由までは断定しない", *pitch_cautions],
         source_refs=[source("batting_lines.csv", data_date), source("season_batting.csv", data_date), *pitch_refs], score=85 + abs(delta) * 30,
+        extra_stats={"player_batting": player_material} if player_material else None,
     )
 
 
-def hawks_two_strike_idea(story, pitches, data_date):
+def hawks_two_strike_idea(story, pitches, pitching_lines, data_date):
     quality = ((story.get("quality") or {}).get("two_strike") or {})
     if quality.get("definition_version") != 2 or not quality.get("validated"):
         return None
@@ -407,14 +654,19 @@ def hawks_two_strike_idea(story, pitches, data_date):
     ]
     pitch_facts, pitch_cautions, pitch_refs = pitcher_pitch_facts(pitch_summary, name)
     facts.extend(pitch_facts)
+    player_material = pitcher_material(player_pitch_rows, pitching_lines)
+    round_fact = tto_fact(player_material, name)
+    if round_fact:
+        facts.append(round_fact)
     return make_idea(
         idea_id=f"hawks-two-strike-{pitcher.get('key')}", idea_type="player", team=HAWKS,
         title=f"{name}は追い込んでから何を投げている？2ストライク後の配球を検証",
         theme=f"{name}の2ストライク後の球種と三振決着を分析する",
         reason=f"2ストライク後を{integer(pitcher.get('pitches'))}球確認できる。最多球種と実際に三振で打席が終わった投球を分け、追い込んでからの傾向を記事にできる。",
         facts=facts, angles=["2ストライク後の球種構成", "三振決着に使われた球種", "右打者・左打者で配球が違うか"],
-        cautions=["球種は収集データ上の分類", "三振決着は is_last_pitch・ab_out_type・ab_result を同時に確認", "配球傾向から意図や投球技術の原因は断定しない", *pitch_cautions],
+        cautions=["球種は収集データ上の分類", "三振決着は is_last_pitch・ab_out_type・ab_result を同時に確認", "巡目は試合ごとに同一打者の登場回数を数え、1巡しかない登板は比較対象外", "複数試合を横断した傾向でも、配球を選んだ理由や意図は断定しない", "配球傾向から意図や投球技術の原因は断定しない", *pitch_cautions],
         source_refs=[source("pitches.csv", data_date, fields=quality.get("source_fields")), source("_story_insights.json", data_date), *pitch_refs], score=80 + min(integer(pitcher.get("pitches")), 500) / 100,
+        extra_stats={"player_pitching": player_material} if player_material else None,
     )
 
 
@@ -450,7 +702,7 @@ def build(season, base="data"):
     player = hawks_player_idea(games, batting, season_batting, pitches, data_date)
     if player:
         ideas.append(player)
-    pitch = hawks_two_strike_idea(story, pitches, data_date)
+    pitch = hawks_two_strike_idea(story, pitches, pitching, data_date)
     if pitch:
         ideas.append(pitch)
     other_trends = [team_trend_idea(row, data_date) for row in trends.values() if row.get("team") in PACIFIC and row.get("team") != HAWKS]
