@@ -1459,6 +1459,7 @@
         <div class="navmenu" role="menu">
           <button class="navitem" id="vb-season" onclick="setView('season')">シーズン成績</button>
           <button class="navitem" id="vb-grade" onclick="setView('grade')">学年別成績</button>
+          <button class="navitem" id="vb-draft" onclick="setView('draft')">ドラフト年度別成績</button>
           <button class="navitem" id="vb-players" onclick="setView('players')">選手一覧</button>
           <button class="navitem" id="vb-roster" onclick="setView('roster')">登録・抹消公示</button>
           <button class="navitem" id="vb-compare" onclick="setView('compare')">選手比較</button>
@@ -1512,6 +1513,8 @@
     <div id="seasonView" style="display:none"></div>
 
     <div id="gradeView" style="display:none"></div>
+
+    <div id="draftView" style="display:none"></div>
 
     <div id="playersView" style="display:none"></div>
 
@@ -3038,7 +3041,7 @@
   function setView(v){
     curView = v;
     closeNavGroups();
-    var ids={dash:"dashView", games:"gameView", season:"seasonView", grade:"gradeView",
+    var ids={dash:"dashView", games:"gameView", season:"seasonView", grade:"gradeView", draft:"draftView",
              players:"playersView", roster:"rosterView", matchup:"matchupView", compare:"compareView", daily:"dailyView", rankmove:"rankMoveView", insights:"insightsView", analysislab:"analysisLabView",
              playergraph:"playerGraphView", awards:"awardsView",
              awardsGuide:"awardsGuideView", sabermetrics:"sabermetricsView",
@@ -3054,7 +3057,7 @@
       if(btn) btn.classList.toggle("on", k===v);
     }
     var navGroups={
-      stats:["season","grade","players","roster","matchup","compare"],
+      stats:["season","grade","draft","players","roster","matchup","compare"],
       analysis:["daily","rankmove","insights","analysislab","playergraph","correlation","teamstyle"],
       metrics:["sabermetrics","glossary","war","warGuide","impact","impactGuide"]
     };
@@ -3067,6 +3070,7 @@
     if(v==="dash") loadDash();
     else if(v==="season") loadSeason();
     else if(v==="grade") loadGradeStats();
+    else if(v==="draft") loadDraftStats();
     else if(v==="players") loadPlayers();
     else if(v==="roster") loadRosterAnnouncements();
     else if(v==="matchup") loadMatchups();
@@ -5520,7 +5524,7 @@
     h+='</tr></thead><tbody>';
     rows.forEach(function(row,index){
       var profile=row.profile, stats=gradeScope==="career"?(gradeKind==="pitcher"?profile.career_pitching:profile.career_batting):(gradeKind==="pitcher"?row.stats.pitching:row.stats.batting);
-      h+='<tr><td>'+(index+1)+'</td><td>'+esc(profile.name)+'</td><td>'+teamBadge(profile.team)+'</td>';
+      h+='<tr><td>'+(index+1)+'</td><td class="lnk" onclick="openCohortPlayer(\''+esc(String(profile.npb_id||""))+'\')">'+esc(profile.name)+'</td><td>'+teamBadge(profile.team)+'</td>';
       if(gradeKind==="batter"){
         var ops=gradeScope==="career"?((stats.on_base_percentage||0)+(stats.slugging_percentage||0)):stats.ops;
         h+='<td>'+careerValue(stats.games,"games")+'</td><td>'+careerValue(gradeScope==="career"?stats.plate_appearances:stats.pa,"plate_appearances")+'</td><td>'+careerValue(gradeScope==="career"?stats.at_bats:stats.ab,"at_bats")+'</td><td>'+careerValue(stats.hits,"hits")+'</td><td>'+careerValue(gradeScope==="career"?stats.home_runs:stats.hr,"home_runs")+'</td><td>'+careerValue(gradeScope==="career"?stats.runs_batted_in:stats.rbi,"runs_batted_in")+'</td><td>'+careerValue(gradeScope==="career"?stats.stolen_bases:stats.sb,"stolen_bases")+'</td><td>'+careerValue(gradeScope==="career"?stats.batting_average:stats.avg,"batting_average")+'</td><td>'+careerValue(gradeScope==="career"?stats.on_base_percentage:stats.obp,"on_base_percentage")+'</td><td>'+careerValue(gradeScope==="career"?stats.slugging_percentage:stats.slg,"slugging_percentage")+'</td><td>'+careerValue(ops,"on_base_percentage")+'</td>';
@@ -5530,6 +5534,153 @@
       h+='</tr>';
     });
     h+='</tbody></table></div><div class="profile-source">学年は4月2日から翌年4月1日まで。シーズン成績は収集済み試合、通算成績はNPB公式個人年度別成績を使用しています。</div></div>';
+    view.innerHTML=h;
+  }
+
+  /* ===== ドラフト年度別成績 ===== */
+  var draftYear=null, draftScope="season", draftKind="batter", draftLeague="all", draftEntry="all", draftSeasonYear="2026";
+
+  function draftInfo(profile){
+    var text=String(profile&&profile.draft||"").trim();
+    var match=/^(\d{4})年/.exec(text);
+    if(!match) return null;
+    return {
+      year:Number(match[1]),
+      text:text,
+      entry:/育成選手ドラフト/.test(text)?"development":"regular"
+    };
+  }
+
+  function draftProfiles(){
+    return (playerProfiles&&playerProfiles.players?playerProfiles.players:[]).filter(function(profile){
+      var info=draftInfo(profile);
+      if(!info||info.year!==Number(draftYear)) return false;
+      return draftEntry==="all"||info.entry===draftEntry;
+    });
+  }
+
+  async function loadDraftStats(){
+    var view=document.getElementById("draftView");
+    if(!view) return;
+    view.innerHTML='<div class="msg">ドラフト年度別成績を読み込み中…</div>';
+    var year=(dp.value||todayJST()).split("-")[0];
+    draftSeasonYear=year;
+    await Promise.all([loadPlayerProfiles(),loadRoster()]);
+    if(!seasonData){
+      try{
+        var response=await fetch("data/"+year+"/players/stats.json?t="+Date.now());
+        if(response.ok) seasonData=(await response.json()).players||[];
+      }catch(e){seasonData=[];}
+    }
+    if(!seasonTeams){
+      try{
+        var teamResponse=await fetch("data/"+year+"/teams/stats.json?t="+Date.now());
+        if(teamResponse.ok){seasonTeams=(await teamResponse.json()).teams||[];_tgCache=null;}
+      }catch(e){seasonTeams=[];}
+    }
+    renderDraftStats();
+  }
+
+  function setDraftFilter(name,value){
+    if(name==="year") draftYear=Number(value);
+    else if(name==="scope") draftScope=value;
+    else if(name==="kind") draftKind=value;
+    else if(name==="league") draftLeague=value;
+    else if(name==="entry") draftEntry=value;
+    renderDraftStats();
+  }
+
+  function draftSeasonRows(profiles){
+    var index=statsIndex();
+    return profiles.map(function(profile){
+      return {profile:profile,stats:findStats(index,profile.name,profile.team)};
+    }).filter(function(row){
+      var stats=row.stats;
+      if(!stats) return false;
+      if(draftKind==="pitcher"&&row.profile.position!=="投手") return false;
+      if(draftKind==="batter"&&row.profile.position==="投手") return false;
+      if(draftLeague!=="all"&&tLeague(stats.team)!==draftLeague) return false;
+      return draftKind==="pitcher"?hasPitching(stats):hasBatting(stats);
+    });
+  }
+
+  function draftCareerRows(profiles){
+    return profiles.filter(function(profile){
+      if(draftKind==="pitcher"&&profile.position!=="投手") return false;
+      if(draftKind==="batter"&&profile.position==="投手") return false;
+      if(draftLeague!=="all"&&tLeague(profile.team)!==draftLeague) return false;
+      return draftKind==="pitcher"?!!profile.career_pitching:!!profile.career_batting;
+    }).map(function(profile){return {profile:profile,stats:null};});
+  }
+
+  async function openCohortPlayer(npbId){
+    if(!npbId) return;
+    await loadPlayers();
+    setView("players");
+    var player=buildPlayerList().find(function(row){return String(row.npb_id||"")===String(npbId);});
+    if(player) showPlayerDetail(player.key);
+  }
+
+  function renderDraftStats(){
+    var view=document.getElementById("draftView");
+    if(!view||!playerProfiles||!playerProfiles.players){
+      if(view) view.innerHTML='<div class="msg">プロフィールデータがありません</div>';
+      return;
+    }
+    var counts={}, allProfiles=playerProfiles.players;
+    allProfiles.forEach(function(profile){
+      var info=draftInfo(profile);
+      if(info) counts[info.year]=(counts[info.year]||0)+1;
+    });
+    var years=Object.keys(counts).map(Number).sort(function(a,b){return b-a;});
+    if(draftYear==null||!counts[draftYear]) draftYear=years[0]||draftSeasonYear-1;
+    var yearProfiles=allProfiles.filter(function(profile){var info=draftInfo(profile);return info&&info.year===Number(draftYear);});
+    var profiles=draftProfiles();
+    var rows=draftScope==="career"?draftCareerRows(profiles):draftSeasonRows(profiles);
+    var regularCount=yearProfiles.filter(function(profile){return draftInfo(profile).entry==="regular";}).length;
+    var developmentCount=yearProfiles.filter(function(profile){return draftInfo(profile).entry==="development";}).length;
+    var h='<div class="dash-sec"><div class="grade-hero"><div><div class="dash-h"><span class="dot"></span>ドラフト年度別成績</div>'+
+      '<div class="grade-range">'+esc(String(draftYear))+'年ドラフト組 ／ ドラフト情報を確認できた現役選手のみ</div></div></div>'+
+      '<div class="grade-toolbar"><label>ドラフト年度<select onchange="setDraftFilter(\'year\',this.value)">'+
+      years.map(function(year){return '<option value="'+year+'"'+(year===Number(draftYear)?' selected':'')+'>'+year+'年（'+counts[year]+'人）</option>';}).join("")+
+      '</select></label><label>成績範囲<select onchange="setDraftFilter(\'scope\',this.value)">'+
+      '<option value="season"'+(draftScope==="season"?' selected':'')+'>'+esc(draftSeasonYear)+'シーズン</option><option value="career"'+(draftScope==="career"?' selected':'')+'>NPB通算</option></select></label>'+
+      '<label>選手区分<select onchange="setDraftFilter(\'kind\',this.value)"><option value="batter"'+(draftKind==="batter"?' selected':'')+'>野手</option><option value="pitcher"'+(draftKind==="pitcher"?' selected':'')+'>投手</option></select></label>'+
+      '<label>指名区分<select onchange="setDraftFilter(\'entry\',this.value)"><option value="all"'+(draftEntry==="all"?' selected':'')+'>すべて</option><option value="regular"'+(draftEntry==="regular"?' selected':'')+'>支配下</option><option value="development"'+(draftEntry==="development"?' selected':'')+'>育成</option></select></label>'+
+      '<label>現在のリーグ<select onchange="setDraftFilter(\'league\',this.value)"><option value="all">両リーグ</option><option value="セ"'+(draftLeague==="セ"?' selected':'')+'>セ・リーグ</option><option value="パ"'+(draftLeague==="パ"?' selected':'')+'>パ・リーグ</option></select></label></div>'+
+      '<div class="grade-kpis"><div class="grade-kpi"><b>'+yearProfiles.length+'</b><span>ドラフト組の現役選手</span></div><div class="grade-kpi"><b>'+regularCount+'</b><span>支配下指名</span></div><div class="grade-kpi"><b>'+developmentCount+'</b><span>育成指名</span></div></div>'+
+      '<div class="sub" style="margin-bottom:8px">'+esc(draftScope==="career"?'NPB一軍通算成績':draftSeasonYear+'シーズン成績')+' ／ 表示対象 '+profiles.length+'人 ／ 見出しを押すと並べ替えできます</div>';
+
+    if(!rows.length){
+      h+='<div class="msg">この条件の成績はありません</div></div>';
+      view.innerHTML=h;return;
+    }
+    rows.sort(function(a,b){
+      if(draftKind==="pitcher"){
+        var av=draftScope==="career"?a.profile.career_pitching.era:a.stats.pitching.era;
+        var bv=draftScope==="career"?b.profile.career_pitching.era:b.stats.pitching.era;
+        return (av==null)-(bv==null)||(av||999)-(bv||999);
+      }
+      var ao=draftScope==="career"?(a.profile.career_batting.on_base_percentage||0)+(a.profile.career_batting.slugging_percentage||0):a.stats.batting.ops;
+      var bo=draftScope==="career"?(b.profile.career_batting.on_base_percentage||0)+(b.profile.career_batting.slugging_percentage||0):b.stats.batting.ops;
+      return (bo||0)-(ao||0);
+    });
+    h+='<div class="tblwrap grade-table"><table class="stbl"><thead><tr><th>#</th><th>選手</th><th>現在の球団</th><th>ドラフト</th>';
+    if(draftKind==="batter") h+='<th>試合</th><th>打席</th><th>打数</th><th>安打</th><th>本</th><th>打点</th><th>盗塁</th><th>打率</th><th>出塁率</th><th>長打率</th><th>OPS</th>';
+    else h+='<th>登板</th><th>勝</th><th>敗</th><th>S</th><th>H</th><th>投球回</th><th>奪三振</th><th>WHIP</th><th>防御率</th>';
+    h+='</tr></thead><tbody>';
+    rows.forEach(function(row,index){
+      var profile=row.profile, stats=draftScope==="career"?(draftKind==="pitcher"?profile.career_pitching:profile.career_batting):(draftKind==="pitcher"?row.stats.pitching:row.stats.batting);
+      h+='<tr><td>'+(index+1)+'</td><td class="lnk" onclick="openCohortPlayer(\''+esc(String(profile.npb_id||""))+'\')">'+esc(profile.name)+'</td><td>'+teamBadge(profile.team)+'</td><td>'+esc(profile.draft)+'</td>';
+      if(draftKind==="batter"){
+        var ops=draftScope==="career"?((stats.on_base_percentage||0)+(stats.slugging_percentage||0)):stats.ops;
+        h+='<td>'+careerValue(stats.games,"games")+'</td><td>'+careerValue(draftScope==="career"?stats.plate_appearances:stats.pa,"plate_appearances")+'</td><td>'+careerValue(draftScope==="career"?stats.at_bats:stats.ab,"at_bats")+'</td><td>'+careerValue(stats.hits,"hits")+'</td><td>'+careerValue(draftScope==="career"?stats.home_runs:stats.hr,"home_runs")+'</td><td>'+careerValue(draftScope==="career"?stats.runs_batted_in:stats.rbi,"runs_batted_in")+'</td><td>'+careerValue(draftScope==="career"?stats.stolen_bases:stats.sb,"stolen_bases")+'</td><td>'+careerValue(draftScope==="career"?stats.batting_average:stats.avg,"batting_average")+'</td><td>'+careerValue(draftScope==="career"?stats.on_base_percentage:stats.obp,"on_base_percentage")+'</td><td>'+careerValue(draftScope==="career"?stats.slugging_percentage:stats.slg,"slugging_percentage")+'</td><td>'+careerValue(ops,"on_base_percentage")+'</td>';
+      }else{
+        h+='<td>'+careerValue(stats.games,"games")+'</td><td>'+careerValue(stats.wins,"wins")+'</td><td>'+careerValue(stats.losses,"losses")+'</td><td>'+careerValue(stats.saves,"saves")+'</td><td>'+careerValue(draftScope==="career"?stats.holds:holdsOf(stats),"holds")+'</td><td>'+careerValue(draftScope==="career"?stats.innings:outsToIp(stats.outs),"innings")+'</td><td>'+careerValue(draftScope==="career"?stats.strikeouts:stats.so,"strikeouts")+'</td><td>'+careerValue(stats.whip,"whip")+'</td><td>'+careerValue(stats.era,"era")+'</td>';
+      }
+      h+='</tr>';
+    });
+    h+='</tbody></table></div><div class="profile-source">ドラフト年度はNPB公式プロフィールのドラフト表記から抽出しています。未取得の選手は推測せず対象外です。所属球団とリーグは現在の情報、シーズン成績は収集済み試合、通算成績はNPB公式個人年度別成績を使用しています。</div></div>';
     view.innerHTML=h;
   }
 
@@ -10290,7 +10441,7 @@
     motionTimers[key]=setTimeout(function(){motionRun(root);},45);
   }
   function motionSetup(){
-    var ids=["dashView","gameView","seasonView","gradeView","playersView","rosterView","matchupView","compareView","dailyView","rankMoveView","insightsView","analysisLabView","playerGraphView",
+    var ids=["dashView","gameView","seasonView","gradeView","draftView","playersView","rosterView","matchupView","compareView","dailyView","rankMoveView","insightsView","analysisLabView","playerGraphView",
       "awardsView","awardsGuideView","sabermetricsView","glossaryView","warView",
       "warGuideView","impactView","impactGuideView","correlationView","teamstyleView","exportView","socialView"];
     ids.forEach(function(id){
@@ -10371,6 +10522,7 @@
     else if(requestedView==="matchup")initialView="matchup";
     else if(requestedView==="roster")initialView="roster";
     else if(requestedView==="grade")initialView="grade";
+    else if(requestedView==="draft")initialView="draft";
     else if(requestedView==="analysislab")initialView="analysislab";
     // インサイトは外部スクリプト読込後に初期表示する
     else if(requestedView==="social"&&personalPostingMode)initialView="social";
