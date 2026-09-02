@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#f15a0a">
+  <title>NPB DECISION LAB</title>
+  <link rel="stylesheet" href="decision_lab.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="back" href="./">← NPB SCOREBOARD</a>
+    <div class="brand">
+      <span>DATA → SIGNAL → DECISION</span>
+      <h1>NPB DECISION LAB</h1>
+      <p>勝敗の揺れ、選手の負荷、数字の変化を「前提つき」で読む。</p>
+    </div>
+    <div id="status" class="status">loading…</div>
+  </header>
+  <main>
+    <nav class="tabs" aria-label="意思決定ラボの機能">
+      <button class="tab on" data-tab="win">試合勝率</button>
+      <button class="tab" data-tab="bullpen">ブルペン</button>
+      <button class="tab" data-tab="adjusted">補正指標</button>
+      <button class="tab" data-tab="draft">ドラフト</button>
+      <button class="tab" data-tab="odds">優勝・CS</button>
+      <button class="tab" data-tab="alerts">変化アラート</button>
+    </nav>
+    <section id="app" class="app" aria-live="polite">
+      <div class="empty">分析データを読み込んでいます…</div>
+    </section>
+  </main>
+  <footer>取得済みデータによる参考分析です。推定値は公式記録・将来予測を保証するものではありません。</footer>
+  <script src="decision_lab.js"></script>
+</body>
+</html>

@@ -132,9 +132,8 @@ def _baseline_home_wp(inning, top_bottom, home_diff):
     return 1.0 / (1.0 + math.exp(-max(-8.0, min(8.0, logit))))
 
 
-def build_wpa(atbats, games):
-    """同シーズン実測をベイズ縮小したNPB独自の推定勝利確率/WPA。"""
-    # 公式最終スコアを取得できた試合だけをモデル学習・WPA集計へ使う。
+def _prepare_wpa_model(atbats, games):
+    """WPAと試合勝率曲線で共用する状態列・推定器を作る。"""
     game_map = {
         str(g.get("game_id")): g for g in games
         if g.get("home_score") not in (None, "") and g.get("away_score") not in (None, "")
@@ -191,8 +190,13 @@ def build_wpa(atbats, games):
         weight = n / (n + 30.0)
         return baseline * (1.0 - weight) + empirical * weight, n
 
-    batters = defaultdict(lambda: {"name": "", "team": "", "pa": 0, "wpa": 0.0})
-    pitchers = defaultdict(lambda: {"name": "", "team": "", "pa": 0, "wpa": 0.0})
+    return game_map, prepared, estimate, exact_wins, exact_counts
+
+
+def _wpa_events(atbats, games):
+    """各打席の試合前後勝率を一度だけ定義した共通ロジックで返す。"""
+    game_map, prepared, estimate, exact_wins, exact_counts = _prepare_wpa_model(atbats, games)
+    events = []
     for index, item in enumerate(prepared):
         row = item["row"]
         before, sample = estimate(item["inning"], item["top_bottom"], item["home_score"] - item["away_score"], item["outs_before"], item["bases"])
@@ -209,8 +213,20 @@ def build_wpa(atbats, games):
                 after = 1.0 if game.get("winner") == item["home"] else (0.0 if game.get("winner") == item["away"] else 0.5)
             else:
                 after, _ = estimate(next_inning, next_half, item["after_home"] - item["after_away"], 0, "---")
+        events.append({"item": item, "row": row, "before": before, "after": after, "sample": sample})
+    return game_map, events, exact_wins, exact_counts
+
+
+def build_wpa(atbats, games):
+    """同シーズン実測をベイズ縮小したNPB独自の推定勝利確率/WPA。"""
+    _game_map, events, exact_wins, exact_counts = _wpa_events(atbats, games)
+
+    batters = defaultdict(lambda: {"name": "", "team": "", "pa": 0, "wpa": 0.0})
+    pitchers = defaultdict(lambda: {"name": "", "team": "", "pa": 0, "wpa": 0.0})
+    for event in events:
+        item, row = event["item"], event["row"]
         batting_home = row.get("batting_team") == item["home"]
-        value = (after - before) if batting_home else (before - after)
+        value = (event["after"] - event["before"]) if batting_home else (event["before"] - event["after"])
         bk = row.get("batter_key") or row.get("batter")
         pk = row.get("pitcher_key") or row.get("pitcher")
         if bk:
@@ -225,6 +241,47 @@ def build_wpa(atbats, games):
         return sorted(result, key=lambda x: x["wpa"], reverse=True)
     table = [{"key": key, "sample": exact_counts[key], "home_win_rate": round(exact_wins[key] / exact_counts[key], 3)} for key in exact_counts]
     return {"batters": finish(batters), "pitchers": finish(pitchers), "state_samples": table, "model_prior": "ロジスティック事前分布＋同一状況30件相当で縮小"}
+
+
+def build_wpa_timelines(atbats, games):
+    """全試合の推定勝率曲線と勝率変動上位プレーを返す。"""
+    game_map, events, _wins, _counts = _wpa_events(atbats, games)
+    grouped = defaultdict(list)
+    for event in events:
+        row, item = event["row"], event["item"]
+        grouped[str(row.get("game_id"))].append({
+            "seq": len(grouped[str(row.get("game_id"))]) + 1,
+            "inning": item["inning"], "half": item["top_bottom"],
+            "home_score": item["after_home"], "away_score": item["after_away"],
+            "home_wp_before": round(event["before"], 4), "home_wp": round(event["after"], 4),
+            "delta": round(event["after"] - event["before"], 4), "state_sample": event["sample"],
+            "batter": row.get("batter") or "", "pitcher": row.get("pitcher") or "",
+            "batting_team": row.get("batting_team") or "", "result": row.get("result") or "",
+        })
+    output = []
+    for game_id, timeline in grouped.items():
+        game = game_map.get(game_id, {})
+        swings = sorted(timeline, key=lambda play: abs(play["delta"]), reverse=True)[:5]
+        official_home, official_away = integer(game.get("home_score")), integer(game.get("away_score"))
+        restored_home = timeline[-1]["home_score"] if timeline else 0
+        restored_away = timeline[-1]["away_score"] if timeline else 0
+        compact_timeline = [
+            {"seq": play["seq"], "inning": play["inning"], "half": play["half"], "home_wp": play["home_wp"]}
+            for play in timeline
+        ]
+        output.append({
+            "game_id": game_id, "date": game.get("date") or "", "home": game.get("home") or "",
+            "away": game.get("away") or "", "stadium": game.get("stadium") or "",
+            "home_score": official_home, "away_score": official_away,
+            "winner": game.get("winner") or "", "timeline": compact_timeline, "top_swings": swings,
+            "score_reconstruction_complete": restored_home == official_home and restored_away == official_away,
+        })
+    output.sort(key=lambda row: (row["date"], row["game_id"]), reverse=True)
+    return {
+        "games": output,
+        "model": "ロジスティック事前分布＋同一状況実績を30件相当でベイズ縮小",
+        "caution": "公式勝率ではない当サイト推定。打席結果の打点を基に得点推移を復元するため、暴投・失策等の打点外得点を取りこぼす場合があります。",
+    }
 
 
 def build_condition_cube(atbats):
