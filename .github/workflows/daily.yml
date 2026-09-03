@@ -111,6 +111,14 @@ jobs:
           if [ -z "$SEASON" ]; then SEASON=$(date +%Y); fi
           python scraper/build_decision_lab.py --season "$SEASON"
 
+      - name: Build analyst lab
+        run: |
+          SEASON="${{ github.event.inputs.from_date }}"
+          if [ -z "$SEASON" ]; then SEASON="${{ github.event.inputs.date }}"; fi
+          SEASON="${SEASON%%-*}"
+          if [ -z "$SEASON" ]; then SEASON=$(date +%Y); fi
+          python scraper/build_analyst_lab.py --season "$SEASON"
+
       - name: Build player matchup data
         run: |
           SEASON="${{ github.event.inputs.from_date }}"

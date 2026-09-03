@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#17233c">
+  <title>NPB ANALYST LAB</title>
+  <link rel="stylesheet" href="analyst_lab.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="back" href="./">← NPB SCOREBOARD</a>
+    <div class="brand"><span>QUESTION → TEST → INTERPRET</span><h1>NPB ANALYST LAB</h1><p>数字を見るだけで終わらない。問いを立て、比較し、限界まで記録する。</p></div>
+    <div id="status" class="status">loading…</div>
+  </header>
+  <main>
+    <nav class="tabs" aria-label="分析ツール">
+      <button class="tab on" data-tab="hypothesis">仮説検証</button>
+      <button class="tab" data-tab="decisions">采配</button>
+      <button class="tab" data-tab="condition">投手状態</button>
+      <button class="tab" data-tab="sequences">配球</button>
+      <button class="tab" data-tab="matchups">縮小対戦</button>
+      <button class="tab" data-tab="radar">球団レーダー</button>
+      <button class="tab" data-tab="depth">選手層</button>
+      <button class="tab" data-tab="elo">Elo</button>
+      <button class="tab" data-tab="changes">変化点</button>
+      <button class="notebook" id="noteButton">分析ノート</button>
+    </nav>
+    <section id="app" class="app" aria-live="polite"><div class="empty">分析データを読み込んでいます…</div></section>
+  </main>
+  <footer>相関は因果を意味しません。標本数、比較条件、取得範囲を確認して解釈してください。</footer>
+  <div id="noteModal" class="modal" hidden>
+    <button class="backdrop" data-close aria-label="閉じる"></button>
+    <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="noteTitle">
+      <header><div><small>REPRODUCIBLE ANALYSIS</small><h2 id="noteTitle">分析ノート</h2></div><button data-close aria-label="閉じる">×</button></header>
+      <textarea id="noteText" readonly></textarea>
+      <div class="actions"><button id="copyNote">コピー</button><button id="downloadNote">Markdown保存</button><span id="noteStatus"></span></div>
+    </section>
+  </div>
+  <script src="analyst_lab.js"></script>
+</body>
+</html>
