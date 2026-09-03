@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 class AnalystLabTests(unittest.TestCase):
     def test_page_navigation_and_daily_workflow_are_connected(self):
         html = (ROOT / "analyst_lab.html").read_text(encoding="utf-8")
+        css = (ROOT / "analyst_lab.css").read_text(encoding="utf-8")
         index = (ROOT / "index.html").read_text(encoding="utf-8")
         workflow = (ROOT / ".github/workflows/daily.yml").read_text(encoding="utf-8")
         self.assertIn("NPB ANALYST LAB", html)
@@ -18,6 +19,8 @@ class AnalystLabTests(unittest.TestCase):
         self.assertIn("build_analyst_lab.py", workflow)
         for label in ("仮説検証", "采配", "投手状態", "配球", "縮小対戦", "球団レーダー", "選手層", "Elo", "変化点", "分析ノート"):
             self.assertIn(label, html)
+        self.assertIn('grid-template-areas:"delta delta" "left right"', css)
+        self.assertNotIn(".diff{transform:rotate(90deg)}", css)
 
     def test_generated_json_contains_all_sections(self):
         payload = json.loads((ROOT / "data/2026/analyst_lab.json").read_text(encoding="utf-8"))
