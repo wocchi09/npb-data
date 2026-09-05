@@ -10345,6 +10345,7 @@
           '<span class="lbl">走者</span> <span style="font-size:12px">'+rtext+'</span><br>'+
           '<span class="res '+rcls(ab.result_summary)+'">'+esc(ab.result_summary||"")+'</span>'+
           '</div>'+buildSitu(ab)+'</div>';
+        h+='<div class="chartbox"><a class="btn" href="pitch_replay.html?game='+encodeURIComponent(gamePath(g.game_date||dp.value,g.game_id))+'&amp;'+(ab.index?'atbat='+encodeURIComponent(ab.index):'ab='+encodeURIComponent(g.atbats.indexOf(ab)))+'">この打席をリプレイ ▶</a></div>';
         h+=buildChart(ab);
         h+=buildField(ab);
         (ab.pitches||[]).forEach(function(pt){

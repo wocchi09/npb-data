@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#17233c">
+  <title>打席リプレイ | NPB DATA LAB</title>
+  <link rel="stylesheet" href="analyst_lab.css">
+  <link rel="stylesheet" href="pitch_replay.css">
+</head>
+<body class="replay-page">
+  <header class="topbar">
+    <a class="back" href="./">← NPB SCOREBOARD</a>
+    <div class="brand"><span>PITCH BY PITCH</span><h1>NPB DATA LAB</h1><p>打席リプレイ / 配球アニメーション</p></div>
+    <a class="back replay-lab-link" href="analyst_lab.html">ANALYST LAB →</a>
+  </header>
+  <main>
+    <section class="hero"><div><div class="eyebrow">PLATE APPEARANCE REPLAY</div><h2>1球ずつ、配球をたどる。</h2><p class="sub">捕手視点でコースと球種の組み立てを確認できます。</p></div><span class="badge">実データ × 簡易軌道</span></section>
+    <p class="note replay-disclaimer">実際の投球軌道を完全再現したものではなく、収集データをもとにした簡易再現です</p>
+    <section class="card replay-picker" aria-label="打席を選ぶ">
+      <div class="controls">
+        <label>日付<select id="replay-date" disabled><option>読み込み中…</option></select></label>
+        <label>試合<select id="replay-game" disabled></select></label>
+        <label>打席<select id="replay-atbat" disabled></select></label>
+      </div>
+      <p id="replay-filter" hidden></p>
+      <p id="replay-status" role="status">収集済み試合を確認しています…</p>
+      <button id="replay-retry" hidden>再読み込み</button>
+    </section>
+    <section id="replay-content" hidden>
+      <div class="replay-layout">
+        <section class="card replay-stage-card" aria-label="捕手視点のアニメーション">
+          <div class="replay-stage-heading"><h3>捕手視点</h3><span id="replay-inning"></span></div>
+          <svg id="replay-stage" viewBox="0 0 500 470" role="img" aria-labelledby="replay-svg-title replay-svg-desc">
+            <title id="replay-svg-title">投球コースと簡易軌道</title>
+            <desc id="replay-svg-desc">3×3のストライクゾーン。番号は球順です。詳しい実データは隣の投球一覧にあります。</desc>
+            <rect x="1" y="1" width="498" height="468" rx="12" fill="#f3f7fc"/>
+            <text x="250" y="27" class="replay-svg-label" text-anchor="middle">投手 → ホーム</text>
+            <g id="replay-zone"></g>
+            <path d="M227 422 L273 422 L273 438 L250 453 L227 438 Z" fill="white" stroke="#9daec4"/>
+            <path id="replay-trail" fill="none" stroke-width="3" opacity=".5"/>
+            <g id="replay-marks"></g>
+            <circle id="replay-ball" r="3" fill="white" stroke-width="3" hidden/>
+            <text id="replay-missing-course" x="250" y="205" text-anchor="middle" hidden>コース未取得：位置・軌道は表示しません</text>
+            <text id="replay-batter-side" x="250" y="405" text-anchor="middle" class="replay-svg-label"></text>
+          </svg>
+          <div class="controls replay-options">
+            <label>再生モード<select id="replay-mode"><option value="single">1球ずつ再生</option><option value="continuous">打席を連続再生</option></select></label>
+            <label>再生速度<select id="replay-speed"><option value="0.5">0.5x</option><option value="1" selected>1x</option><option value="1.5">1.5x</option><option value="2">2x</option></select></label>
+          </div>
+          <div class="replay-buttons"><button id="replay-play" class="replay-primary">▶ 再生</button><button id="replay-pause">⏸ 一時停止</button><button id="replay-restart">↺ 最初から</button><button id="replay-prev">← 前の球</button><button id="replay-next">→ 次の球</button></div>
+          <p id="replay-progress" role="status"></p>
+          <div id="replay-legend" class="replay-legend"></div>
+          <p class="sub">番号は保存された球順（欠損時は「?」）。同じコースの番号は少しずらして表示し、線の先端が記録位置を示します。</p>
+        </section>
+        <section class="card replay-info" aria-label="投球情報">
+          <div class="replay-matchup"><div><span>投手</span><h3 id="replay-pitcher"></h3></div><span class="replay-versus">VS</span><div><span>打者</span><h3 id="replay-batter"></h3></div></div>
+          <div class="replay-counts"><div><span id="replay-count-label">B / S（投球前・再計算）</span><strong id="replay-bs">— / —</strong></div><div><span>O（取得時点・固定）</span><strong id="replay-outs">—</strong></div><div><span>表示球数</span><strong id="replay-number">—</strong></div></div>
+          <div id="replay-current" class="replay-current" aria-live="polite"></div>
+          <p id="replay-result" class="note" hidden></p>
+          <div class="scroll replay-table-wrap"><table class="tbl"><caption>投球一覧（球順ボタンで選択・狭い画面では横スクロール）</caption><thead><tr><th scope="col">球順</th><th scope="col">球種</th><th scope="col">球速</th><th scope="col">コース</th><th scope="col">結果</th></tr></thead><tbody id="replay-pitches"></tbody></table></div>
+        </section>
+      </div>
+      <details class="card replay-provenance"><summary>実データと簡易モデルについて / AI解説用JSON</summary>
+        <p>球種・球速・投球結果・選手情報は試合JSONの保存値です。未取得の値は推測で埋めません。</p>
+        <p>コースは配球図の座標を使用します。既存サイトの投手視点という扱いに合わせて左右反転し、捕手視点で表示します。ストライクゾーンの枠も近似です。内外角の表示は座標と打者の左右からの変換であり、保存ラベルとは分けています。</p>
+        <p>B/Sは球順と結果からの再計算です。欠番・結果不明の後は「未取得」とします。Oは打席JSONの取得時点の値を固定表示します。取得処理は公式表示がなければB/Sを推定保存しますが、その出典フラグと取得タイミングは保存していません。毎球のアウト数は再現できません。</p>
+        <p>取得できないため簡易モデルで補完：軌道・リリース位置・変化量・飛行時間。座標がなくグリッドだけある場合はセル中心を使用します。球速未取得時の再生時間は共通設定です。投手の左右が不明な場合は横変化を加えません。</p>
+        <p>AIによる解釈は未接続です。投球意図は断定せず、将来のAI出力は実データと別の欄に表示する設計です。</p>
+        <button id="replay-export">AI解説用JSONを保存</button>
+      </details>
+    </section>
+    <noscript><p class="note">リプレイにはJavaScriptを有効にしてください。</p></noscript>
+  </main>
+  <script src="pitch_replay_model.js"></script>
+  <script src="pitch_replay.js"></script>
+</body>
+</html>
