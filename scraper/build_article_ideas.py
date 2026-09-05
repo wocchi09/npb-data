@@ -26,6 +26,11 @@ except ModuleNotFoundError:  # Direct execution: python scraper/build_article_id
 JST = timezone(timedelta(hours=9))
 HAWKS = "ソフトバンク"
 PACIFIC = {"ソフトバンク", "日本ハム", "オリックス", "楽天", "西武", "ロッテ"}
+CENTRAL = {"巨人", "阪神", "DeNA", "広島", "ヤクルト", "中日"}
+NPB_TEAMS = [
+    "ソフトバンク", "日本ハム", "オリックス", "楽天", "西武", "ロッテ",
+    "巨人", "阪神", "DeNA", "広島", "ヤクルト", "中日",
+]
 TYPE_LABELS = {"game": "試合", "player": "選手", "trend": "トレンド"}
 MIN_GAME_BATTER_PA = 3
 
@@ -408,6 +413,188 @@ def tto_fact(material, label_prefix):
     )
 
 
+def _row_player_key(row):
+    return str(row.get("player_key") or row.get("player_id") or f"{row.get('team', '')}:{row.get('player', '')}")
+
+
+def _window_rows(rows, limit=None):
+    ordered_games = sorted(
+        {(str(row.get("game_id") or ""), str(row.get("date") or "")) for row in rows if row.get("game_id")},
+        key=lambda item: (item[1], item[0]),
+    )
+    if limit:
+        ordered_games = ordered_games[-limit:]
+    game_ids = {game_id for game_id, _ in ordered_games}
+    selected = [row for row in rows if not game_ids or str(row.get("game_id") or "") in game_ids]
+    dates = [date for _, date in ordered_games if date]
+    return selected, {
+        "games": len(ordered_games),
+        "date_start": min(dates) if dates else None,
+        "date_end": max(dates) if dates else None,
+        "latest_game_id": ordered_games[-1][0] if ordered_games else None,
+    }
+
+
+def _periods(rows, aggregator):
+    periods = {}
+    for name, limit in (("latest", 1), ("recent5", 5), ("recent10", 10), ("season", None)):
+        selected, scope = _window_rows(rows, limit)
+        periods[name] = {**scope, "stats": aggregator(selected)}
+    return periods
+
+
+def _compact_batter_pitch(summary):
+    if not summary:
+        return None
+    return {
+        "pitches_seen": summary.get("pitches_seen"),
+        "plate_appearances": summary.get("plate_appearances"),
+        "whiff_rate": summary.get("whiff_rate"),
+        "called_strike_rate": summary.get("called_strike_rate"),
+        "pitch_mix": (summary.get("pitch_mix") or [])[:5],
+        "date_start": summary.get("date_start"),
+        "date_end": summary.get("date_end"),
+    }
+
+
+def _compact_pitcher_pitch(summary):
+    if not summary:
+        return None
+    return {
+        "pitches": summary.get("pitches"),
+        "fastball": summary.get("fastball"),
+        "pitch_mix": (summary.get("pitch_mix") or [])[:6],
+        "two_strike_pitches": summary.get("two_strike_pitches"),
+        "two_strike_mix": (summary.get("two_strike_mix") or [])[:5],
+        "strikeout_finish_by_pitch": (summary.get("strikeout_finish_by_pitch") or [])[:5],
+        "zone_seen": summary.get("zone_seen"),
+        "in_zone_rate": summary.get("in_zone_rate"),
+        "out_zone_rate": summary.get("out_zone_rate"),
+        "date_start": summary.get("date_start"),
+        "date_end": summary.get("date_end"),
+    }
+
+
+def _team_record(games, team):
+    wins = losses = ties = runs = allowed = 0
+    for game in games:
+        is_home = game.get("home") == team
+        scored = integer(game.get("home_score") if is_home else game.get("away_score"))
+        conceded = integer(game.get("away_score") if is_home else game.get("home_score"))
+        runs += scored
+        allowed += conceded
+        if scored > conceded:
+            wins += 1
+        elif scored < conceded:
+            losses += 1
+        else:
+            ties += 1
+    count = len(games)
+    return {
+        "games": count, "wins": wins, "losses": losses, "ties": ties,
+        "runs": runs, "allowed": allowed,
+        "runs_per_game": rounded(runs / count, 2) if count else None,
+        "allowed_per_game": rounded(allowed / count, 2) if count else None,
+    }
+
+
+def build_custom_context(games, batting, pitching, season_batting, season_pitching, pitches, data_date):
+    """Build a compact, browser-safe index for user-authored article themes."""
+    batter_lines = defaultdict(list)
+    pitcher_lines = defaultdict(list)
+    batter_pitches = defaultdict(list)
+    pitcher_pitches = defaultdict(list)
+    for row in batting:
+        if row.get("player"):
+            batter_lines[_row_player_key(row)].append(row)
+    for row in pitching:
+        if row.get("player"):
+            pitcher_lines[_row_player_key(row)].append(row)
+    for row in pitches:
+        batter_key = str(row.get("batter_key") or row.get("batter_id") or "")
+        pitcher_key = str(row.get("pitcher_key") or row.get("pitcher_id") or "")
+        if batter_key:
+            batter_pitches[batter_key].append(row)
+        if pitcher_key:
+            pitcher_pitches[pitcher_key].append(row)
+
+    season_bat_index = defaultdict(list)
+    season_pit_index = defaultdict(list)
+    for row in season_batting:
+        season_bat_index[_row_player_key(row)].append(row)
+    for row in season_pitching:
+        season_pit_index[_row_player_key(row)].append(row)
+
+    players = []
+    for kind, grouped, season_index, pitch_grouped in (
+        ("batter", batter_lines, season_bat_index, batter_pitches),
+        ("pitcher", pitcher_lines, season_pit_index, pitcher_pitches),
+    ):
+        for key, rows in grouped.items():
+            rows.sort(key=lambda row: (str(row.get("date") or ""), str(row.get("game_id") or "")))
+            latest = rows[-1]
+            team_history = sorted({str(row.get("team") or "") for row in rows if row.get("team")})
+            period_data = _periods(rows, aggregate_batting if kind == "batter" else aggregate_pitching)
+            season_rows = season_index.get(key) or []
+            season_row = next((row for row in season_rows if row.get("team") == latest.get("team")), season_rows[-1] if season_rows else {})
+            if kind == "batter":
+                advanced = {name: rounded(num(season_row.get(name)), 3) if season_row.get(name) not in (None, "") else None for name in (
+                    "iso", "babip", "bb_pct", "k_pct", "woba_est", "wrc_plus_est", "bsr_est",
+                )}
+                pitch_profile = _compact_batter_pitch(summarize_batter_pitches(pitch_grouped.get(key, [])))
+            else:
+                advanced = {name: rounded(num(season_row.get(name)), 3) if season_row.get(name) not in (None, "") else None for name in (
+                    "fip", "k9", "bb9", "hr9", "k_bb", "k_pct", "bb_pct", "lob_pct_est",
+                )}
+                pitch_profile = _compact_pitcher_pitch(summarize_pitcher_pitches(pitch_grouped.get(key, [])))
+            players.append({
+                "id": f"{kind}:{key}", "kind": kind, "key": key,
+                "name": latest.get("player") or "-", "team": latest.get("team") or "-",
+                "league": latest.get("league") or ("パ" if latest.get("team") in PACIFIC else "セ"),
+                "team_history": team_history, "periods": period_data,
+                "advanced": advanced, "pitch_profile": pitch_profile,
+            })
+    players.sort(key=lambda row: (0 if row.get("team") == HAWKS else 1, row.get("team") or "", row.get("kind") or "", row.get("name") or ""))
+
+    teams = []
+    observed_teams = {name for game in games for name in (game.get("home"), game.get("away")) if name}
+    observed_teams.update(row.get("team") for row in batting if row.get("team"))
+    observed_teams.update(row.get("team") for row in pitching if row.get("team"))
+    team_names = [team for team in NPB_TEAMS if team in observed_teams]
+    team_names.extend(sorted(observed_teams.difference(NPB_TEAMS)))
+    for team in team_names:
+        team_games = sorted([game for game in games if team in (game.get("home"), game.get("away"))], key=lambda row: (str(row.get("date") or ""), str(row.get("game_id") or "")))
+        periods = {}
+        for name, limit in (("latest", 1), ("recent5", 5), ("recent10", 10), ("season", None)):
+            selected_games = team_games[-limit:] if limit else team_games
+            ids = {str(row.get("game_id") or "") for row in selected_games}
+            dates = [str(row.get("date") or "") for row in selected_games if row.get("date")]
+            periods[name] = {
+                "games": len(selected_games), "date_start": min(dates) if dates else None,
+                "date_end": max(dates) if dates else None,
+                "latest_game_id": str(selected_games[-1].get("game_id") or "") if selected_games else None,
+                "record": _team_record(selected_games, team),
+                "batting": aggregate_batting([row for row in batting if row.get("team") == team and str(row.get("game_id") or "") in ids]),
+                "pitching": aggregate_pitching([row for row in pitching if row.get("team") == team and str(row.get("game_id") or "") in ids]),
+            }
+        league = "パ" if team in PACIFIC else ("セ" if team in CENTRAL else "不明")
+        teams.append({"team": team, "league": league, "periods": periods})
+
+    recent_games = sorted(games, key=lambda row: (str(row.get("date") or ""), str(row.get("game_id") or "")), reverse=True)[:120]
+    compact_games = [{
+        "game_id": str(row.get("game_id") or ""), "date": row.get("date"),
+        "home": row.get("home"), "away": row.get("away"), "stadium": row.get("stadium"),
+        "home_score": integer(row.get("home_score")), "away_score": integer(row.get("away_score")), "winner": row.get("winner"),
+    } for row in recent_games]
+    return {
+        "data_date": data_date,
+        "periods": ["latest", "recent5", "recent10", "season"],
+        "teams": teams, "players": players, "games": compact_games,
+        "sources": ["games.csv", "batting_lines.csv", "pitching_lines.csv", "season_batting.csv", "season_pitching.csv", "pitches.csv"],
+        "note": "自由入力から対象を照合し、収集済みデータだけを根拠として使用。選択されていない対象や欠損値は推測しない。",
+    }
+
+
 def make_idea(*, idea_id, idea_type, team, title, theme, reason, facts, angles, cautions, source_refs, score, extra_stats=None):
     idea = {
         "id": idea_id,
@@ -430,23 +617,23 @@ def make_idea(*, idea_id, idea_type, team, title, theme, reason, facts, angles, 
     return idea
 
 
-def latest_hawks_game(story, data_date, pitching_lines=None, pitches=None):
+def latest_team_game(story, data_date, pitching_lines=None, pitches=None, team=HAWKS):
     games = (story.get("latest_games") or {}).get("games") or []
-    game = next((row for row in games if HAWKS in (row.get("home"), row.get("away"))), None)
+    game = next((row for row in games if team in (row.get("home"), row.get("away"))), None)
     if not game:
         return None
     game_id = str(game.get("game_id") or "")
-    opponent = game.get("away") if game.get("home") == HAWKS else game.get("home")
-    hawks_score = integer(game.get("home_score") if game.get("home") == HAWKS else game.get("away_score"))
-    opponent_score = integer(game.get("away_score") if game.get("home") == HAWKS else game.get("home_score"))
-    result = "勝利" if hawks_score > opponent_score else ("敗戦" if hawks_score < opponent_score else "引き分け")
-    offense = game.get("offense") if game.get("winner") == HAWKS else game.get("opponent_offense")
+    opponent = game.get("away") if game.get("home") == team else game.get("home")
+    team_score = integer(game.get("home_score") if game.get("home") == team else game.get("away_score"))
+    opponent_score = integer(game.get("away_score") if game.get("home") == team else game.get("home_score"))
+    result = "勝利" if team_score > opponent_score else ("敗戦" if team_score < opponent_score else "引き分け")
+    offense = game.get("offense") if game.get("winner") == team else game.get("opponent_offense")
     offense = offense or {}
-    hawks_pitching = [
+    team_pitching = [
         row for row in (pitching_lines or [])
-        if str(row.get("game_id") or "") == game_id and row.get("team") == HAWKS
+        if str(row.get("game_id") or "") == game_id and row.get("team") == team
     ]
-    starter_row = next((row for row in hawks_pitching if truthy(row.get("is_starter"))), None)
+    starter_row = next((row for row in team_pitching if truthy(row.get("is_starter"))), None)
     starter = None
     if starter_row:
         starter = {
@@ -461,11 +648,12 @@ def latest_hawks_game(story, data_date, pitching_lines=None, pitches=None):
             "hits_allowed": integer(starter_row.get("hits_allowed")),
             "pitches": integer(starter_row.get("pitches")),
         }
-    elif game.get("winner") == HAWKS:
+    elif game.get("winner") == team:
         starter = game.get("starter")
-    bullpen = game.get("bullpen") if game.get("winner") == HAWKS else None
+    reliever_rows = [row for row in team_pitching if row is not starter_row]
+    bullpen = aggregate_pitching(reliever_rows) if reliever_rows else (game.get("bullpen") if game.get("winner") == team else None)
     src_game = source("games.csv", data_date, game_id, ["home_score", "away_score", "winner"])
-    facts = [fact("試合結果", f"ソフトバンク {hawks_score}－{opponent_score} {opponent}", "score", [hawks_score, opponent_score], src_game)]
+    facts = [fact("試合結果", f"{team} {team_score}－{opponent_score} {opponent}", "score", [team_score, opponent_score], src_game)]
     if offense:
         facts.extend([
             fact("チーム安打", f"{integer(offense.get('hits'))}安打", "hits", integer(offense.get("hits")), source("batting_lines.csv", data_date, game_id, ["hits"])),
@@ -480,14 +668,15 @@ def latest_hawks_game(story, data_date, pitching_lines=None, pitches=None):
     if starter:
         starter_rows = pitch_rows_for(
             pitches, game_ids=[game_id], pitcher_key=starter.get("key"),
-            pitcher_name=None if starter.get("key") else starter.get("name"), fielding_team=HAWKS,
+            pitcher_name=None if starter.get("key") else starter.get("name"), fielding_team=team,
         )
         starter_summary = summarize_pitcher_pitches(starter_rows)
         extra, cautions, refs = pitcher_pitch_facts(starter_summary, "先発")
         facts.extend(extra); pitch_cautions.extend(cautions); pitch_refs.extend(refs)
-    team_batting_rows = pitch_rows_for(pitches, game_ids=[game_id], batting_team=HAWKS)
+    team_batting_rows = pitch_rows_for(pitches, game_ids=[game_id], batting_team=team)
     batting_summary = summarize_batter_pitches(team_batting_rows)
-    extra, cautions, refs = batter_pitch_facts(batting_summary, "ホークス打線")
+    team_label = "ホークス" if team == HAWKS else team
+    extra, cautions, refs = batter_pitch_facts(batting_summary, f"{team_label}打線")
     facts.extend(extra); pitch_cautions.extend(cautions); pitch_refs.extend(refs)
     game_pitch_material = build_game_pitch_material(pitches, pitching_lines, game_id)
     if game_pitch_material:
@@ -505,7 +694,7 @@ def latest_hawks_game(story, data_date, pitching_lines=None, pitches=None):
         ))
         if starter:
             starter_material = next((row for row in game_pitch_material.get("pitchers") or []
-                                     if row.get("team") == HAWKS and
+                                     if row.get("team") == team and
                                      ((starter.get("key") and str(row.get("player_key") or "") == str(starter.get("key")))
                                       or row.get("name") == starter.get("name"))), None)
             round_fact = tto_fact(starter_material, starter.get("name") or "先発")
@@ -518,20 +707,25 @@ def latest_hawks_game(story, data_date, pitching_lines=None, pitches=None):
             "巡目別配球は同一打者の登場回数による観測上の区分。配球を変えた理由はデータから断定しない",
         ])
     if result == "勝利":
-        title = f"ホークスが{opponent}戦を{hawks_score}－{opponent_score}で勝利　数字から見えたポイント"
-        reason = f"最新データ日のホークス戦は{result}。スコアだけで勝因を断定せず、打線・先発・救援のどこに目立つ数字があったかを整理できる。"
+        title = f"{team_label}が{opponent}戦を{team_score}－{opponent_score}で勝利　数字から見えたポイント"
+        reason = f"最新データ日の{team_label}戦は{result}。スコアだけで勝因を断定せず、打線・先発・救援のどこに目立つ数字があったかを整理できる。"
     else:
-        title = f"ホークスの{opponent}戦を検証　{hawks_score}－{opponent_score}の数字から何が見える？"
-        reason = f"最新データ日のホークス戦は{result}。結果だけでなく、打線・先発・救援の数字を分けて見ることで次戦への論点を探せる。"
+        title = f"{team_label}の{opponent}戦を検証　{team_score}－{opponent_score}の数字から何が見える？"
+        reason = f"最新データ日の{team_label}戦は{result}。結果だけでなく、打線・先発・救援の数字を分けて見ることで次戦への論点を探せる。"
     return make_idea(
-        idea_id=f"hawks-game-{game_id}", idea_type="game", team=HAWKS, title=title,
-        theme=f"{data_date}のホークス戦を、ボックススコアの事実から振り返る",
+        idea_id=f"{'hawks' if team == HAWKS else 'team-' + team}-game-{game_id}", idea_type="game", team=team, title=title,
+        theme=f"{data_date}の{team_label}戦を、ボックススコアの事実から振り返る",
         reason=reason, facts=facts,
         angles=["得点と安打・四球の関係", "先発が作った試合展開", "救援陣が残した数字"],
         cautions=["勝因の因果推定ではなく、当日の集計値から目立つ要素を扱う", "守備位置や打球品質など未収集要素は評価しない", *pitch_cautions],
         source_refs=[src_game, source("batting_lines.csv", data_date, game_id), source("pitching_lines.csv", data_date, game_id), *pitch_refs], score=100,
         extra_stats={"pitch_data": game_pitch_material} if game_pitch_material else None,
     )
+
+
+def latest_hawks_game(story, data_date, pitching_lines=None, pitches=None):
+    """Backward-compatible wrapper for existing callers and tests."""
+    return latest_team_game(story, data_date, pitching_lines, pitches, HAWKS)
 
 
 def team_trend_idea(trend, data_date, hawks=False):
@@ -575,14 +769,14 @@ def row_key(row):
     return str(row.get("player_key") or row.get("player_id") or row.get("player") or "")
 
 
-def hawks_player_idea(games, batting, season_batting, pitches, data_date):
-    hawks_games = sorted([g for g in games if HAWKS in (g.get("home"), g.get("away"))], key=lambda g: (g.get("date") or "", str(g.get("game_id") or "")))[-10:]
-    game_ids = {str(g.get("game_id") or "") for g in hawks_games}
+def team_player_idea(games, batting, season_batting, pitches, data_date, team=HAWKS):
+    team_games = sorted([g for g in games if team in (g.get("home"), g.get("away"))], key=lambda g: (g.get("date") or "", str(g.get("game_id") or "")))[-10:]
+    game_ids = {str(g.get("game_id") or "") for g in team_games}
     groups = defaultdict(list)
     for row in batting:
-        if row.get("team") == HAWKS and str(row.get("game_id") or "") in game_ids:
+        if row.get("team") == team and str(row.get("game_id") or "") in game_ids:
             groups[row_key(row)].append(row)
-    season_map = {row_key(r): r for r in season_batting if r.get("team") == HAWKS}
+    season_map = {row_key(r): r for r in season_batting if r.get("team") == team}
     candidates = []
     for key, rows in groups.items():
         recent = aggregate_batting(rows); season = season_map.get(key)
@@ -610,13 +804,13 @@ def hawks_player_idea(games, batting, season_batting, pitches, data_date):
         fact("直近打撃", f"{recent.get('hits')}安打 {recent.get('hr')}本塁打 {recent.get('bb')}四球", "recent_events", [recent.get("hits"), recent.get("hr"), recent.get("bb")], source("batting_lines.csv", data_date, fields=["hits", "hr", "bb"])),
         fact("直近三振", f"{recent.get('so')}三振", "recent_so", recent.get("so"), source("batting_lines.csv", data_date, fields=["so"])),
     ]
-    player_pitch_rows = pitch_rows_for(pitches, game_ids=game_ids, batter_key=key, batting_team=HAWKS)
+    player_pitch_rows = pitch_rows_for(pitches, game_ids=game_ids, batter_key=key, batting_team=team)
     pitch_summary = summarize_batter_pitches(player_pitch_rows)
     pitch_facts, pitch_cautions, pitch_refs = batter_pitch_facts(pitch_summary, name)
     facts.extend(pitch_facts)
     player_material = batter_material(player_pitch_rows)
     return make_idea(
-        idea_id=f"hawks-player-{key}", idea_type="player", team=HAWKS, title=title,
+        idea_id=f"{'hawks' if team == HAWKS else 'team-' + team}-player-{key}", idea_type="player", team=team, title=title,
         theme=f"{name}の直近成績とシーズン成績の差を調べる", reason=reason, facts=facts,
         angles=["OPS変化を出塁と長打に分ける", "安打・本塁打・四球・三振の変化", "チームの得点や勝敗との同時期の動き"],
         cautions=["直近10試合の短期サンプル", "対戦投手・球場の影響は未調整", "OPSの変化だけで技術的原因は断定できない", "複数試合の横断集計は1試合より信頼度が高いが、配球の理由までは断定しない", *pitch_cautions],
@@ -625,17 +819,22 @@ def hawks_player_idea(games, batting, season_batting, pitches, data_date):
     )
 
 
-def hawks_two_strike_idea(story, pitches, pitching_lines, data_date):
+def hawks_player_idea(games, batting, season_batting, pitches, data_date):
+    """Backward-compatible wrapper for the Hawks-priority editorial feed."""
+    return team_player_idea(games, batting, season_batting, pitches, data_date, HAWKS)
+
+
+def team_two_strike_idea(story, pitches, pitching_lines, data_date, team=HAWKS):
     quality = ((story.get("quality") or {}).get("two_strike") or {})
     if quality.get("definition_version") != 2 or not quality.get("validated"):
         return None
-    candidates = [p for p in story.get("two_strike_pitchers") or [] if p.get("team") == HAWKS and integer(p.get("pitches")) >= 50]
+    candidates = [p for p in story.get("two_strike_pitchers") or [] if p.get("team") == team and integer(p.get("pitches")) >= 50]
     if not candidates:
         return None
     pitcher = max(candidates, key=lambda p: (integer(p.get("pitches")), num(p.get("k_finish_rate"))))
     name = pitcher.get("name") or "投手名不明"
     top = (pitcher.get("pitch_types") or [{}])[0]
-    player_pitch_rows = pitch_rows_for(pitches, pitcher_key=pitcher.get("key"), fielding_team=HAWKS)
+    player_pitch_rows = pitch_rows_for(pitches, pitcher_key=pitcher.get("key"), fielding_team=team)
     pitch_summary = summarize_pitcher_pitches(player_pitch_rows)
     verified_src = (
         pitch_source(
@@ -659,7 +858,7 @@ def hawks_two_strike_idea(story, pitches, pitching_lines, data_date):
     if round_fact:
         facts.append(round_fact)
     return make_idea(
-        idea_id=f"hawks-two-strike-{pitcher.get('key')}", idea_type="player", team=HAWKS,
+        idea_id=f"{'hawks' if team == HAWKS else 'team-' + team}-two-strike-{pitcher.get('key')}", idea_type="player", team=team,
         title=f"{name}は追い込んでから何を投げている？2ストライク後の配球を検証",
         theme=f"{name}の2ストライク後の球種と三振決着を分析する",
         reason=f"2ストライク後を{integer(pitcher.get('pitches'))}球確認できる。最多球種と実際に三振で打席が終わった投球を分け、追い込んでからの傾向を記事にできる。",
@@ -670,14 +869,20 @@ def hawks_two_strike_idea(story, pitches, pitching_lines, data_date):
     )
 
 
+def hawks_two_strike_idea(story, pitches, pitching_lines, data_date):
+    """Backward-compatible wrapper for the Hawks-priority editorial feed."""
+    return team_two_strike_idea(story, pitches, pitching_lines, data_date, HAWKS)
+
+
 def build(season, base="data"):
     season = str(season); root = os.path.join(base, season); dataset = os.path.join(root, "dataset")
     output_path = os.path.join(root, "_article_ideas.json")
     os.makedirs(root, exist_ok=True)
     games = load_csv(os.path.join(dataset, "games.csv"))
     if not games:
-        output = {"schema_version": 1, "season": season, "data_date": None, "generated_at": datetime.now(JST).isoformat(),
-                  "status": "data_unavailable", "message": "収集済みの試合データがありません。", "ideas": []}
+        output = {"schema_version": 2, "season": season, "data_date": None, "generated_at": datetime.now(JST).isoformat(),
+                  "status": "data_unavailable", "message": "収集済みの試合データがありません。", "ideas": [], "team_ideas": [],
+                  "custom_context": {"data_date": None, "teams": [], "players": [], "games": [], "sources": []}}
         with open(output_path, "w", encoding="utf-8") as handle:
             json.dump(output, handle, ensure_ascii=False, separators=(",", ":"))
         print(f"[WARN] article ideas: no games ({dataset})")
@@ -691,6 +896,7 @@ def build(season, base="data"):
     pitching = load_csv(os.path.join(dataset, "pitching_lines.csv"))
     pitches = load_csv(os.path.join(dataset, "pitches.csv"))
     season_batting = load_csv(os.path.join(dataset, "season_batting.csv"))
+    season_pitching = load_csv(os.path.join(dataset, "season_pitching.csv"))
     ideas = []
     latest = latest_hawks_game(story, data_date, pitching, pitches)
     if latest:
@@ -721,16 +927,45 @@ def build(season, base="data"):
     for rank, row in enumerate(selected, 1):
         row["rank"] = rank
         row.pop("_score", None)
+
+    # Build a separate editorial catalog for every observed NPB club.  The
+    # default five-item Hawks-first feed above stays unchanged; selecting a
+    # specific club in ARTICLE LAB switches to this catalog.
+    observed_teams = {name for game in games for name in (game.get("home"), game.get("away")) if name}
+    catalog_teams = [team for team in NPB_TEAMS if team in observed_teams]
+    catalog_teams.extend(sorted(observed_teams.difference(NPB_TEAMS)))
+    team_ideas = []
+    for team in catalog_teams:
+        candidates = [
+            latest_team_game(story, data_date, pitching, pitches, team),
+            team_trend_idea(trends.get(team), data_date, hawks=team == HAWKS),
+            team_player_idea(games, batting, season_batting, pitches, data_date, team),
+            team_two_strike_idea(story, pitches, pitching, data_date, team),
+        ]
+        team_ideas.extend(row for row in candidates if row)
+    deduped_catalog = []
+    seen_catalog = set()
+    for row in sorted(team_ideas, key=lambda item: item.get("_score", 0), reverse=True):
+        if row["id"] in seen_catalog:
+            continue
+        seen_catalog.add(row["id"])
+        deduped_catalog.append(row)
+    for rank, row in enumerate(deduped_catalog, 1):
+        row["rank"] = rank
+        row.pop("_score", None)
     output = {
-        "schema_version": 1, "season": season, "data_date": data_date,
+        "schema_version": 2, "season": season, "data_date": data_date,
         "generated_at": datetime.now(JST).isoformat(), "status": "ok",
-        "selection_note": "最新の収集日を基準に、変化・不一致・問いが生まれる候補を優先。ホークス関連を中心に選定。",
+        "selection_note": "最新の収集日を基準に、変化・不一致・問いが生まれる候補を優先。初期表示はホークス中心、球団を選べば12球団それぞれの候補に切り替わります。",
         "source_summary": {"games": len(games), "batting_lines": len(batting), "pitching_lines": len(pitching), "pitches": len(pitches), "story_insights": os.path.basename(story_path)},
         "ideas": selected,
+        "team_ideas": deduped_catalog,
+        "custom_context": build_custom_context(games, batting, pitching, season_batting, season_pitching, pitches, data_date),
     }
     with open(output_path, "w", encoding="utf-8") as handle:
         json.dump(output, handle, ensure_ascii=False, separators=(",", ":"))
-    print(f"[INFO] article ideas: date={data_date} / ideas={len(selected)} / hawks={sum(1 for i in selected if i['team']==HAWKS)}")
+    covered_teams = len({row.get("team") for row in deduped_catalog if row.get("team")})
+    print(f"[INFO] article ideas: date={data_date} / ideas={len(selected)} / hawks={sum(1 for i in selected if i['team']==HAWKS)} / team_catalog={len(deduped_catalog)} ideas for {covered_teams} teams")
     return output
 
 

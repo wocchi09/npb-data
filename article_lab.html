@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#111827">
   <title>NPB ARTICLE LAB</title>
   <link rel="stylesheet" href="article_lab.css">
+  <link rel="stylesheet" href="article_lab_custom.css">
 </head>
 <body>
   <header class="topbar">
@@ -28,12 +29,79 @@
       <a class="story-link" href="story_insights.html">STORY LABを見る →</a>
     </section>
 
+    <section class="custom-builder" aria-labelledby="customBuilderTitle">
+      <div class="custom-head">
+        <div>
+          <span class="section-label">YOUR IDEA → DATA BRIEF</span>
+          <h2 id="customBuilderTitle">自分の記事案を作る</h2>
+          <p>12球団の選手・球団・試合に対応。書きたいことを入力すると、収集済みデータから根拠を選び、Claude用プロンプトへ整えます。</p>
+        </div>
+        <span class="local-badge">AI API不要</span>
+      </div>
+      <label class="theme-field" for="customTheme">
+        <span>書きたいテーマ・疑問</span>
+        <textarea id="customTheme" rows="3" placeholder="例：柳田悠岐の直近10試合について、四球と長打の変化を中心に書きたい"></textarea>
+      </label>
+      <div class="custom-fields">
+        <label class="field" for="customTarget">
+          <span>記事対象</span>
+          <select id="customTarget">
+            <option value="auto">入力から自動判定</option>
+            <option value="player">選手</option>
+            <option value="team">球団</option>
+            <option value="game">試合</option>
+          </select>
+        </label>
+        <label class="field" for="customTeam">
+          <span>球団</span>
+          <select id="customTeam"><option value="">入力から自動判定</option></select>
+        </label>
+        <label class="field" for="customPlayer">
+          <span>選手（任意）</span>
+          <input id="customPlayer" list="customPlayerOptions" placeholder="選手名で検索">
+          <datalist id="customPlayerOptions"></datalist>
+        </label>
+        <label class="field" for="customGame">
+          <span>試合（任意）</span>
+          <select id="customGame"><option value="">最新の該当試合</option></select>
+        </label>
+        <label class="field" for="customPeriod">
+          <span>期間</span>
+          <select id="customPeriod">
+            <option value="auto">入力から自動判定</option>
+            <option value="latest">直近1試合</option>
+            <option value="recent5">直近5試合</option>
+            <option value="recent10">直近10試合</option>
+            <option value="season">シーズン</option>
+          </select>
+        </label>
+        <label class="field" for="customFocus">
+          <span>注目データ</span>
+          <select id="customFocus">
+            <option value="auto">入力から自動判定</option>
+            <option value="batting">打撃</option>
+            <option value="pitching">投球</option>
+            <option value="pitch">球種・配球</option>
+            <option value="record">勝敗・得失点</option>
+            <option value="advanced">セイバーメトリクス</option>
+          </select>
+        </label>
+      </div>
+      <div class="custom-actions">
+        <button id="buildCustomIdea" class="button" type="button">根拠データを確認</button>
+        <button id="buildCustomPrompt" class="button primary" type="button">Claude用プロンプトを生成</button>
+        <span id="customStatus" role="status">選択項目は補助です。テーマだけでも生成できます。</span>
+      </div>
+      <div id="customPreview" class="custom-preview" aria-live="polite"></div>
+    </section>
+
     <section class="filters" aria-label="記事候補フィルター">
       <div class="field">
         <label for="scopeFilter">球団</label>
         <select id="scopeFilter">
           <option value="hawksPriority">ソフトバンク優先</option>
           <option value="pacific">パ・リーグ</option>
+          <option value="central">セ・リーグ</option>
           <option value="all">全12球団</option>
         </select>
       </div>

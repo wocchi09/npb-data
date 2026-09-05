@@ -110,6 +110,14 @@ class ArticleLabTests(unittest.TestCase):
         self.assertEqual(output["data_date"], "2026-08-10")
         self.assertEqual(len(saved["ideas"]), 5)
         self.assertEqual(sum(i["team"] == "ソフトバンク" for i in saved["ideas"]), 4)
+        self.assertEqual(saved["schema_version"], 2)
+        self.assertEqual({row["team"] for row in saved["team_ideas"]}, {"ソフトバンク", "日本ハム"})
+        self.assertTrue(any(row["team"] == "日本ハム" and row["type"] == "trend" for row in saved["team_ideas"]))
+        self.assertTrue(saved["custom_context"]["teams"])
+        self.assertTrue(saved["custom_context"]["players"])
+        custom_player = next(row for row in saved["custom_context"]["players"] if row["name"] == "実在 選手")
+        self.assertEqual(custom_player["periods"]["recent5"]["games"], 5)
+        self.assertEqual(custom_player["periods"]["recent10"]["stats"]["pa"], 50)
         self.assertTrue(all(i["source_refs"] for i in saved["ideas"]))
         self.assertIn("実在 選手", json.dumps(saved, ensure_ascii=False))
         game_idea = next(i for i in saved["ideas"] if i["type"] == "game")
@@ -138,6 +146,18 @@ class ArticleLabTests(unittest.TestCase):
             output = build("2026", str(Path(tmp) / "data"))
             self.assertEqual(output["status"], "data_unavailable")
             self.assertEqual(output["ideas"], [])
+            self.assertEqual(output["team_ideas"], [])
+
+    @unittest.skipUnless(shutil.which("node"), "Node.js is required")
+    def test_filters_support_both_leagues_and_each_of_twelve_teams(self):
+        teams = ["ソフトバンク", "日本ハム", "オリックス", "楽天", "西武", "ロッテ", "巨人", "阪神", "DeNA", "広島", "ヤクルト", "中日"]
+        ideas = [{"team": team, "league": "パ" if index < 6 else "セ", "type": "trend", "rank": index + 1} for index, team in enumerate(teams)]
+        script = f"const a=require({json.dumps(str(ROOT / 'article_lab.js'))});const i={json.dumps(ideas, ensure_ascii=False)};console.log(JSON.stringify({{p:a.filterIdeas(i,'pacific','all').map(x=>x.team),c:a.filterIdeas(i,'central','all').map(x=>x.team),each:i.map(x=>a.filterIdeas(i,'team:'+x.team,'all').map(y=>y.team))}}));"
+        result = subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, encoding="utf-8")
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["p"], teams[:6])
+        self.assertEqual(payload["c"], teams[6:])
+        self.assertEqual(payload["each"], [[team] for team in teams])
 
     @unittest.skipUnless(shutil.which("node"), "Node.js is required")
     def test_prompt_and_brief_generation_in_javascript(self):
@@ -148,6 +168,27 @@ class ArticleLabTests(unittest.TestCase):
         self.assertIn("source: season.csv / 2026-08-10", payload["brief"])
         self.assertIn("X 題", payload["prompt"])
 
+    @unittest.skipUnless(shutil.which("node"), "Node.js is required")
+    def test_user_theme_builds_a_grounded_custom_idea(self):
+        context = {
+            "teams": [{"team": "ソフトバンク", "periods": {}}],
+            "games": [],
+            "players": [{
+                "id": "batter:p1", "kind": "batter", "name": "実在 選手", "team": "ソフトバンク",
+                "team_history": ["ソフトバンク"],
+                "periods": {"recent10": {"games": 10, "date_start": "2026-08-01", "date_end": "2026-08-10", "stats": {"pa": 42, "avg": .321, "ops": .912, "hits": 12, "hr": 2, "rbi": 8, "bb": 6, "so": 7}}},
+                "advanced": {}, "pitch_profile": None,
+            }],
+        }
+        script = f"const a=require({json.dumps(str(ROOT / 'article_lab.js'))});const c={json.dumps(context, ensure_ascii=False)};console.log(JSON.stringify(a.buildCustomIdea({{theme:'実在 選手の直近10試合をOPS中心に書きたい',target:'auto',period:'auto',focus:'auto'}},c,'2026-08-10')));"
+        result = subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, encoding="utf-8")
+        idea = json.loads(result.stdout)
+        self.assertEqual(idea["type"], "player")
+        self.assertEqual(idea["custom_meta"]["period"], "recent10")
+        self.assertEqual(idea["custom_meta"]["focus"], "batting")
+        self.assertTrue(any(fact["metric"] == "avg_ops" for fact in idea["facts"]))
+        self.assertTrue(all(fact["source"]["dataset"] == "batting_lines.csv" for fact in idea["facts"]))
+
     def test_page_prompt_and_workflow_contract(self):
         html = (ROOT / "article_lab.html").read_text(encoding="utf-8")
         js = (ROOT / "article_lab.js").read_text(encoding="utf-8")
@@ -156,6 +197,12 @@ class ArticleLabTests(unittest.TestCase):
         self.assertIn("Claude用プロンプトを生成", js)
         self.assertIn("copyButton", html)
         self.assertIn("downloadButton", html)
+        self.assertIn("customTheme", html)
+        self.assertIn("buildCustomPrompt", html)
+        self.assertIn("buildCustomIdea", js)
+        self.assertIn("article_lab_custom.css", html)
+        self.assertIn('option value="central"', html)
+        self.assertIn("team_ideas", js)
         self.assertIn("{{ARTICLE_BRIEF}}", prompt)
         self.assertLess(workflow.index("build_story_insights.py"), workflow.index("build_article_ideas.py"))
 

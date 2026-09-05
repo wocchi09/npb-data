@@ -1,0 +1,162 @@
+.custom-builder {
+  margin-bottom: 22px;
+  padding: 20px;
+  border: 1px solid #fed7aa;
+  border-radius: var(--radius);
+  background:
+    radial-gradient(circle at 96% 0, rgba(251, 146, 60, .14), transparent 30%),
+    var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.custom-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 16px;
+}
+
+.custom-head h2 {
+  margin: 4px 0 5px;
+  font-size: clamp(22px, 3vw, 30px);
+  letter-spacing: -.035em;
+}
+
+.custom-head p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.local-badge {
+  flex: none;
+  padding: 6px 10px;
+  border: 1px solid #a7f3d0;
+  border-radius: 999px;
+  background: #ecfdf5;
+  color: var(--good);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.theme-field {
+  display: grid;
+  gap: 7px;
+}
+
+.theme-field > span,
+.custom-fields .field > span {
+  color: #475467;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.theme-field textarea {
+  width: 100%;
+  min-height: 92px;
+  padding: 14px;
+  resize: vertical;
+  border: 1px solid #f4a36e;
+  border-radius: 14px;
+  outline: 0;
+  color: var(--ink);
+  background: #fffdfa;
+  font: inherit;
+  line-height: 1.65;
+}
+
+.theme-field textarea:focus,
+.custom-fields select:focus,
+.custom-fields input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(237, 87, 11, .12);
+}
+
+.custom-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 13px;
+}
+
+.custom-fields .field {
+  min-width: 0;
+}
+
+.custom-fields select,
+.custom-fields input {
+  width: 100%;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid #d0d5dd;
+  border-radius: 11px;
+  outline: 0;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+}
+
+.custom-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 15px;
+}
+
+.custom-actions span {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.custom-preview:not(:empty) {
+  margin-top: 17px;
+  padding-top: 17px;
+  border-top: 1px dashed #f0b58f;
+}
+
+.custom-preview .idea-card {
+  box-shadow: none;
+  border-color: #fdba74;
+}
+
+.custom-preview .idea-rank {
+  background: linear-gradient(150deg, #b93800, #ed570b);
+}
+
+@media (max-width: 760px) {
+  .custom-builder {
+    padding: 16px;
+  }
+
+  .custom-head {
+    display: grid;
+  }
+
+  .local-badge {
+    width: max-content;
+  }
+
+  .custom-fields {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .custom-fields select,
+  .custom-fields input,
+  .theme-field textarea {
+    font-size: 16px;
+  }
+
+  .custom-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 420px) {
+  .custom-fields {
+    grid-template-columns: 1fr;
+  }
+}
