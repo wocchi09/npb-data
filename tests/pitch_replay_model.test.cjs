@@ -82,6 +82,24 @@ test('speed affects a bounded, readable duration without a fabricated missing sp
   assert.equal(M.duration(null), 1400); assert.equal(M.duration(0), 1400);
   assert.equal(M.duration(999), 800); assert.equal(M.duration(1), 2100);
 });
+test('fork drops late while both views keep the same recorded endpoint', () => {
+  const fork = { family: 'splitter', position: { x: .4, y: .8 } }, straight = { ...fork, family: 'fastball' };
+  const fall = p => M.trajectory(p, '右投', 1).y - M.trajectory(p, '右投', .8).y;
+  assert.ok(fall(fork) > fall(straight));
+  for (const view of ['catcher', 'batter']) for (const hand of ['右打', '左打']) {
+    assert.deepEqual(M.viewPoint(M.trajectory(fork, '左投', 1), view, hand, 1), M.viewPoint(fork.position, view, hand));
+  }
+  assert.match(M.trajectoryDescription('splitter'), /ホーム付近で下に落ちる/);
+});
+test('batter camera offsets mirror by hand and never infer unknown handedness', () => {
+  const p = { x: .4, y: .6 }, copy = { ...p };
+  assert.deepEqual(M.viewPoint(p, 'catcher', '右打'), p);
+  assert.deepEqual(M.viewPoint(p, 'batter', null), p);
+  const r = M.viewPoint(p, 'batter', '右打'), l = M.viewPoint({ x: 1 - p.x, y: p.y }, 'batter', '左打');
+  assert.ok(Math.abs(r.x + l.x - 1) < 1e-12); assert.equal(r.y, l.y);
+  assert.notEqual(M.viewPoint(p, 'batter', '右打', 0).x, r.x);
+  assert.deepEqual(p, copy);
+});
 test('single-pitch play, pause, resume, restart and bounds', () => {
   const c = new M.Playback(normalize([rawPitch(1)]).pitches);
   c.play(); c.advance(350); assert.equal(c.progress, .25);

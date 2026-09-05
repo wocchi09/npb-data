@@ -123,10 +123,23 @@
         derived: { countBefore: p.countBefore, countAfter: p.countAfter, locationBasis: 'chart + batter handedness' } })),
       provenance: { recorded: 'Source JSON values; null means unavailable. recordedCount is a snapshot; timing/provenance is not preserved by the collector.',
         derived: 'B/S recomputed from a complete pitch sequence. Missing/ambiguous events or numbering gaps produce null. O is not reconstructed.',
-        visualization: '取得できないため簡易モデルで補完: 軌道・リリース位置・変化量・飛行時間。グリッドのみの場合はセル中心。',
+        visualization: '取得できないため簡易モデルで補完: 軌道・リリース位置・変化量・飛行時間・打者の目線と構え。グリッドのみの場合はセル中心。',
         coordinateConvention: 'Existing site labels source chart as pitcher view; horizontally mirrored for catcher view. Approximate zone bounds.',
         disclaimer: DISCLAIMER },
       aiInterpretation: null };
+  }
+  function viewPoint(point, view, batterHand, progress = 1) {
+    const side = hand(batterHand, '打');
+    if (view !== 'batter' || !side) return { x: point.x, y: point.y };
+    // Illustrative eye offset, not measured camera calibration. Same projection for ball, zone and marks.
+    const dx = point.x - .5, denominator = 1 + .18 * side * Math.max(-2, Math.min(2, dx));
+    return { x: .5 + (.82 * dx + side * (.22 * progress - .02)) / denominator,
+      y: .5 + .94 * (point.y - .5) / denominator + .05 * progress };
+  }
+  function trajectoryDescription(family) {
+    return ({ fastball: 'ほぼ直線', slider: '横へ曲がる', verticalSlider: '縦に落ちるスライダー',
+      cutter: '小さく横へ曲がる', curve: '山なりから大きく落ちる', splitter: 'ホーム付近で下に落ちる',
+      changeup: '緩やかに沈む', sinker: '投手の利き腕方向へ曲がりながら沈む', neutral: 'ニュートラルな軌道' })[family] || 'ニュートラルな軌道';
   }
   class Playback {
     constructor(pitches = []) { this.pitches = pitches; this.speed = 1; this.mode = 'single'; this.reset(); }
@@ -158,5 +171,5 @@
     }
   }
   return { DISCLAIMER, CHART, COLORS, playerKey, hand, pitchFamily, coursePosition, locationLabel,
-    countAfter, normalizePlateAppearance, duration, trajectory, getPlateAppearanceSummary, Playback };
+    countAfter, normalizePlateAppearance, duration, trajectory, viewPoint, trajectoryDescription, getPlateAppearanceSummary, Playback };
 });

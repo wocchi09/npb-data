@@ -36,7 +36,7 @@ before(async () => {
     if (!file.startsWith(root + path.sep)) { response.writeHead(403).end(); return; }
     fs.readFile(file, (error, contents) => {
       if (error) { response.writeHead(404).end(); return; }
-      const mime = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json' }[path.extname(file)] || 'application/octet-stream';
+      const mime = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml' }[path.extname(file)] || 'application/octet-stream';
       response.writeHead(200, { 'Content-Type': mime + '; charset=utf-8' }); response.end(contents);
     });
   });
@@ -150,6 +150,43 @@ test('reduced motion and keyboard controls remain usable', async () => {
   assert.equal(await page.locator('#replay-ball').isVisible(), false);
   await waitText(page, 'progress', '打席の再生が完了');
   assert.equal(await page.locator('#replay-marks > g').count(), 1); await page.close();
+});
+test('batter views, illustration, fork and camera switching preserve observed data and playback', async () => {
+  for (const hand of ['右打', '左打', null]) {
+    const page = await openPage(), game = fixture([pitch(1, { type: 'フォーク', result: 'ボール' })]);
+    game.atbats[0].batter.hand = hand;
+    await loadFixture(page, game);
+    if (!hand) {
+      assert.equal(await page.locator('#replay-view option[value="batter"]').evaluate(option => option.disabled), true);
+      assert.equal(await page.locator('#replay-batter-image').isVisible(), false);
+      await page.close(); continue;
+    }
+    assert.equal(await page.locator('#replay-batter-portrait').evaluate(img => img.complete && img.naturalWidth > 0), true);
+    const before = await page.evaluate(() => getPlateAppearanceSummary());
+    const zone = await page.locator('#replay-zone').innerHTML();
+    await page.locator('#replay-play').click(); await page.waitForTimeout(250); await page.locator('#replay-pause').click();
+    await page.locator('#replay-view').selectOption('batter');
+    assert.notEqual(await page.locator('#replay-zone').innerHTML(), zone);
+    assert.match(await page.locator('#replay-view-title').innerText(), hand === '右打' ? /右打者/ : /左打者/);
+    assert.match(await page.locator('#replay-progress').innerText(), /一時停止/);
+    assert.equal(await page.locator('#replay-batter-hands').isVisible(), true);
+    assert.match(await page.locator('#replay-trajectory-note').innerText(), /フォーク：ホーム付近で下に落ちる/);
+    assert.deepEqual(await page.evaluate(() => getPlateAppearanceSummary()), before);
+    if (process.env.REPLAY_QA_DIR) {
+      await page.screenshot({ path: path.join(process.env.REPLAY_QA_DIR, 'batter-' + (hand === '右打' ? 'right' : 'left') + '.png'), fullPage: true });
+      await page.setViewportSize({ width: 390, height: 844 });
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+      await page.screenshot({ path: path.join(process.env.REPLAY_QA_DIR, 'batter-mobile-' + (hand === '右打' ? 'right' : 'left') + '.png'), fullPage: true });
+    }
+    await page.locator('#replay-show-batter').uncheck();
+    assert.equal(await page.locator('#replay-batter-hands').isVisible(), false);
+    assert.equal(await page.locator('#replay-batter-portrait').isVisible(), false);
+    await page.locator('#replay-view').selectOption('catcher');
+    assert.equal(await page.locator('#replay-zone').innerHTML(), zone);
+    await page.locator('#replay-play').click(); await waitText(page, 'progress', '打席の再生が完了');
+    assert.equal(await page.locator('#replay-marks > g').count(), 1);
+    await page.close();
+  }
 });
 test('ANALYST LAB pitch filter and existing scoreboard link resolve to the correct data', async () => {
   const page = await openPage(); await page.goto(base + 'analyst_lab.html');

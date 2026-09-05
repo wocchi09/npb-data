@@ -7,6 +7,7 @@
   let files = [], game = null, pa = null, appearances = [], player = new M.Playback(), frame = 0, lastTime = 0;
   let request = 0, abort = null, metaKey = '', project = null;
   let pitcherFilter = params.get('pitcher') || '';
+  $('view').value = params.get('view') === 'batter' ? 'batter' : 'catcher';
   const pathDate = path => path.split('/').slice(1, 4).join('-');
   const pitcherName = p => p ? shown(p.name) + '（' + shown(p.hand) + '）' : '未取得';
 
@@ -94,7 +95,8 @@
     $('inning').textContent = shown(pa.inning) + '回' + (pa.half || '');
     $('outs').textContent = shown(pa.recordedCount && pa.recordedCount.out);
     const side = M.hand(pa.batter && pa.batter.hand, '打');
-    $('batter-side').textContent = side === 1 ? '右打者：画面左側' : side === -1 ? '左打者：画面右側' : '打者の左右：未取得（内外角は判定しません）';
+    $('view').querySelector('[value="batter"]').disabled = !side;
+    if (!side) $('view').value = 'catcher';
     $('pitches').innerHTML = pa.pitches.map((p, i) => '<tr><td><button data-pitch="' + i + '" aria-label="' + (i + 1) + '番目の投球を選択">' + escape(p.number == null ? '?' : p.number) + '</button></td><td><span style="color:' + M.COLORS[p.family] + '">●</span> ' + escape(shown(p.type)) + '</td><td>' + escape(p.speed == null ? '未取得' : p.speed + ' km/h') + '</td><td>' + escape(shown(p.location)) + '</td><td>' + escape(shown(p.result)) + '</td></tr>').join('');
     const types = new Map(pa.pitches.map(p => [p.type || '球種未取得', p.family]));
     $('legend').innerHTML = Array.from(types, ([type, family]) => '<span><i style="background:' + M.COLORS[family] + '"></i>' + escape(type) + '</span>').join('');
@@ -102,19 +104,37 @@
     const query = new URLSearchParams(); query.set('game', $('game').value);
     if (pa.index) query.set('atbat', pa.index); else query.set('ab', String(pa.arrayIndex));
     if (pitcherFilter) query.set('pitcher', pitcherFilter);
+    if ($('view').value === 'batter') query.set('view', 'batter');
     history.replaceState(null, '', location.pathname + '?' + query.toString());
   }
   function buildZone() {
+    const view = $('view').value, batterHand = pa.batter && pa.batter.hand, side = M.hand(batterHand, '打');
+    const batterView = view === 'batter' && !!side, illustrated = $('show-batter').checked && !!side;
+    $('view-title').textContent = batterView ? (side === 1 ? '右打者' : '左打者') + 'の目線（簡易）' : '捕手視点';
+    $('svg-title').textContent = $('view-title').textContent + '：投球コースと簡易軌道';
+    $('batter-side').textContent = !side ? '打者の左右：未取得（内外角は判定しません）' : batterView ? '打者の目線からホームを見るイメージ' : side === 1 ? '右打者：画面左側' : '左打者：画面右側';
+    $('view-note').textContent = !side ? '打者の左右が不明なため、打者視点・構えの表示は利用できません。' : batterView ? '目の位置・角度・手元は簡易モデル。構えは共通イラストです。' : '打者画像は共通イラストです。保存された打者の左右に対応しています。';
+    $('batter-image').toggleAttribute('hidden', !illustrated || batterView);
+    $('batter-hands').toggleAttribute('hidden', !illustrated || !batterView);
+    for (const id of ['batter-image', 'batter-hands']) $(id).setAttribute('transform', side === -1 ? 'translate(500 0) scale(-1 1)' : '');
+    $('batter-portrait').hidden = !illustrated;
+    $('batter-portrait').style.transform = side === -1 ? 'scaleX(-1)' : '';
+    $('batter-portrait').alt = (side === 1 ? '右打ち' : '左打ち') + 'の共通イラスト（選手本人の容姿・構えの再現ではありません）';
     // Fit out-of-chart recorded points without clamping them into the strike zone.
-    const positions = pa.pitches.map(p => p.position).filter(Boolean);
+    const positions = pa.pitches.flatMap(p => p.position ? Array.from({ length: 33 }, (_, i) => M.viewPoint(M.trajectory(p, pa.pitcher && pa.pitcher.hand, i / 32), view, batterHand, i / 32)) : []);
+    for (const x of [0, 1]) for (const y of [0, 1]) positions.push(M.viewPoint({ x, y }, view, batterHand));
     const minX = Math.min(-.16, ...positions.map(p => p.x)), maxX = Math.max(1.16, ...positions.map(p => p.x));
     const minY = Math.min(-.35, ...positions.map(p => p.y)), maxY = Math.max(1.14, ...positions.map(p => p.y));
-    project = p => ({ x: 35 + (p.x - minX) / (maxX - minX) * 430, y: 52 + (p.y - minY) / (maxY - minY) * 320 });
-    const c = M.CHART, a = project({ x: 1 - c.right / c.size, y: c.top / c.size }), b = project({ x: 1 - c.left / c.size, y: c.bottom / c.size });
-    let svg = '<rect x="' + a.x + '" y="' + a.y + '" width="' + (b.x - a.x) + '" height="' + (b.y - a.y) + '" fill="#e4edf9" stroke="#7395c4" stroke-width="2"/>';
+    project = (p, progress = 1) => {
+      const v = M.viewPoint(p, view, batterHand, progress);
+      return { x: 35 + (v.x - minX) / (maxX - minX) * 430, y: 52 + (v.y - minY) / (maxY - minY) * 320 };
+    };
+    const c = M.CHART, left = 1 - c.right / c.size, right = 1 - c.left / c.size, top = c.top / c.size, bottom = c.bottom / c.size;
+    const point = (x, y) => { const p = project({ x, y }); return p.x + ' ' + p.y; };
+    let svg = '<path d="M' + point(left, top) + 'L' + point(right, top) + 'L' + point(right, bottom) + 'L' + point(left, bottom) + 'Z" fill="#e4edf9" stroke="#7395c4" stroke-width="2"/>';
     for (let i = 1; i < 3; i++) {
-      const x = a.x + (b.x - a.x) * i / 3, y = a.y + (b.y - a.y) * i / 3;
-      svg += '<path d="M' + x + ' ' + a.y + 'V' + b.y + ' M' + a.x + ' ' + y + 'H' + b.x + '" stroke="#a7bbd6" stroke-dasharray="4 4"/>';
+      const x = left + (right - left) * i / 3, y = top + (bottom - top) * i / 3;
+      svg += '<path d="M' + point(x, top) + 'L' + point(x, bottom) + ' M' + point(left, y) + 'L' + point(right, y) + '" stroke="#a7bbd6" stroke-dasharray="4 4"/>';
     }
     $('zone').innerHTML = svg;
   }
@@ -138,6 +158,7 @@
     const key = [player.index, player.phase, player.playing].join(':');
     if (key !== metaKey) {
       metaKey = key; drawMarks();
+      $('trajectory-note').textContent = p ? shown(p.type) + '：' + M.trajectoryDescription(p.family) + '（表現用の簡易モデル）' + (!M.hand(pa.pitcher && pa.pitcher.hand, '投') ? '／投手の左右未取得：横変化なし' : '') : '投球データなし';
       const count = p && (landed ? p.countAfter : p.countBefore);
       $('bs').textContent = count ? count.balls + ' / ' + count.strikes : '未取得 / 未取得';
       $('count-label').textContent = 'B / S（投球' + (landed ? '後' : '前') + '・再計算）';
@@ -158,10 +179,10 @@
     if (!animated || reduce) { $('trail').setAttribute('d', ''); return; }
     const hand = pa.pitcher && pa.pitcher.hand, points = [];
     for (let i = 0; i <= 32; i++) {
-      const point = project(M.trajectory(p, hand, player.progress * i / 32)); points.push(point.x + ' ' + point.y);
+      const t = player.progress * i / 32, point = project(M.trajectory(p, hand, t), t); points.push(point.x + ' ' + point.y);
     }
     $('trail').setAttribute('d', 'M' + points.join(' L')); $('trail').setAttribute('stroke', M.COLORS[p.family]);
-    const raw = M.trajectory(p, hand, player.progress), point = project(raw);
+    const raw = M.trajectory(p, hand, player.progress), point = project(raw, player.progress);
     $('ball').setAttribute('cx', point.x); $('ball').setAttribute('cy', point.y);
     $('ball').setAttribute('r', raw.radius); $('ball').setAttribute('stroke', M.COLORS[p.family]);
   }
@@ -182,6 +203,16 @@
     if (button) { stop(); player.select(Number(button.dataset.pitch)); render(); }
   };
   $('speed').onchange = () => { player.speed = Number($('speed').value); };
+  function changeView() {
+    if (!pa) return;
+    // Reproject the current frame without restarting or skipping a pitch.
+    buildZone(); metaKey = ''; render();
+    const query = new URLSearchParams(location.search);
+    if ($('view').value === 'batter') query.set('view', 'batter'); else query.delete('view');
+    history.replaceState(null, '', location.pathname + '?' + query.toString());
+  }
+  $('view').onchange = changeView;
+  $('show-batter').onchange = changeView;
   $('mode').onchange = () => { player.mode = $('mode').value; if (player.mode === 'single' && player.phase === 'landed') { stop(); render(); } };
   $('date').onchange = () => loadDate(); $('game').onchange = () => loadGame(); $('atbat').onchange = selectAppearance;
   $('retry').onclick = () => files.length ? loadDate() : initialize();
