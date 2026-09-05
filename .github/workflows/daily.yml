@@ -3,7 +3,7 @@ name: Daily NPB Data Collection
 on:
   schedule:
     # JST 23:47 = UTC 14:47（試合終了後・毎時0分を避けて混雑回避）
-    - cron: "47 12 * * *"
+    - cron: "47 10 * * *"
   workflow_dispatch:
     inputs:
       date:
