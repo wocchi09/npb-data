@@ -1,7 +1,7 @@
 (function(root){
   "use strict";
 
-  const state={data:null,template:"",scope:"hawksPriority",type:"all",activeText:"",activeFile:"article-brief.md",customIdea:null,playerLabels:new Map()};
+  const state={data:null,template:"",scope:"hawksPriority",type:"all",activeText:"",activeFile:"article-brief.md",activeKind:"brief",activeIdea:null,activeMedium:"note",customIdea:null,playerLabels:new Map()};
   const esc=value=>String(value??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
   const list=(items)=>items?.length?items.map(x=>`* ${x}`).join("\n"):"* データ不足";
   const dateJP=value=>{const m=String(value||"").match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?`${Number(m[2])}月${Number(m[3])}日`:"日付不明"};
@@ -12,24 +12,50 @@
     const parts=[src.dataset,src.date,src.game_id?`game_id=${src.game_id}`:""].filter(Boolean);
     return parts.join(" / ");
   }
-  function buildBrief(idea,dataDate){
+  const teamTags={ソフトバンク:"#sbhawks",日本ハム:"#lovefighters",オリックス:"#bs2026",楽天:"#rakuteneagles",西武:"#seibulions",ロッテ:"#chibalotte",阪神:"#tigers",DeNA:"#baystars",巨人:"#giants",中日:"#dragons",広島:"#carp",ヤクルト:"#swallows"};
+  const mediumLabel=medium=>medium==="x"?"X（短文投稿）":"note（長文記事）";
+  function mediumInstructions(medium,idea={}){
+    if(medium==="x"){
+      const tags=["#NPB",teamTags[idea.team]].filter(Boolean).join(" ");
+      return [
+        "* 1投稿で完結させる。スレッドにはしない",
+        "* 本文とハッシュタグをXの標準1投稿に収め、日本語本文は100〜120字程度を目安に、最も強い事実を1〜2点だけ使う",
+        "* 選手名・球団名・対象期間・主要数値が、文字数の許す範囲で分かるようにする",
+        "* 結論を煽らず、短期標本なら『直近○試合』など期間を明示する",
+        `* 投稿末尾に ${tags} を付ける。存在しない球団タグやURLは作らない`,
+        "* Stage 1の質問は、伝えたい一点・採用する数字・投稿のトーンを確認する2〜3問に絞る",
+        "* Stage 3では前置きやMarkdown見出しを付けず、投稿本文だけを出力する"
+      ].join("\n");
+    }
+    return [
+      "* note向けの読み物として、8,000〜10,000字を目安にする",
+      "* 文字数を埋めるための重複や一般論は足さず、根拠不足なら無理に1万字へ伸ばさない",
+      "* 見出し・小見出しを使い、データ初心者にも流れが分かる構成にする",
+      "* 数字の羅列ではなく、問い→比較→解釈の余地→筆者視点→まとめの順で深掘りする",
+      "* Stage 1では筆者の観戦印象、反対仮説、読者に残したい視点まで具体的に聞く",
+      "* Stage 3ではnoteへ貼り付けやすいMarkdown記事だけを出力する"
+    ].join("\n");
+  }
+  function buildBrief(idea,dataDate,medium="note"){
     const facts=(idea.facts||[]).map(x=>`* ${x.label}: ${x.value}\n  source: ${sourceLine(x.source)}`).join("\n")||"* データ不足";
     return [
-      "Article Brief","",`date: ${dataDate||"データ不足"}`,`type: ${idea.type||"unknown"}`,`team: ${idea.team||"データ不足"}`,"",
+      "Article Brief","",`date: ${dataDate||"データ不足"}`,`type: ${idea.type||"unknown"}`,`team: ${idea.team||"データ不足"}`,`medium: ${mediumLabel(medium)}`,"",
       "## Theme","",idea.theme||idea.title||"データ不足","","## Facts","",facts,"","## Angles","",list(idea.angles),"","## Cautions","",list(idea.cautions),"","## Source References","",
       (idea.source_refs||[]).map(x=>`* ${sourceLine(x)}`).join("\n")||"* データ不足"
     ].join("\n");
   }
-  function fillPrompt(template,idea,dataDate){
+  function fillPrompt(template,idea,dataDate,medium="note"){
     const values={
       THEME:idea.theme||"データ不足",TITLE:idea.title||"データ不足",REASON:idea.reason||"データ不足",
       FACTS:(idea.facts||[]).map(x=>`* **${x.label}**: ${x.value}  \n  出典: ${sourceLine(x.source)}`).join("\n")||"* データ不足",
       ANGLES:list(idea.angles),CAUTIONS:list(idea.cautions),
       SOURCES:(idea.source_refs||[]).map(x=>`* ${sourceLine(x)}`).join("\n")||"* データ不足",
-      ARTICLE_BRIEF:buildBrief(idea,dataDate)
+      OUTPUT_MEDIUM:mediumLabel(medium),MEDIUM_INSTRUCTIONS:mediumInstructions(medium,idea),
+      ARTICLE_BRIEF:buildBrief(idea,dataDate,medium)
     };
     return String(template||"").replace(/\{\{([A-Z_]+)\}\}/g,(all,key)=>Object.prototype.hasOwnProperty.call(values,key)?values[key]:all);
   }
+  function buildGrillInvocation(prompt){return `/grill-me\n\n${String(prompt||"").trim()}`}
   function filterIdeas(ideas,scope,type){
     return (ideas||[]).filter(idea=>{
       const selectedTeam=String(scope||"").startsWith("team:")?String(scope).slice(5):"";
@@ -196,10 +222,10 @@
       title:theme,theme,
       reason:facts.length?`${subject}の${periodLabel}について、収集済みデータから${facts.length}個の根拠を組み立てました。入力した疑問への答えは断定せず、数字から確認できる範囲を記事の出発点にします。`:"入力テーマは保持しましたが、対象を一意に特定できる根拠データがありません。選手・球団・試合を選ぶと精度が上がります。",
       facts,angles,cautions:[...new Set(cautions)],source_refs:uniqueRefs,
-      custom_meta:{period:periodKey,focus,player_id:player?.id||null,game_id:game?.game_id||null},
+      custom_meta:{period:periodKey,focus,medium:config?.medium==="x"?"x":"note",player_id:player?.id||null,game_id:game?.game_id||null},
     };
   }
-  root.ArticleLab={buildBrief,fillPrompt,filterIdeas,safeFileName,buildCustomIdea,inferPeriod,inferFocus};
+  root.ArticleLab={buildBrief,fillPrompt,buildGrillInvocation,filterIdeas,safeFileName,buildCustomIdea,inferPeriod,inferFocus,mediumInstructions,mediumLabel};
   if(typeof module!=="undefined"&&module.exports)module.exports=root.ArticleLab;
   if(typeof document==="undefined")return;
 
@@ -236,23 +262,54 @@
     const rows=filterIdeas(pool,state.scope,state.type).slice(0,5).map((idea,index)=>({...idea,rank:index+1}));
     $("ideas").innerHTML=rows.length?rows.map(renderCard).join(""):'<div class="empty-card">この条件に合う記事候補はありません。データ不足を推測で補完していないため、別の条件を選んでください。</div>';
   }
-  function findIdea(id){return id==="custom-idea"?state.customIdea:state.data?.ideas?.find(x=>x.id===id)}
+  function findIdea(id){
+    if(id==="custom-idea")return state.customIdea;
+    return [...(state.data?.ideas||[]),...(state.data?.team_ideas||[])].find(x=>x.id===id);
+  }
   function openWorkspace(kind,idea){
     if(!idea)return;
     const isPrompt=kind==="prompt";
     if(isPrompt&&!state.template){alert("マスタープロンプトを読み込めませんでした。再読み込みしてください。");return}
-    state.activeText=isPrompt?fillPrompt(state.template,idea,state.data.data_date):buildBrief(idea,state.data.data_date);
-    state.activeFile=`${state.data.data_date||"data"}-${safeFileName(idea.title)}-${isPrompt?"claude-prompt":"brief"}.md`;
+    state.activeIdea=idea;state.activeMedium=idea.custom_meta?.medium||"note";
+    if(isPrompt)$("workspaceMedium").value=state.activeMedium;
+    state.activeText=isPrompt?fillPrompt(state.template,idea,state.data.data_date,state.activeMedium):buildBrief(idea,state.data.data_date,state.activeMedium);
+    state.activeFile=`${state.data.data_date||"data"}-${safeFileName(idea.title)}-${isPrompt?`${state.activeMedium}-claude-prompt`:"brief"}.md`;
+    state.activeKind=kind;
     $("workspaceKicker").textContent=isPrompt?"CLAUDE HANDOFF":"ARTICLE BRIEF";
-    $("workspaceTitle").textContent=isPrompt?"Claude用プロンプト":"Article Brief";
+    $("workspaceTitle").textContent=isPrompt?"Claude / grill-me用プロンプト":"Article Brief";
+    $("grillGuide").hidden=!isPrompt;$("grillCopyButton").hidden=!isPrompt;
+    $("copyButton").textContent=isPrompt?"本文だけコピー":"コピー";
+    $("grillFileCommand").textContent=`/grill-me @${state.activeFile}`;
     $("workspaceText").value=state.activeText;$("actionStatus").textContent="";$("workspace").hidden=false;document.body.style.overflow="hidden";
   }
+  function changeWorkspaceMedium(){
+    if(state.activeKind!=="prompt"||!state.activeIdea)return;
+    state.activeMedium=$("workspaceMedium").value==="x"?"x":"note";
+    state.activeText=fillPrompt(state.template,state.activeIdea,state.data.data_date,state.activeMedium);
+    state.activeFile=`${state.data.data_date||"data"}-${safeFileName(state.activeIdea.title)}-${state.activeMedium}-claude-prompt.md`;
+    $("workspaceText").value=state.activeText;$("grillFileCommand").textContent=`/grill-me @${state.activeFile}`;$("actionStatus").textContent=`${mediumLabel(state.activeMedium)}用に切り替えました`;
+  }
   function closeWorkspace(){$("workspace").hidden=true;document.body.style.overflow=""}
-  async function copyText(){
+  async function copyValue(value){
     let copied=false;
-    try{if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(state.activeText);copied=true}}catch(_){/* use selection fallback */}
-    if(!copied){const ta=$("workspaceText");ta.focus();ta.select();try{copied=document.execCommand("copy")}catch(_){copied=false}}
+    try{if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(value);copied=true}}catch(_){/* use temporary textarea */}
+    if(!copied){
+      const ta=document.createElement("textarea");ta.value=value;ta.setAttribute("readonly","");ta.style.position="fixed";ta.style.opacity="0";document.body.appendChild(ta);ta.focus();ta.select();
+      try{copied=document.execCommand("copy")}catch(_){copied=false}ta.remove();
+    }
+    return copied;
+  }
+  async function copyText(){
+    const copied=await copyValue(state.activeText);
     $("actionStatus").textContent=copied?"コピーしました":"全文を選択しました。端末のコピー操作を使ってください";
+  }
+  async function copyGrillText(){
+    const copied=await copyValue(buildGrillInvocation(state.activeText));
+    $("actionStatus").textContent=copied?"/grill-me付きでコピーしました。Claude Codeの入力欄へ貼り付けてください":"コピーできませんでした。本文を手動でコピーしてください";
+  }
+  async function copyGrillCommand(){
+    const copied=await copyValue(`/grill-me @${state.activeFile}`);
+    $("actionStatus").textContent=copied?"実行コマンドをコピーしました":"コマンドを手動でコピーしてください";
   }
   function download(){
     const url=URL.createObjectURL(new Blob([state.activeText],{type:"text/markdown;charset=utf-8"}));
@@ -285,7 +342,7 @@
     const idea=buildCustomIdea({
       theme:$("customTheme").value,target:$("customTarget").value,team:$("customTeam").value,
       playerId:state.playerLabels.get(playerText)||"",playerText,gameId:$("customGame").value,
-      period:$("customPeriod").value,focus:$("customFocus").value,
+      period:$("customPeriod").value,focus:$("customFocus").value,medium:$("customMedium").value,
     },state.data?.custom_context,state.data?.data_date);
     if(idea.error){$("customStatus").textContent=idea.error;$("customPreview").innerHTML="";return null}
     state.customIdea=idea;$("customPreview").innerHTML=renderCard(idea);
@@ -320,8 +377,9 @@
   $("buildCustomPrompt").addEventListener("click",()=>createCustomIdea(true));
   $("customTeam").addEventListener("change",()=>{$("customPlayer").value="";populatePlayers();populateGames()});
   $("customTarget").addEventListener("change",e=>{if(e.target.value==="game")$("customGame").focus()});
+  $("workspaceMedium").addEventListener("change",changeWorkspaceMedium);
   document.querySelectorAll("[data-close]").forEach(x=>x.addEventListener("click",closeWorkspace));
-  $("copyButton").addEventListener("click",copyText);$("downloadButton").addEventListener("click",download);
+  $("copyButton").addEventListener("click",copyText);$("grillCopyButton").addEventListener("click",copyGrillText);$("copyGrillCommandButton").addEventListener("click",copyGrillCommand);$("downloadButton").addEventListener("click",download);
   document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("workspace").hidden)closeWorkspace()});
   init();
 })(typeof globalThis!=="undefined"?globalThis:this);

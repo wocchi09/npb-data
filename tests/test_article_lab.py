@@ -161,12 +161,16 @@ class ArticleLabTests(unittest.TestCase):
 
     @unittest.skipUnless(shutil.which("node"), "Node.js is required")
     def test_prompt_and_brief_generation_in_javascript(self):
-        script = f"const a=require({json.dumps(str(ROOT / 'article_lab.js'))});const i={{type:'trend',team:'ソフトバンク',title:'題',theme:'テーマ',reason:'理由',facts:[{{label:'OPS',value:'.700',source:{{dataset:'season.csv',date:'2026-08-10'}}}}],angles:['論点'],cautions:['注意'],source_refs:[{{dataset:'season.csv',date:'2026-08-10'}}]}};console.log(JSON.stringify({{brief:a.buildBrief(i,'2026-08-10'),prompt:a.fillPrompt('X {{{{TITLE}}}} {{{{FACTS}}}}',i,'2026-08-10')}}));"
+        script = f"const a=require({json.dumps(str(ROOT / 'article_lab.js'))});const i={{type:'trend',team:'ソフトバンク',title:'題',theme:'テーマ',reason:'理由',facts:[{{label:'OPS',value:'.700',source:{{dataset:'season.csv',date:'2026-08-10'}}}}],angles:['論点'],cautions:['注意'],source_refs:[{{dataset:'season.csv',date:'2026-08-10'}}]}};const prompt=a.fillPrompt('X {{{{TITLE}}}} {{{{FACTS}}}} {{{{OUTPUT_MEDIUM}}}} {{{{MEDIUM_INSTRUCTIONS}}}}',i,'2026-08-10','x');console.log(JSON.stringify({{brief:a.buildBrief(i,'2026-08-10','x'),prompt,grill:a.buildGrillInvocation(prompt)}}));"
         result = subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, encoding="utf-8")
         payload = json.loads(result.stdout)
         self.assertIn("Article Brief", payload["brief"])
         self.assertIn("source: season.csv / 2026-08-10", payload["brief"])
         self.assertIn("X 題", payload["prompt"])
+        self.assertIn("X（短文投稿）", payload["brief"])
+        self.assertIn("#NPB #sbhawks", payload["prompt"])
+        self.assertIn("100〜120字", payload["prompt"])
+        self.assertTrue(payload["grill"].startswith("/grill-me\n\nX 題"))
 
     @unittest.skipUnless(shutil.which("node"), "Node.js is required")
     def test_user_theme_builds_a_grounded_custom_idea(self):
@@ -198,12 +202,22 @@ class ArticleLabTests(unittest.TestCase):
         self.assertIn("copyButton", html)
         self.assertIn("downloadButton", html)
         self.assertIn("customTheme", html)
+        self.assertIn("customMedium", html)
+        self.assertIn("workspaceMedium", html)
         self.assertIn("buildCustomPrompt", html)
         self.assertIn("buildCustomIdea", js)
         self.assertIn("article_lab_custom.css", html)
         self.assertIn('option value="central"', html)
         self.assertIn("team_ideas", js)
+        self.assertIn("grillCopyButton", html)
+        self.assertIn("copyGrillCommandButton", html)
+        self.assertIn("/grill-me付きで全文コピー", html)
         self.assertIn("{{ARTICLE_BRIEF}}", prompt)
+        self.assertIn("{{OUTPUT_MEDIUM}}", prompt)
+        self.assertIn("{{MEDIUM_INSTRUCTIONS}}", prompt)
+        self.assertIn("`/grill-me` スキル", prompt)
+        self.assertIn("記事本文をまだ作成せず", prompt)
+        self.assertIn("この方針で初稿を作成してよいですか？", prompt)
         self.assertLess(workflow.index("build_story_insights.py"), workflow.index("build_article_ideas.py"))
 
 

@@ -160,3 +160,96 @@
     grid-template-columns: 1fr;
   }
 }
+
+.workspace-panel:has(.grill-guide:not([hidden])) {
+  grid-template-rows: auto auto minmax(240px, 1fr) auto;
+}
+
+.grill-guide {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(135deg, #fff7ed, #fff);
+  color: #344054;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.workspace-medium {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.workspace-medium select {
+  min-width: 230px;
+  min-height: 38px;
+  padding: 7px 34px 7px 10px;
+  border: 1px solid #fdba74;
+  border-radius: 10px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+}
+
+.grill-guide strong {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.grill-guide p {
+  margin: 4px 0 0;
+}
+
+.grill-guide code {
+  color: #9a3412;
+  font: 700 12px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace;
+  overflow-wrap: anywhere;
+}
+
+.grill-command-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 9px 10px;
+  border: 1px solid #fed7aa;
+  border-radius: 11px;
+  background: #fff;
+}
+
+.grill-command-row .button {
+  flex: 0 0 auto;
+  padding: 7px 10px;
+}
+
+@media (max-width: 760px) {
+  .workspace-panel:has(.grill-guide:not([hidden])) {
+    grid-template-rows: auto auto minmax(38dvh, 1fr) auto;
+  }
+
+  .grill-guide {
+    padding: 12px 16px;
+    max-height: 30dvh;
+    overflow-y: auto;
+  }
+
+  .grill-command-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .workspace-medium {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .workspace-medium select {
+    width: 100%;
+    min-width: 0;
+  }
+}

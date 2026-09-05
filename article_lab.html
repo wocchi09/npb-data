@@ -86,6 +86,13 @@
             <option value="advanced">セイバーメトリクス</option>
           </select>
         </label>
+        <label class="field" for="customMedium">
+          <span>掲載先</span>
+          <select id="customMedium">
+            <option value="note">note（長文記事）</option>
+            <option value="x">X（短文投稿）</option>
+          </select>
+        </label>
       </div>
       <div class="custom-actions">
         <button id="buildCustomIdea" class="button" type="button">根拠データを確認</button>
@@ -136,9 +143,27 @@
         </div>
         <button class="close-button" type="button" data-close aria-label="閉じる">×</button>
       </header>
+      <div id="grillGuide" class="grill-guide" hidden>
+        <label class="workspace-medium" for="workspaceMedium">
+          <span>掲載先</span>
+          <select id="workspaceMedium">
+            <option value="note">note（8,000〜10,000字目安）</option>
+            <option value="x">X（短い1投稿）</option>
+          </select>
+        </label>
+        <div>
+          <strong>おすすめ：Claude Codeで <code>/grill-me</code> を先に起動</strong>
+          <p><b>「/grill-me付きで全文コピー」</b>を押して入力欄へ貼り付けるか、ダウンロード後に下のコマンドを実行してください。Markdownファイルだけを添付すると、内容を復唱して終わる場合があります。</p>
+        </div>
+        <div class="grill-command-row">
+          <code id="grillFileCommand">/grill-me @article-prompt.md</code>
+          <button id="copyGrillCommandButton" class="button" type="button">コマンドをコピー</button>
+        </div>
+      </div>
       <textarea id="workspaceText" readonly spellcheck="false"></textarea>
       <div class="workspace-actions">
-        <button id="copyButton" class="button primary" type="button">コピー</button>
+        <button id="grillCopyButton" class="button primary" type="button" hidden>/grill-me付きで全文コピー</button>
+        <button id="copyButton" class="button" type="button">本文だけコピー</button>
         <button id="downloadButton" class="button" type="button">.mdでダウンロード</button>
         <span id="actionStatus" role="status"></span>
       </div>
