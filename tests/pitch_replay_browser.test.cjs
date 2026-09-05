@@ -36,7 +36,7 @@ before(async () => {
     if (!file.startsWith(root + path.sep)) { response.writeHead(403).end(); return; }
     fs.readFile(file, (error, contents) => {
       if (error) { response.writeHead(404).end(); return; }
-      const mime = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml' }[path.extname(file)] || 'application/octet-stream';
+      const mime = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.webp': 'image/webp' }[path.extname(file)] || 'application/octet-stream';
       response.writeHead(200, { 'Content-Type': mime + '; charset=utf-8' }); response.end(contents);
     });
   });
@@ -206,5 +206,21 @@ test('ANALYST LAB pitch filter and existing scoreboard link resolve to the corre
   assert.equal(url.searchParams.get('game'), realFile); assert.equal(url.searchParams.get('atbat'), '0110100');
   await page.goto(url.href); await page.locator('#replay-content').waitFor({ state: 'visible' });
   assert.equal(await page.evaluate(() => getPlateAppearanceSummary().source.index), '0110100');
+  await page.close();
+});
+test('homepage has a directly visible replay link on desktop and mobile', async () => {
+  const page = await openPage();
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(base + 'index.html');
+    const link = page.locator('#home-replay-link');
+    assert.equal(await link.isVisible(), true);
+    assert.match(await link.innerText(), /打席リプレイ/);
+    const bounds = await link.boundingBox();
+    assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= width && bounds.y < 900);
+    if (process.env.REPLAY_QA_DIR) await page.screenshot({ path: path.join(process.env.REPLAY_QA_DIR, 'home-replay-' + width + '.png') });
+    await link.click(); await page.locator('#replay-content').waitFor({ state: 'visible' });
+    assert.equal(await page.locator('#replay-batter-portrait').evaluate(img => img.complete && img.naturalWidth === 512), true);
+  }
   await page.close();
 });

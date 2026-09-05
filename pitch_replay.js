@@ -113,11 +113,12 @@
     $('view-title').textContent = batterView ? (side === 1 ? '右打者' : '左打者') + 'の目線（簡易）' : '捕手視点';
     $('svg-title').textContent = $('view-title').textContent + '：投球コースと簡易軌道';
     $('batter-side').textContent = !side ? '打者の左右：未取得（内外角は判定しません）' : batterView ? '打者の目線からホームを見るイメージ' : side === 1 ? '右打者：画面左側' : '左打者：画面右側';
-    $('view-note').textContent = !side ? '打者の左右が不明なため、打者視点・構えの表示は利用できません。' : batterView ? '目の位置・角度・手元は簡易モデル。構えは共通イラストです。' : '打者画像は共通イラストです。保存された打者の左右に対応しています。';
+    $('view-note').textContent = !side ? '打者の左右が不明なため、打者視点・構えの表示は利用できません。' : batterView ? '目の位置・角度・手元は簡易モデル。打者画像はAI生成の共通イメージです。' : '打者画像はAI生成の共通イメージです。保存された打者の左右に対応しています。';
     $('batter-image').toggleAttribute('hidden', !illustrated || batterView);
     $('batter-hands').toggleAttribute('hidden', !illustrated || !batterView);
     for (const id of ['batter-image', 'batter-hands']) $(id).setAttribute('transform', side === -1 ? 'translate(500 0) scale(-1 1)' : '');
     $('batter-portrait').hidden = !illustrated;
+    document.querySelector('.replay-art-credit').hidden = !illustrated;
     $('batter-portrait').style.transform = side === -1 ? 'scaleX(-1)' : '';
     $('batter-portrait').alt = (side === 1 ? '右打ち' : '左打ち') + 'の共通イラスト（選手本人の容姿・構えの再現ではありません）';
     // Fit out-of-chart recorded points without clamping them into the strike zone.

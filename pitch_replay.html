@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#17233c">
   <title>打席リプレイ | NPB DATA LAB</title>
   <link rel="stylesheet" href="analyst_lab.css">
-  <link rel="stylesheet" href="pitch_replay.css?v=20260905-batter">
+  <link rel="stylesheet" href="pitch_replay.css?v=20260906-batter-art">
 </head>
 <body class="replay-page">
   <header class="topbar">
@@ -37,7 +37,7 @@
             <desc id="replay-svg-desc">3×3のストライクゾーン。番号は球順です。詳しい実データは隣の投球一覧にあります。</desc>
             <rect x="1" y="1" width="498" height="468" rx="12" fill="#f3f7fc"/>
             <text x="250" y="27" class="replay-svg-label" text-anchor="middle">投手 → ホーム</text>
-            <image id="replay-batter-image" href="replay_batter.svg" x="7" y="181" width="112" height="204" opacity=".72"/>
+            <image id="replay-batter-image" href="replay_batter_v2.webp" x="4" y="155" width="140" height="235"/>
             <g id="replay-zone"></g>
             <path d="M227 422 L273 422 L273 438 L250 453 L227 438 Z" fill="white" stroke="#9daec4"/>
             <path id="replay-trail" fill="none" stroke-width="3" opacity=".5"/>
@@ -59,7 +59,7 @@
           <p class="sub">番号は保存された球順（欠損時は「?」）。同じコースの番号は少しずらして表示し、線の先端が記録位置を示します。</p>
         </section>
         <section class="card replay-info" aria-label="投球情報">
-          <div class="replay-matchup"><div><span>投手</span><h3 id="replay-pitcher"></h3></div><span class="replay-versus">VS</span><div><span>打者</span><h3 id="replay-batter"></h3><img id="replay-batter-portrait" src="replay_batter.svg" alt="打者の共通イラスト" width="54" height="90"></div></div>
+          <div class="replay-matchup"><div><span>投手</span><h3 id="replay-pitcher"></h3></div><span class="replay-versus">VS</span><div><span>打者</span><h3 id="replay-batter"></h3><img id="replay-batter-portrait" src="replay_batter_v2.webp" alt="打者の共通イメージ・AI生成" width="80" height="120"><small class="replay-art-credit">共通イメージ・AI生成</small></div></div>
           <div class="replay-counts"><div><span id="replay-count-label">B / S（投球前・再計算）</span><strong id="replay-bs">— / —</strong></div><div><span>O（取得時点・固定）</span><strong id="replay-outs">—</strong></div><div><span>表示球数</span><strong id="replay-number">—</strong></div></div>
           <div id="replay-current" class="replay-current" aria-live="polite"></div>
           <p id="replay-result" class="note" hidden></p>
@@ -71,14 +71,14 @@
         <p>コースは配球図の座標を使用します。既存サイトの投手視点という扱いに合わせて左右反転し、捕手視点で表示します。ストライクゾーンの枠も近似です。内外角の表示は座標と打者の左右からの変換であり、保存ラベルとは分けています。</p>
         <p>B/Sは球順と結果からの再計算です。欠番・結果不明の後は「未取得」とします。Oは打席JSONの取得時点の値を固定表示します。取得処理は公式表示がなければB/Sを推定保存しますが、その出典フラグと取得タイミングは保存していません。毎球のアウト数は再現できません。</p>
         <p>取得できないため簡易モデルで補完：軌道・リリース位置・変化量・飛行時間。座標がなくグリッドだけある場合はセル中心を使用します。球速未取得時の再生時間は共通設定です。投手の左右が不明な場合は横変化を加えません。</p>
-        <p>打者視点の目線・角度・構えも簡易モデルです。打者画像は共通イラストで、選手本人の容姿やフォームを再現したものではありません。保存された右打ち・左打ちに合わせて向きを変えます。左右が不明な打者の目線は補完しません。</p>
+        <p>打者視点の目線・角度・構えも簡易モデルです。打者画像はAI生成した共通イメージで、選手本人の容姿やフォームを再現したものではありません。保存された右打ち・左打ちに合わせて向きを変えます。左右が不明な打者の目線は補完しません。</p>
         <p>AIによる解釈は未接続です。投球意図は断定せず、将来のAI出力は実データと別の欄に表示する設計です。</p>
         <button id="replay-export">AI解説用JSONを保存</button>
       </details>
     </section>
     <noscript><p class="note">リプレイにはJavaScriptを有効にしてください。</p></noscript>
   </main>
-  <script src="pitch_replay_model.js?v=20260905-batter"></script>
-  <script src="pitch_replay.js?v=20260905-batter"></script>
+  <script src="pitch_replay_model.js?v=20260906-batter-art"></script>
+  <script src="pitch_replay.js?v=20260906-batter-art"></script>
 </body>
 </html>
