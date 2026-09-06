@@ -2,7 +2,7 @@
   "season": "2026",
   "metric": "W-Impact",
   "version": "1.6.0",
-  "generated_at": "2026-09-06T20:41:21.698129+09:00",
+  "generated_at": "2026-09-06T21:01:48.481050+09:00",
   "note": "サイト独自の総合貢献指数。WAR・UZRではありません。守備はポジション難度、失策、守備交代、複数守備の参考評価であり、守備範囲は含みません。打撃・投球は縮小済み球場係数と対戦相手強度で環境補正し、標本量に応じた信頼度を表示します。取得できない項目は推測していません。",
   "scale": {
     "average": 100,
@@ -2570,7 +2570,7 @@
       },
       "components": {
         "batting": 109.6,
-        "clutch": 115.8,
+        "clutch": 115.7,
         "baserunning": 106.0,
         "defense": 78.9,
         "role": 126.2,
@@ -7995,7 +7995,7 @@
       },
       "components": {
         "batting": 91.8,
-        "clutch": 90.9,
+        "clutch": 90.8,
         "baserunning": 82.2,
         "defense": 127.1,
         "role": 88.9,
@@ -12177,7 +12177,7 @@
       },
       "components": {
         "batting": 78.7,
-        "clutch": 118.0,
+        "clutch": 117.9,
         "baserunning": 121.8,
         "defense": 108.2,
         "role": 115.7,
@@ -20191,7 +20191,7 @@
       },
       "components": {
         "batting": 104.8,
-        "clutch": 96.6,
+        "clutch": 96.5,
         "baserunning": 52.9,
         "defense": 110.9,
         "role": 88.1,
@@ -21373,7 +21373,7 @@
       },
       "components": {
         "batting": 79.3,
-        "clutch": 93.8,
+        "clutch": 93.7,
         "baserunning": 102.5,
         "defense": 79.0,
         "role": 114.5,
@@ -21755,84 +21755,6 @@
       "w_value": 0.24
     },
     {
-      "player_key": "p1500041",
-      "player_id": "1500041",
-      "name": "廣岡 大志",
-      "team": "オリックス",
-      "league": "パ",
-      "position": "右",
-      "confidence": {
-        "score": 21,
-        "label": "低い",
-        "level": 1,
-        "stars": "★☆☆☆☆"
-      },
-      "context": {
-        "park_factor": 0.957,
-        "opponent_factor": 1.017,
-        "adjustment": 1.062,
-        "sample": 50.0
-      },
-      "stats": {
-        "games": 13,
-        "pa": 51,
-        "ops": 0.426,
-        "ops_context_adjusted": 0.452,
-        "avg": 0.191,
-        "obp": 0.235,
-        "slg": 0.191,
-        "iso": 0.0,
-        "babip": 0.281,
-        "bb_pct": 0.059,
-        "k_pct": 0.314,
-        "bb_k": 0.19,
-        "woba_est": 0.198,
-        "wraa_est": -4.66,
-        "wrc_est": 0.51,
-        "wrc_plus_est": 10.0,
-        "rc27": 1.33,
-        "xr27": 0.33,
-        "gpa": 0.153,
-        "seca": 0.043,
-        "ta": 0.279,
-        "bsr_est": -0.4,
-        "qualified_pa": false,
-        "required_pa": 384.4,
-        "caught_stealing": 1,
-        "baserunning_outs": 0,
-        "baserunning_net_runs": -0.4,
-        "hr": 0,
-        "rbi": 3,
-        "sb": 0,
-        "errors": 0,
-        "starts": 13,
-        "pinch_hit_apps": 0,
-        "pinch_run_apps": 0,
-        "def_sub_apps": 0,
-        "position_apps": {
-          "右": 11,
-          "一": 2,
-          "中": 1,
-          "三": 1
-        },
-        "primary_position": "右",
-        "qualified_positions": [
-          "右"
-        ]
-      },
-      "components": {
-        "batting": 83.7,
-        "clutch": 73.1,
-        "baserunning": 80.3,
-        "defense": 96.8,
-        "role": 87.6,
-        "versatility": 90.7,
-        "availability": 89.2
-      },
-      "w_rating": 83.9,
-      "w_value": 0.24
-    },
-    {
       "player_key": "p2107851",
       "player_id": "2107851",
       "name": "イヒネ イツア",
@@ -22130,6 +22052,84 @@
         "availability": 88.2
       },
       "w_rating": 92.7,
+      "w_value": 0.23
+    },
+    {
+      "player_key": "p1500041",
+      "player_id": "1500041",
+      "name": "廣岡 大志",
+      "team": "オリックス",
+      "league": "パ",
+      "position": "右",
+      "confidence": {
+        "score": 21,
+        "label": "低い",
+        "level": 1,
+        "stars": "★☆☆☆☆"
+      },
+      "context": {
+        "park_factor": 0.957,
+        "opponent_factor": 1.017,
+        "adjustment": 1.062,
+        "sample": 50.0
+      },
+      "stats": {
+        "games": 13,
+        "pa": 51,
+        "ops": 0.426,
+        "ops_context_adjusted": 0.452,
+        "avg": 0.191,
+        "obp": 0.235,
+        "slg": 0.191,
+        "iso": 0.0,
+        "babip": 0.281,
+        "bb_pct": 0.059,
+        "k_pct": 0.314,
+        "bb_k": 0.19,
+        "woba_est": 0.198,
+        "wraa_est": -4.66,
+        "wrc_est": 0.51,
+        "wrc_plus_est": 10.0,
+        "rc27": 1.33,
+        "xr27": 0.33,
+        "gpa": 0.153,
+        "seca": 0.043,
+        "ta": 0.279,
+        "bsr_est": -0.4,
+        "qualified_pa": false,
+        "required_pa": 384.4,
+        "caught_stealing": 1,
+        "baserunning_outs": 0,
+        "baserunning_net_runs": -0.4,
+        "hr": 0,
+        "rbi": 3,
+        "sb": 0,
+        "errors": 0,
+        "starts": 13,
+        "pinch_hit_apps": 0,
+        "pinch_run_apps": 0,
+        "def_sub_apps": 0,
+        "position_apps": {
+          "右": 11,
+          "一": 2,
+          "中": 1,
+          "三": 1
+        },
+        "primary_position": "右",
+        "qualified_positions": [
+          "右"
+        ]
+      },
+      "components": {
+        "batting": 83.7,
+        "clutch": 73.1,
+        "baserunning": 80.3,
+        "defense": 96.8,
+        "role": 87.6,
+        "versatility": 90.7,
+        "availability": 89.2
+      },
+      "w_rating": 83.8,
       "w_value": 0.23
     },
     {
@@ -24232,7 +24232,7 @@
         "versatility": 90.7,
         "availability": 89.3
       },
-      "w_rating": 87.8,
+      "w_rating": 87.7,
       "w_value": 0.15
     },
     {
@@ -31700,14 +31700,14 @@
       },
       "components": {
         "batting": 98.1,
-        "clutch": 100.3,
+        "clutch": 101.4,
         "baserunning": 100.3,
         "defense": 96.8,
         "role": 87.6,
         "versatility": 90.7,
         "availability": 84.9
       },
-      "w_rating": 96.3,
+      "w_rating": 96.5,
       "w_value": 0.03
     },
     {
@@ -54664,7 +54664,7 @@
       "league": "パ",
       "batter_w_value": 0.03,
       "pitcher_w_value": 10.1,
-      "batter_w_rating": 96.3,
+      "batter_w_rating": 96.5,
       "pitcher_w_rating": 121.6,
       "batting_games": 1,
       "pitching_games": 21,
@@ -80451,48 +80451,6 @@
       }
     },
     {
-      "player_key": "p1500041",
-      "player_id": "1500041",
-      "name": "廣岡 大志",
-      "team": "オリックス",
-      "league": "パ",
-      "batter_w_value": 0.24,
-      "pitcher_w_value": 0.0,
-      "batter_w_rating": 83.9,
-      "pitcher_w_rating": null,
-      "batting_games": 13,
-      "pitching_games": 0,
-      "qualified_pa": false,
-      "qualified_ip": false,
-      "batter_confidence": {
-        "score": 21,
-        "label": "低い",
-        "level": 1,
-        "stars": "★☆☆☆☆"
-      },
-      "pitcher_confidence": null,
-      "batter_context": {
-        "park_factor": 0.957,
-        "opponent_factor": 1.017,
-        "adjustment": 1.062,
-        "sample": 50.0
-      },
-      "pitcher_context": null,
-      "w_value": 0.24,
-      "w_rating": 83.9,
-      "confidence": {
-        "score": 21,
-        "label": "低い",
-        "level": 1,
-        "stars": "★☆☆☆☆"
-      },
-      "context": {
-        "park_factor": 0.957,
-        "opponent_factor": 1.017,
-        "adjustment": 1.062
-      }
-    },
-    {
       "player_key": "p2107851",
       "player_id": "2107851",
       "name": "イヒネ イツア",
@@ -80658,6 +80616,48 @@
         "park_factor": 0.996,
         "opponent_factor": 1.026,
         "adjustment": 1.03
+      }
+    },
+    {
+      "player_key": "p1500041",
+      "player_id": "1500041",
+      "name": "廣岡 大志",
+      "team": "オリックス",
+      "league": "パ",
+      "batter_w_value": 0.23,
+      "pitcher_w_value": 0.0,
+      "batter_w_rating": 83.8,
+      "pitcher_w_rating": null,
+      "batting_games": 13,
+      "pitching_games": 0,
+      "qualified_pa": false,
+      "qualified_ip": false,
+      "batter_confidence": {
+        "score": 21,
+        "label": "低い",
+        "level": 1,
+        "stars": "★☆☆☆☆"
+      },
+      "pitcher_confidence": null,
+      "batter_context": {
+        "park_factor": 0.957,
+        "opponent_factor": 1.017,
+        "adjustment": 1.062,
+        "sample": 50.0
+      },
+      "pitcher_context": null,
+      "w_value": 0.23,
+      "w_rating": 83.8,
+      "confidence": {
+        "score": 21,
+        "label": "低い",
+        "level": 1,
+        "stars": "★☆☆☆☆"
+      },
+      "context": {
+        "park_factor": 0.957,
+        "opponent_factor": 1.017,
+        "adjustment": 1.062
       }
     },
     {
@@ -81738,7 +81738,7 @@
       "league": "パ",
       "batter_w_value": 0.15,
       "pitcher_w_value": 0.0,
-      "batter_w_rating": 87.8,
+      "batter_w_rating": 87.7,
       "pitcher_w_rating": null,
       "batting_games": 13,
       "pitching_games": 0,
@@ -81759,7 +81759,7 @@
       },
       "pitcher_context": null,
       "w_value": 0.15,
-      "w_rating": 87.8,
+      "w_rating": 87.7,
       "confidence": {
         "score": 16,
         "label": "低い",
