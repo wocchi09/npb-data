@@ -3,6 +3,10 @@
 スポナビ（Yahoo!スポーツ）の一球速報を毎日自動収集し、
 **球種・球速・コース・結果**を貯めて、スマホ・PCから見られるリポジトリ。
 
+## AI ANALYST / AI打席分析
+
+打席リプレイの「🤖 この打席をAI分析」から、選択した1打席の実データを日本語で解説します。投球意図を推測せず、観測値・導出値とAI解説を分離します。Vercel Functions経由でOpenAIを利用し、ブラウザへAPIキーを公開しません。利用にはVercel環境変数と公開API URLの設定が必要です。[設定・デプロイ・API仕様・制約](docs/AI_ANALYST.md)を参照してください。
+
 ## NotebookLM連携
 
 毎日の収集後、NotebookLM向けCSVを `data/notebooklm/` に生成します。Apps Scriptの初期設定で「シーズン全体・対戦データ・直近データ」の3冊を自動作成し、以後まとめて更新します。詳しくは [NotebookLMセットアップ手順](docs/NOTEBOOKLM_SETUP.md) と [データ項目仕様](docs/NOTEBOOKLM_DATA_SPEC.md) を参照してください。
