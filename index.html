@@ -1850,9 +1850,9 @@
   }
 
   /* ---- 配球チャート（ストライクゾーンに投球位置をプロット） ----
-     コース座標は 0〜63px の範囲に分布。実データの検証から、
-     ストライクゾーンは概ね top:10-58 / left:5-50 の内側。 */
-  var CH={size:63, zTop:10, zBottom:58, zLeft:5, zRight:50};
+     コース座標は 0〜63px の範囲に分布。grid_row/grid_colは0〜63pxを5分割した
+     ちょうど size/5 刻みの境界で、ストライクゾーンはその1〜3行・列にあたる。 */
+  var CH={size:63, zTop:63/5, zBottom:63*4/5, zLeft:63/5, zRight:63*4/5};
 
   function buildChart(ab){
     var ps=(ab.pitches||[]).filter(function(p){
