@@ -7,13 +7,17 @@
 埋められるもの:
   - stadium … 球場名
   - boxscore … 出場成績（打順・スタメン判定・守備位置つき）
+  - atbats … 牽制/ボークで打席が中断され、本当の結果・残りの投球が
+    取れていなかった打席の復元（打者番号の連番だけでは追えなかった
+    続きのページを、ページ内リンクから見つけて追いかける）
 
 使い方:
     python scraper/backfill.py --season 2026
     python scraper/backfill.py --date 2026-07-19
     python scraper/backfill.py --season 2026 --what stadium
+    python scraper/backfill.py --season 2026 --what atbats
 
-すでに項目が入っている試合は自動でスキップするので、
+すでに項目が入っている試合・中断が見つからない試合は自動でスキップするので、
 何度実行しても余計なアクセスは発生しない（冪等）。
 """
 
@@ -28,7 +32,8 @@ from datetime import datetime, timedelta, timezone
 import requests
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from parser import parse_stats_page, parse_stadium
+from parser import parse_stats_page, parse_stadium, extract_atbat_indexes
+from main import fetch_atbat, looks_interrupted_atbat
 
 BASE = "https://baseball.yahoo.co.jp"
 JST = timezone(timedelta(hours=9))
@@ -79,6 +84,92 @@ def needs_boxscore(g) -> bool:
     return not any(r.get("order") for r in rows)
 
 
+def find_interrupted_half_innings(g) -> list[list[dict]]:
+    """
+    牽制/ボークなど打席の結論ではない状態でアウト3未満のまま止まり、
+    次のイニング(表/裏)に切り替わっている半イニングを打席の並び順で返す。
+    試合最後の半イニング（サヨナラ・コールドで3アウトに届かない場合がある）
+    は対象外にする。
+    """
+    atbats = g.get("atbats") or []
+    if not atbats:
+        return []
+    groups: list[list[dict]] = []
+    for ab in atbats:
+        key = (ab.get("inning"), ab.get("top_bottom"))
+        if groups and (groups[-1][0].get("inning"), groups[-1][0].get("top_bottom")) == key:
+            groups[-1].append(ab)
+        else:
+            groups.append([ab])
+    return [
+        group for group in groups[:-1]
+        if group and looks_interrupted_atbat(group[-1])
+    ]
+
+
+def needs_atbats(g) -> bool:
+    """中断されたまま止まっている半イニングがあれば補完対象"""
+    return bool(find_interrupted_half_innings(g))
+
+
+def repair_atbats(g) -> list[str]:
+    """
+    中断が疑われる半イニングごとに、最後に記録した打席のページを取り直して
+    埋め込みリンクからindexを拾い、続きの打席を追いかけて g["atbats"] に
+    挿入する。戻り値は復元できた半イニングの説明（ログ表示用）。
+    """
+    game_id = g.get("game_id")
+    touched = []
+    for group in find_interrupted_half_innings(g):
+        last = group[-1]
+        inning, top_bottom = last.get("inning"), last.get("top_bottom")
+        tb = 1 if top_bottom == "表" else 2
+        prefix = f"{inning:02d}{tb}"
+        fetched_indexes = {ab["index"] for ab in g["atbats"] if ab.get("index")}
+        known_indexes = set()
+
+        # 中断箇所のページを取り直し、そこに埋まっているリンクから拾い直す
+        refetched = fetch_atbat(game_id, last["index"])
+        if refetched is None:
+            continue
+        page, _ = refetched
+        known_indexes.update(extract_atbat_indexes(page))
+
+        recovered = []
+        current_last = last
+        for _ in range(8):  # 無限ループ防止の安全弁
+            if not looks_interrupted_atbat(current_last):
+                break
+            pending = sorted(
+                i for i in known_indexes
+                if i.startswith(prefix) and i not in fetched_indexes
+            )
+            if not pending:
+                break
+            progressed = None
+            for idx in pending:
+                fetched_indexes.add(idx)
+                fetched = fetch_atbat(game_id, idx)
+                if fetched is None:
+                    continue
+                page, ab = fetched
+                known_indexes.update(extract_atbat_indexes(page))
+                if ab["valid"]:
+                    ab["batting_team"] = g["away"] if tb == 1 else g["home"]
+                    ab["fielding_team"] = g["home"] if tb == 1 else g["away"]
+                    recovered.append(ab)
+                    progressed = ab
+            if progressed is None:
+                break
+            current_last = progressed
+
+        if recovered:
+            g["atbats"].extend(recovered)
+            g["atbats"].sort(key=lambda a: a["index"])
+            touched.append(f"{inning}回{top_bottom}: {len(recovered)}打席分を復元")
+    return touched
+
+
 def update_summary(day_dir):
     """その日の _summary.json に球場を反映する"""
     sp = os.path.join(day_dir, "_summary.json")
@@ -121,10 +212,24 @@ def backfill_game(path, what) -> dict:
 
     want_stadium = ("stadium" in what) and not g.get("stadium")
     want_box = ("boxscore" in what) and needs_boxscore(g)
-    if not want_stadium and not want_box:
+    want_atbats = ("atbats" in what) and needs_atbats(g)
+    if not want_stadium and not want_box and not want_atbats:
         return {"status": "skip", "reason": "補完不要"}
 
     got = []
+
+    if want_atbats:
+        try:
+            touched = repair_atbats(g)
+        except Exception as e:
+            print(f"    [WARN] 打席の復元に失敗: {e}")
+            touched = []
+        if touched:
+            g["atbat_count"] = len(g["atbats"])
+            g["pitch_count"] = sum(len(ab.get("pitches") or []) for ab in g["atbats"])
+            got.append("atbats")
+            for line in touched:
+                print(f"    復元: {line}")
 
     # まず /stats を1回取得（出場成績と、あれば球場もここで取れる）
     stats_html = None
@@ -173,7 +278,7 @@ def main():
     ap.add_argument("--date", default=None, help="この日だけ補完する")
     ap.add_argument("--base", default="data")
     ap.add_argument("--what", default="stadium,boxscore",
-                    help="補完する項目（カンマ区切り）")
+                    help="補完する項目（カンマ区切り。stadium,boxscore,atbats）")
     ap.add_argument("--limit", type=int, default=0,
                     help="処理する試合数の上限（0なら無制限）")
     args = ap.parse_args()
