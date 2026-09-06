@@ -151,6 +151,22 @@ def looks_interrupted_atbat(ab: dict) -> bool:
     return result in _MID_COUNT_CALLS
 
 
+def is_recoverable_atbat(ab: dict) -> bool:
+    """
+    ページ内リンクから見つけたindexを、実際に打席として採用してよいか。
+    「BB=打者番号(01-)」のはずだが、実データでは同じ半イニング内のページが
+    守備交代・投手交代などの告知（打者番号00、投球0球、打者名＝投手名など）
+    にもリンクしていることがあり、それは打席ではない。番号が01以上で、
+    かつ1球以上記録されているものだけを本物の打席として扱う。
+    """
+    if not ab.get("valid"):
+        return False
+    m = re.match(r"\d{2}[12](\d{2})", ab.get("index") or "")
+    if not m or m.group(1) == "00":
+        return False
+    return (ab.get("pitch_count") or 0) > 0
+
+
 def fetch_atbat(game_id: str, idx: str) -> tuple[str, dict] | None:
     """1打席ページを取得してパースする。取得失敗ならNoneを返す。"""
     url = f"{BASE}/npb/game/{game_id}/score?index={idx}"
@@ -291,7 +307,7 @@ def collect_game(game_id: str, expected_date: datetime | None = None) -> dict:
                         continue
                     page, ab = fetched
                     known_indexes.update(extract_atbat_indexes(page))
-                    if ab["valid"]:
+                    if is_recoverable_atbat(ab):
                         register(ab, tb)
                         inning_had_atbat = True
                 # indexの文字列順=試合内の時系列。挿入順がずれていても並べ直す。
@@ -320,7 +336,7 @@ def collect_game(game_id: str, expected_date: datetime | None = None) -> dict:
             page, ab = fetched
             known_indexes.update(extract_atbat_indexes(page))
             m = re.match(r"(\d{2})([12])", idx)
-            if ab["valid"] and m:
+            if m and is_recoverable_atbat(ab):
                 register(ab, int(m.group(2)))
     atbats.sort(key=lambda a: a["index"])
 

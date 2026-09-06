@@ -12,12 +12,12 @@ sys.path.insert(0, str(ROOT / "scraper"))
 import backfill  # noqa: E402
 
 
-def _atbat(idx, inning, top_bottom, valid=True, result=None, out=None):
+def _atbat(idx, inning, top_bottom, valid=True, result=None, out=None, pitch_count=1):
     return {
         "index": idx, "inning": inning, "top_bottom": top_bottom,
         "valid": valid, "result_summary": result,
         "count": {"ball": 0, "strike": 0, "out": out},
-        "pitches": [],
+        "pitch_count": pitch_count, "pitches": [{"no": i + 1} for i in range(pitch_count)],
         "batter": {"name": "打者"} if valid else None,
         "pitcher": {"name": "投手"} if valid else None,
     }
@@ -110,6 +110,41 @@ class RepairAtbatsTest(unittest.TestCase):
         self.assertEqual(recovered["count"]["out"], 3)
         self.assertEqual(recovered["batting_team"], "ソフトバンク")
         self.assertEqual(recovered["fielding_team"], "西武")
+
+    def test_rejects_a_defensive_substitution_announcement_found_via_the_same_link(self):
+        # 実データで実際に踏んだ回帰: 中断ページのリンクの先が、続きの打席では
+        # なく守備交代の告知（打者番号00・投球0球）だった。でっち上げ打席を
+        # 挿入せず、中断状態のまま何も変えない。
+        g = {
+            "game_id": "2021039383", "away": "西武", "home": "ソフトバンク",
+            "atbats": [
+                _atbat("0110100", 1, "表", result="三ゴロ", out=1),
+                _atbat("0120100", 1, "裏", result="見逃し三振", out=1),
+                _atbat("0120200", 1, "裏", result="1塁けん制", out=2),
+                _atbat("0210100", 2, "表", result="三振", out=1),
+            ],
+        }
+        bogus = _atbat("0120000", 1, "裏", result="【守備】平沢：（打）→（右）", out=0, pitch_count=0)
+        bogus["batter"] = {"name": "隅田 知一郎"}
+        bogus["pitcher"] = {"name": "隅田 知一郎"}
+        before = [dict(a) for a in g["atbats"]]
+
+        def fake_fetch_atbat(game_id, idx):
+            if idx == "0120200":
+                return ("PAGE-0120200", g["atbats"][2])
+            if idx == "0120000":
+                return ("PAGE-0120000", bogus)
+            return None
+
+        with (
+            patch.object(backfill, "fetch_atbat", side_effect=fake_fetch_atbat),
+            patch.object(backfill, "extract_atbat_indexes",
+                         side_effect=lambda page: ["0120000"] if page == "PAGE-0120200" else []),
+        ):
+            touched = backfill.repair_atbats(g)
+
+        self.assertEqual(touched, [])
+        self.assertEqual(g["atbats"], before)
 
     def test_no_change_when_nothing_new_is_discoverable(self):
         g = {
