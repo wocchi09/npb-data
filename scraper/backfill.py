@@ -33,7 +33,7 @@ import requests
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from parser import parse_stats_page, parse_stadium, extract_atbat_indexes
-from main import fetch_atbat, looks_interrupted_atbat
+from main import fetch_atbat, looks_interrupted_atbat, is_recoverable_atbat
 
 BASE = "https://baseball.yahoo.co.jp"
 JST = timezone(timedelta(hours=9))
@@ -154,7 +154,7 @@ def repair_atbats(g) -> list[str]:
                     continue
                 page, ab = fetched
                 known_indexes.update(extract_atbat_indexes(page))
-                if ab["valid"]:
+                if is_recoverable_atbat(ab):
                     ab["batting_team"] = g["away"] if tb == 1 else g["home"]
                     ab["fielding_team"] = g["home"] if tb == 1 else g["away"]
                     recovered.append(ab)
