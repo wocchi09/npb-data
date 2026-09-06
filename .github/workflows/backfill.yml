@@ -2,6 +2,10 @@ name: Backfill Missing Data
 
 # 収集済みの試合データに、あとから追加した項目（球場・打順など）だけを埋める。
 # 打席の全巡回はやり直さないので、1試合あたり1〜2リクエストで完了する。
+# what に atbats を含めると、牽制/ボークで打席が中断され、本当の結果・
+# 残りの投球を取得できていなかった打席だけを探して復元する
+# （該当する打席が無い試合はスキップされるので、通常のstadium/boxscoreより
+#  リクエスト数が増えるのは実際に中断が見つかった試合だけ）。
 
 on:
   workflow_dispatch:
@@ -15,7 +19,7 @@ on:
         required: false
         default: ""
       what:
-        description: "補完する項目（stadium,boxscore）"
+        description: "補完する項目（stadium,boxscore,atbats）"
         required: false
         default: "stadium,boxscore"
       limit:

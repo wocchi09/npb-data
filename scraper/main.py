@@ -126,6 +126,42 @@ def clean_day_folder(date: datetime):
         print(f"[INFO] 既存フォルダを初期化: {d}")
 
 
+# 牽制・ボークなど「打席の結論ではない」途中経過の表示。これで打席ページが
+# 止まっている場合、同じ打者の続き（本当の結果・残りの投球）が別indexの
+# ページに存在し、打者番号を1つずつ進めるだけの巡回では見つけられないことがある。
+_PICKOFF_OR_BALK_RE = re.compile(r"[1-3]塁けん制|ボーク")
+_MID_COUNT_CALLS = {
+    "ボール", "見逃し", "空振り", "ファウル",
+    "ボール ＋1点", "見逃し ＋1点", "空振り ＋1点", "ファウル ＋1点",
+}
+
+
+def looks_interrupted_atbat(ab: dict) -> bool:
+    """
+    アウトが3未満のまま、素の球判定や牽制・ボークで打席が止まっているか。
+    「見逃し三振」のような本当の結論はここには含めない（"三振"等の接尾辞を
+    伴わない、たまたま一致部分だけの生の球判定・牽制・ボークだけを見る）。
+    """
+    out = (ab.get("count") or {}).get("out")
+    if out is None or out >= 3:
+        return False
+    result = ab.get("result_summary") or ""
+    if _PICKOFF_OR_BALK_RE.search(result):
+        return True
+    return result in _MID_COUNT_CALLS
+
+
+def fetch_atbat(game_id: str, idx: str) -> tuple[str, dict] | None:
+    """1打席ページを取得してパースする。取得失敗ならNoneを返す。"""
+    url = f"{BASE}/npb/game/{game_id}/score?index={idx}"
+    try:
+        page = fetch(url)
+    except Exception as e:
+        print(f"  [{idx}] 取得失敗: {e}")
+        return None
+    return page, parse_atbat(page, idx)
+
+
 def collect_game(game_id: str, expected_date: datetime | None = None) -> dict:
     """
     1試合ぶんを全打席巡回して収集する。
@@ -136,6 +172,13 @@ def collect_game(game_id: str, expected_date: datetime | None = None) -> dict:
     ページ内リンクは各イニングの1打席目しか無いため、
     打者番号を 01, 02, 03... と自分で進めて全打席を辿る。
     打者名が取れない or「試合前」が出たらそのイニングは終了。
+
+    ただし牽制やボークで打席が中断されると、この単純な連番では
+    追えない別indexに本当の続き（残りの投球・本当の結果）が
+    存在することがある。各ページ内に埋め込まれたscore?index=…リンクを
+    extract_atbat_indexesで拾い集めておき、打席がアウト3未満の
+    途中経過（ボール/見逃し/空振り/牽制/ボーク等）で止まっていたら、
+    そのイニング(表/裏)宛の未取得indexを追いかけて補う。
 
     expected_date を渡すと、ページのタイトル日付と照合し、
     別日の試合なら skip=True を返す（余分な試合IDの除外用）。
@@ -194,31 +237,65 @@ def collect_game(game_id: str, expected_date: datetime | None = None) -> dict:
     print(f"[INFO] 試合{game_id}: {card} 巡回開始")
 
     atbats = []
+    fetched_indexes = set()
+    # score以外のページも含め、これまでに見つかったscore?index=…を蓄積する。
+    # 打者番号の連番だけでは追えない継続ページを、ここから拾い直す。
+    known_indexes = set(extract_atbat_indexes(html))
     empty_innings = 0
+
+    def register(ab: dict, tb: int):
+        # 攻撃側チームを補完（表=away、裏=home）
+        ab["batting_team"] = teams["away"] if tb == 1 else teams["home"]
+        ab["fielding_team"] = teams["home"] if tb == 1 else teams["away"]
+        atbats.append(ab)
+        fetched_indexes.add(ab["index"])
 
     for inning in range(1, MAX_INNING + 1):
         inning_had_atbat = False
 
         for tb in (1, 2):  # 1=表, 2=裏
+            half_start = len(atbats)
+
             for order in range(1, MAX_BATTERS_PER_INNING + 1):
                 idx = f"{inning:02d}{tb}{order:02d}00"
-                url = f"{BASE}/npb/game/{game_id}/score?index={idx}"
-                try:
-                    page = fetch(url)
-                except Exception as e:
-                    print(f"  [{idx}] 取得失敗: {e}")
+                fetched = fetch_atbat(game_id, idx)
+                if fetched is None:
                     break
-
-                ab = parse_atbat(page, idx)
+                page, ab = fetched
+                fetched_indexes.add(idx)
+                known_indexes.update(extract_atbat_indexes(page))
                 if not ab["valid"]:
                     # この打席は存在しない → このイニング(表/裏)は終了
                     break
-
-                # 攻撃側チームを補完（表=away、裏=home）
-                ab["batting_team"] = teams["away"] if tb == 1 else teams["home"]
-                ab["fielding_team"] = teams["home"] if tb == 1 else teams["away"]
-                atbats.append(ab)
+                register(ab, tb)
                 inning_had_atbat = True
+
+            # 最後に記録した打席が牽制・ボーク等の途中経過で止まっていたら、
+            # このイニング(表/裏)宛でまだ取得していないindexをページ内リンクから
+            # 追いかけて補う。見つからなくなるか、結論が付くまで繰り返す。
+            prefix = f"{inning:02d}{tb}"
+            for _ in range(8):  # 無限ループ防止の安全弁
+                half_atbats = atbats[half_start:]
+                if not (half_atbats and looks_interrupted_atbat(half_atbats[-1])):
+                    break
+                pending = sorted(
+                    i for i in known_indexes
+                    if i.startswith(prefix) and i not in fetched_indexes
+                )
+                if not pending:
+                    break
+                for idx in pending:
+                    fetched_indexes.add(idx)
+                    fetched = fetch_atbat(game_id, idx)
+                    if fetched is None:
+                        continue
+                    page, ab = fetched
+                    known_indexes.update(extract_atbat_indexes(page))
+                    if ab["valid"]:
+                        register(ab, tb)
+                        inning_had_atbat = True
+                # indexの文字列順=試合内の時系列。挿入順がずれていても並べ直す。
+                atbats[half_start:] = sorted(atbats[half_start:], key=lambda a: a["index"])
 
         if inning_had_atbat:
             empty_innings = 0
@@ -228,6 +305,24 @@ def collect_game(game_id: str, expected_date: datetime | None = None) -> dict:
             # 2イニング連続で打席が無ければ試合終了とみなす
             if empty_innings >= 2:
                 break
+
+    # 最終セーフティネット：巡回中に見つかったindexの中に、その時点では
+    # まだ処理していなかったイニング(表/裏)宛のものが残っていれば拾っておく。
+    for _ in range(5):  # 無限ループ防止の安全弁
+        pending_final = sorted(known_indexes - fetched_indexes)
+        if not pending_final:
+            break
+        for idx in pending_final:
+            fetched_indexes.add(idx)
+            fetched = fetch_atbat(game_id, idx)
+            if fetched is None:
+                continue
+            page, ab = fetched
+            known_indexes.update(extract_atbat_indexes(page))
+            m = re.match(r"(\d{2})([12])", idx)
+            if ab["valid"] and m:
+                register(ab, int(m.group(2)))
+    atbats.sort(key=lambda a: a["index"])
 
     # 出場成績ページから公式の打撃・投手成績を取得（フェーズ2）
     boxscore = None
