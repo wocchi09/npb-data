@@ -79,6 +79,28 @@ test('real game / Pages subpath: desktop, mobile, exact deep link, raw JSON expo
   assert.ok(requests.filter(url => /\/\d+\.json$/.test(url)).length <= 1);
   assert.deepEqual(errors, []); await page.close();
 });
+test('at-bat previous/next navigation moves through the game and disables at the edges', async () => {
+  const page = await openPage();
+  await page.goto(base + 'pitch_replay.html?game=' + encodeURIComponent(realFile) + '&atbat=0110200');
+  await page.locator('#replay-content').waitFor({ state: 'visible' });
+  assert.match(await page.locator('#replay-batter').innerText(), /中野/);
+  assert.equal(await page.locator('#replay-atbat-prev').isDisabled(), false);
+  assert.equal(await page.locator('#replay-atbat-next').isDisabled(), false);
+  await page.locator('#replay-atbat-next').click();
+  assert.match(await page.locator('#replay-batter').innerText(), /森下/);
+  assert.equal(new URL(page.url()).searchParams.get('atbat'), '0110300');
+  assert.equal(await page.locator('#replay-atbat').inputValue(), '2');
+  await page.locator('#replay-atbat-prev').click(); await page.locator('#replay-atbat-prev').click();
+  assert.match(await page.locator('#replay-batter').innerText(), /近本/);
+  assert.equal(new URL(page.url()).searchParams.get('atbat'), '0110100');
+  assert.equal(await page.locator('#replay-atbat-prev').isDisabled(), true); // first at-bat of the game
+  assert.equal(await page.locator('#replay-atbat-next').isDisabled(), false);
+  // Selecting via the dropdown keeps the buttons in sync too.
+  await page.locator('#replay-atbat').selectOption({ index: 60 });
+  await page.waitForFunction(() => document.getElementById('replay-atbat-next').disabled);
+  assert.equal(await page.locator('#replay-atbat-prev').isDisabled(), false);
+  await page.close();
+});
 test('play/pause/resume, speed, previous/next, restart and active row', async () => {
   const page = await openPage(); await loadFixture(page, fixture([pitch(1), pitch(2), pitch(3, { result: '空振り三振' })]));
   await page.locator('#replay-play').click(); await page.waitForTimeout(250); await page.locator('#replay-pause').click();

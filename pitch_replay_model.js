@@ -5,8 +5,11 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
   const DISCLAIMER = '実際の投球軌道を完全再現したものではなく、収集データをもとにした簡易再現です';
-  // Same chart reference as index.html's CH. These are approximate diagram bounds, not tracking measurements.
-  const CHART = Object.freeze({ size: 63, top: 10, bottom: 58, left: 5, right: 50 });
+  // Same chart reference as index.html's CH. grid_row/grid_col in the source data are an exact 5-way
+  // split of this 0-63 canvas (boundaries at multiples of size/5), and the strike zone is rows/cols 1-3 —
+  // so these bounds are size/5..size*4/5, not a rough guess. (The old 5/10/50/58 guess put ~44% of
+  // recorded "ball" pitches inside the drawn zone; this puts ~17%, matching the grid_row/grid_col classification.)
+  const CHART = Object.freeze({ size: 63, top: 63 / 5, bottom: 63 * 4 / 5, left: 63 / 5, right: 63 * 4 / 5 });
   const number = v => typeof v === 'number' && Number.isFinite(v) ? v : null;
   const text = v => typeof v === 'string' && v.trim() ? v : null;
   function playerKey(player) {

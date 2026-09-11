@@ -4,7 +4,7 @@
   "date_from": "2026-04-20",
   "date_to": "2026-04-26",
   "scoreVersion": "1.4.0",
-  "generated_at": "2026-09-05T23:28:48.270249+09:00",
+  "generated_at": "2026-09-11T23:53:09.846841+09:00",
   "note": "利用可能データのみで算出。期間内のチーム試合数を基準に、野手は試合数・打席、投手は登板数・投球回で出場量補正",
   "leagues": {
     "セ": {
@@ -343,9 +343,60 @@
           "under_min_pa": false
         },
         "左": {
+          "name": "サンタナ",
+          "team": "ヤクルト",
+          "position": "左",
+          "raw": 54.97,
+          "score": 59.11,
+          "available_max": 93,
+          "team_games": 6,
+          "sample_coverage": 1.0,
+          "sample_multiplier": 1.0,
+          "breakdown": {
+            "battingContent": 32.0,
+            "runProduction": 15.97,
+            "clutch": 0,
+            "playingTime": 10.0,
+            "defenseBaser": 0.0,
+            "teamWin": 0,
+            "penalty": -3.0
+          },
+          "stats": {
+            "games": 6,
+            "pa": 21,
+            "ab": 21,
+            "hits": 6,
+            "singles": 2,
+            "doubles": 2,
+            "triples": 0,
+            "hr": 2,
+            "rbi": 3,
+            "runs": 4,
+            "bb": 0,
+            "hbp": 0,
+            "so": 7,
+            "sb": 0,
+            "caught_stealing": 0,
+            "baserunning_outs": 0,
+            "baserunning_runs": 0,
+            "avg": 0.286,
+            "obp": 0.286,
+            "slg": 0.667,
+            "ops": 0.952
+          },
+          "stat_line": "6試合 21打席 21打数6安打 打率.286 OPS.952 2本 3点",
+          "reasons": [
+            "OPS .952",
+            "2本塁打",
+            "3打点"
+          ],
+          "minus_reasons": [],
+          "under_min_pa": false
+        },
+        "中": {
           "name": "キャベッジ",
           "team": "巨人",
-          "position": "左",
+          "position": "中",
           "raw": 56.32,
           "score": 60.56,
           "available_max": 93,
@@ -393,61 +444,6 @@
             "走塁得点+0.40"
           ],
           "minus_reasons": [],
-          "under_min_pa": false
-        },
-        "中": {
-          "name": "三森 大貴",
-          "team": "DeNA",
-          "position": "中",
-          "raw": 46.21,
-          "score": 49.69,
-          "available_max": 93,
-          "team_games": 5,
-          "sample_coverage": 1.0,
-          "sample_multiplier": 1.0,
-          "breakdown": {
-            "battingContent": 31.78,
-            "runProduction": 6.83,
-            "clutch": 0,
-            "playingTime": 10.0,
-            "defenseBaser": -0.4,
-            "teamWin": 0,
-            "penalty": -2.0
-          },
-          "stats": {
-            "games": 5,
-            "pa": 24,
-            "ab": 20,
-            "hits": 7,
-            "singles": 6,
-            "doubles": 1,
-            "triples": 0,
-            "hr": 0,
-            "rbi": 4,
-            "runs": 4,
-            "bb": 0,
-            "hbp": 0,
-            "so": 4,
-            "sb": 2,
-            "caught_stealing": 1,
-            "baserunning_outs": 1,
-            "baserunning_runs": -0.4,
-            "avg": 0.35,
-            "obp": 0.458,
-            "slg": 0.4,
-            "ops": 0.858
-          },
-          "stat_line": "5試合 24打席 20打数7安打 打率.350 OPS.858 0本 4点",
-          "reasons": [
-            "OPS .858",
-            "4打点",
-            "盗塁2",
-            "走塁得点-0.40"
-          ],
-          "minus_reasons": [
-            "盗塁失敗1",
-            "走塁死1"
-          ],
           "under_min_pa": false
         },
         "右": {
@@ -682,7 +678,7 @@
         {
           "name": "キャベッジ",
           "team": "巨人",
-          "position": "左",
+          "position": "中",
           "raw": 56.32,
           "score": 60.56,
           "available_max": 93,
@@ -942,7 +938,7 @@
         {
           "name": "三森 大貴",
           "team": "DeNA",
-          "position": "中",
+          "position": "二",
           "raw": 46.21,
           "score": 49.69,
           "available_max": 93,
@@ -1100,7 +1096,7 @@
         {
           "name": "赤羽 由紘",
           "team": "ヤクルト",
-          "position": "一",
+          "position": "三",
           "raw": 45.54,
           "score": 48.97,
           "available_max": 93,

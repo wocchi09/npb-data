@@ -28,8 +28,20 @@
   function stop() { player.pause(); cancelAnimationFrame(frame); frame = 0; lastTime = 0; }
   function loading(message) {
     stop(); pa = null; $('content').hidden = true; $('status').textContent = message; $('retry').hidden = true;
-    $('atbat').disabled = true;
     window.dispatchEvent(new Event('pitchreplay:selectionchange'));
+    $('atbat').disabled = true; $('atbat-prev').disabled = true; $('atbat-next').disabled = true;
+  }
+  function updateAtbatNav() {
+    const position = appearances.findIndex(item => String(item.index) === $('atbat').value);
+    $('atbat-prev').disabled = position <= 0;
+    $('atbat-next').disabled = position === -1 || position >= appearances.length - 1;
+  }
+  function moveAtbat(delta) {
+    const position = appearances.findIndex(item => String(item.index) === $('atbat').value);
+    const target = appearances[position + delta];
+    if (!target) return;
+    $('atbat').value = String(target.index);
+    selectAppearance();
   }
   function failed(message) { $('status').textContent = message; $('retry').hidden = false; }
   function startRequest() {
@@ -108,6 +120,7 @@
     if (pitcherFilter) query.set('pitcher', pitcherFilter);
     if ($('view').value === 'batter') query.set('view', 'batter');
     history.replaceState(null, '', location.pathname + '?' + query.toString());
+    updateAtbatNav();
   }
   function buildZone() {
     const view = $('view').value, batterHand = pa.batter && pa.batter.hand, side = M.hand(batterHand, '打');
@@ -218,6 +231,7 @@
   $('show-batter').onchange = changeView;
   $('mode').onchange = () => { player.mode = $('mode').value; if (player.mode === 'single' && player.phase === 'landed') { stop(); render(); } };
   $('date').onchange = () => loadDate(); $('game').onchange = () => loadGame(); $('atbat').onchange = selectAppearance;
+  $('atbat-prev').onclick = () => moveAtbat(-1); $('atbat-next').onclick = () => moveAtbat(1);
   $('retry').onclick = () => files.length ? loadDate() : initialize();
   document.addEventListener('visibilitychange', () => { if (document.hidden) { stop(); render(); } });
   window.addEventListener('pagehide', stop);

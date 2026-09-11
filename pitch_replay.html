@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#17233c">
   <title>打席リプレイ | NPB DATA LAB</title>
   <link rel="stylesheet" href="analyst_lab.css">
-  <link rel="stylesheet" href="pitch_replay.css?v=20260906-ai-analyst">
+  <link rel="stylesheet" href="pitch_replay.css?v=20260912-ai-analyst">
 </head>
 <body class="replay-page">
   <header class="topbar">
@@ -21,7 +21,7 @@
       <div class="controls">
         <label>日付<select id="replay-date" disabled><option>読み込み中…</option></select></label>
         <label>試合<select id="replay-game" disabled></select></label>
-        <label>打席<select id="replay-atbat" disabled></select></label>
+        <label>打席<span class="replay-atbat-picker"><select id="replay-atbat" disabled></select><button id="replay-atbat-prev" type="button" disabled aria-label="前の打席へ">← 前の打席</button><button id="replay-atbat-next" type="button" disabled aria-label="次の打席へ">次の打席 →</button></span></label>
       </div>
       <p id="replay-filter" hidden></p>
       <p id="replay-status" role="status">収集済み試合を確認しています…</p>
@@ -86,13 +86,13 @@
     </section>
     <noscript><p class="note">リプレイにはJavaScriptを有効にしてください。</p></noscript>
   </main>
-  <script src="pitch_replay_model.js?v=20260906-batter-art"></script>
-  <script src="pitch_replay.js?v=20260906-ai-analyst"></script>
-  <script src="backend/public/ai-contract.js?v=20260906-ai-analyst"></script>
-  <script src="ai_analyst_config.js?v=20260906-ai-analyst"></script>
-  <script src="ai_analyst_data.js?v=20260906-ai-analyst"></script>
-  <script src="ai_analyst_client.js?v=20260906-ai-analyst"></script>
-  <script src="ai_analyst_view.js?v=20260906-ai-analyst"></script>
-  <script src="ai_analyst.js?v=20260906-ai-analyst"></script>
+  <script src="pitch_replay_model.js?v=20260912-ai-analyst"></script>
+  <script src="pitch_replay.js?v=20260912-ai-analyst"></script>
+  <script src="backend/public/ai-contract.js?v=20260912-ai-analyst"></script>
+  <script src="ai_analyst_config.js?v=20260912-ai-analyst"></script>
+  <script src="ai_analyst_data.js?v=20260912-ai-analyst"></script>
+  <script src="ai_analyst_client.js?v=20260912-ai-analyst"></script>
+  <script src="ai_analyst_view.js?v=20260912-ai-analyst"></script>
+  <script src="ai_analyst.js?v=20260912-ai-analyst"></script>
 </body>
 </html>

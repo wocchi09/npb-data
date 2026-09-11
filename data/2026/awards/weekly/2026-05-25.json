@@ -4,7 +4,7 @@
   "date_from": "2026-05-25",
   "date_to": "2026-05-31",
   "scoreVersion": "1.4.0",
-  "generated_at": "2026-09-05T23:28:49.019377+09:00",
+  "generated_at": "2026-09-11T23:53:10.940007+09:00",
   "note": "利用可能データのみで算出。期間内のチーム試合数を基準に、野手は試合数・打席、投手は登板数・投球回で出場量補正",
   "leagues": {
     "セ": {
@@ -397,56 +397,57 @@
           "under_min_pa": false
         },
         "中": {
-          "name": "モンテル",
-          "team": "ヤクルト",
+          "name": "キャベッジ",
+          "team": "巨人",
           "position": "中",
-          "raw": 50.41,
-          "score": 54.2,
+          "raw": 52.54,
+          "score": 56.49,
           "available_max": 93,
           "team_games": 6,
-          "sample_coverage": 0.833,
-          "sample_multiplier": 0.942,
+          "sample_coverage": 1.0,
+          "sample_multiplier": 1.0,
           "breakdown": {
-            "battingContent": 38.84,
-            "runProduction": 8.47,
+            "battingContent": 34.2,
+            "runProduction": 11.47,
             "clutch": 0,
-            "playingTime": 8.17,
-            "defenseBaser": 0.2,
+            "playingTime": 10.0,
+            "defenseBaser": -0.4,
             "teamWin": 0,
-            "penalty": -2.14
+            "penalty": -2.73
           },
           "stats": {
-            "games": 5,
-            "pa": 15,
-            "ab": 14,
+            "games": 6,
+            "pa": 24,
+            "ab": 22,
             "hits": 7,
             "singles": 5,
             "doubles": 1,
             "triples": 0,
             "hr": 1,
-            "rbi": 3,
+            "rbi": 6,
             "runs": 3,
             "bb": 0,
             "hbp": 0,
-            "so": 3,
-            "sb": 1,
+            "so": 6,
+            "sb": 0,
             "caught_stealing": 0,
-            "baserunning_outs": 0,
-            "baserunning_runs": 0.2,
-            "avg": 0.5,
-            "obp": 0.533,
-            "slg": 0.786,
-            "ops": 1.319
+            "baserunning_outs": 1,
+            "baserunning_runs": -0.4,
+            "avg": 0.318,
+            "obp": 0.375,
+            "slg": 0.5,
+            "ops": 0.875
           },
-          "stat_line": "5試合 15打席 14打数7安打 打率.500 OPS1.319 1本 3点",
+          "stat_line": "6試合 24打席 22打数7安打 打率.318 OPS.875 1本 6点",
           "reasons": [
-            "OPS 1.319",
+            "OPS .875",
             "1本塁打",
-            "3打点",
-            "盗塁1",
-            "走塁得点+0.20"
+            "6打点",
+            "走塁得点-0.40"
           ],
-          "minus_reasons": [],
+          "minus_reasons": [
+            "走塁死1"
+          ],
           "under_min_pa": false
         },
         "右": {
@@ -786,7 +787,7 @@
         {
           "name": "キャベッジ",
           "team": "巨人",
-          "position": "左",
+          "position": "中",
           "raw": 52.54,
           "score": 56.49,
           "available_max": 93,
