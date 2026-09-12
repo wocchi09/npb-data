@@ -4,7 +4,7 @@
 
 打席リプレイで選択した1打席に対し「🤖 この打席をAI分析」を押すと、球種・球速・配球図上のコース・投球結果を日本語で解説する。回答は「この打席の要約」「配球の流れ」「ポイント」「データ上わからないこと」の専用カードに表示する。実データとAI解説を分離し、投手・捕手・打者の心理や意図は推測しない。
 
-コードとキー不要の統合テストを実装済み。本番利用には **Vercelへのデプロイ、OPENAI_API_KEYの設定、フロントの公開API URL設定** が必要。URL未設定の状態では「AI分析は準備中です」と表示し、外部APIを呼ばない。本番OpenAIへの課金を伴う疎通・生成内容の確認は、運用環境の設定後に実施する。
+コードとキー不要の統合テストを実装済み。2026-09-12にVercelプロジェクト `npb-ai-analyst` をデプロイし、公開API URLを `https://npb-ai-analyst.vercel.app/api/analyze-atbat` に設定した。本番利用にはVercelのProduction環境変数 `OPENAI_API_KEY` の設定と再デプロイが必要。本番OpenAIへの課金を伴う疎通・生成内容の確認は、キー設定後に実施する。
 
 画面には必ず「AIによるデータ解説」「実データをもとに生成していますが、内容は参考情報です」を表示し、既存の軌道再現の注意書きも維持する。AI回答を試合の保存JSONに書き戻さない。
 
@@ -107,7 +107,7 @@ python -m http.server 8000 --bind 127.0.0.1
 3. Vercelの対象環境に `OPENAI_API_KEY` を設定する。必要なら `OPENAI_MODEL` を設定。本番に `ALLOW_LOCALHOST` は設定しない。
 4. Deployする。`backend/vercel.json` によるFunction最大実行時間は30秒。
 5. 安定した本番ドメインのURL（例：`https://YOUR-PROJECT.vercel.app/api/analyze-atbat`）を取得する。
-6. `ai_analyst_config.js` の本番側の空文字列 `: ''` を、そのURLへ変更してコミットする。キーを入れてはいけない。設定スクリプトのバージョン文字列も更新し、古いブラウザキャッシュを避ける。
+6. `ai_analyst_config.js` の本番側のURLを、そのURLへ変更してコミットする（現在は上記プロジェクトのURLを設定済み）。キーを入れてはいけない。設定スクリプトのバージョン文字列も更新し、古いブラウザキャッシュを避ける。
 7. GitHub Pagesの公開元mainへ変更を反映する。Vercel側のProductionも同じ変更を含むことを確認する。
 8. `https://wocchi09.github.io/npb-data/pitch_replay.html` から実際に1打席を分析し、NetworkでVercelへの1打席POST・JSON応答・キー非露出を確認する。
 
@@ -230,7 +230,7 @@ node --test tests/pitch_replay_browser.test.cjs tests/ai_analyst_browser.test.cj
 
 インストール済みChromeを使う場合は環境変数 `REPLAY_BROWSER_CHANNEL=chrome`。`AI_QA_DIR` に出力先を指定すると追加テストのPC/390pxスクリーンショットを保存する。
 
-確認結果（2026-09-06）：既存Python184件、既存モデル15件、既存ブラウザ10件、AI単体14件、AIブラウザ5件が成功。AIブラウザテストは実ブラウザからHTTPサーバーの本番ハンドラー・OpenAIリクエスト生成処理まで通し、OpenAIの応答だけをモックする。
+確認結果（2026-09-12、最新mainとの統合後）：既存Python202件、既存モデル15件、既存ブラウザ11件、AI単体14件、AIブラウザ5件の計247件が成功。AIブラウザテストは実ブラウザからHTTPサーバーの本番ハンドラー・OpenAIリクエスト生成処理まで通し、OpenAIの応答だけをモックする。Vercel本番APIはGitHub PagesのOriginを持つOPTIONSに204と限定したCORSヘッダーを返すことを確認した。
 
 未選択・投球なし、成功、通信/OpenAI失敗、レート制限、不正JSON・回答、タイムアウト、二重送信、キャッシュ/期限/本文変更、打席切り替え競合、HTMLの非実行、キーボード/フォーカス/aria-live、PC/390pxのはみ出しを検証。全実データの非空打席も送信スキーマを検証。目視画像はモック回答であり、実際のモデル出力例ではない。
 
