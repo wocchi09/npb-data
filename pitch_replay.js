@@ -28,6 +28,7 @@
   function stop() { player.pause(); cancelAnimationFrame(frame); frame = 0; lastTime = 0; }
   function loading(message) {
     stop(); pa = null; $('content').hidden = true; $('status').textContent = message; $('retry').hidden = true;
+    window.dispatchEvent(new Event('pitchreplay:selectionchange'));
     $('atbat').disabled = true; $('atbat-prev').disabled = true; $('atbat-next').disabled = true;
   }
   function updateAtbatNav() {
@@ -100,6 +101,7 @@
     const entry = appearances.find(item => String(item.index) === $('atbat').value);
     if (!entry) return;
     pa = M.normalizePlateAppearance(game, entry.ab, entry.index, $('game').value);
+    window.dispatchEvent(new Event('pitchreplay:selectionchange'));
     player = new M.Playback(pa.pitches); player.mode = $('mode').value; player.speed = Number($('speed').value);
     $('content').hidden = false;
     $('status').textContent = pa.pitches.length ? '実データ ' + pa.pitches.length + '球を読み込みました。再生ボタンで開始します。' : 'この打席の投球データはありません。';

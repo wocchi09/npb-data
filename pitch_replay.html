@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#17233c">
   <title>打席リプレイ | NPB DATA LAB</title>
   <link rel="stylesheet" href="analyst_lab.css">
-  <link rel="stylesheet" href="pitch_replay.css?v=20260906-atbat-nav">
+  <link rel="stylesheet" href="pitch_replay.css?v=20260912-ai-analyst">
 </head>
 <body class="replay-page">
   <header class="topbar">
@@ -64,6 +64,14 @@
           <div id="replay-current" class="replay-current" aria-live="polite"></div>
           <p id="replay-result" class="note" hidden></p>
           <div class="scroll replay-table-wrap"><table class="tbl"><caption>投球一覧（球順ボタンで選択・狭い画面では横スクロール）</caption><thead><tr><th scope="col">球順</th><th scope="col">球種</th><th scope="col">球速</th><th scope="col">コース</th><th scope="col">結果</th></tr></thead><tbody id="replay-pitches"></tbody></table></div>
+          <section id="ai-card" class="ai-analyst-card" aria-labelledby="ai-title">
+            <div class="eyebrow">AI ANALYST</div>
+            <h3 id="ai-title">AIによるデータ解説</h3>
+            <p class="ai-reference">実データをもとに生成していますが、内容は参考情報です</p>
+            <button id="ai-analyze" type="button" class="replay-primary" aria-controls="ai-result" aria-describedby="ai-status" aria-busy="false" disabled>🤖 この打席をAI分析</button>
+            <div class="ai-status-row"><span id="ai-spinner" class="ai-spinner" aria-hidden="true" hidden></span><p id="ai-status" role="status" aria-live="polite" aria-atomic="true">分析する打席を選択してください。</p></div>
+            <div id="ai-result" aria-busy="false"></div>
+          </section>
         </section>
       </div>
       <details class="card replay-provenance"><summary>実データと簡易モデルについて / AI解説用JSON</summary>
@@ -72,13 +80,19 @@
         <p>B/Sは球順と結果からの再計算です。欠番・結果不明の後は「未取得」とします。Oは打席JSONの取得時点の値を固定表示します。取得処理は公式表示がなければB/Sを推定保存しますが、その出典フラグと取得タイミングは保存していません。毎球のアウト数は再現できません。</p>
         <p>取得できないため簡易モデルで補完：軌道・リリース位置・変化量・飛行時間。座標がなくグリッドだけある場合はセル中心を使用します。球速未取得時の再生時間は共通設定です。投手の左右が不明な場合は横変化を加えません。</p>
         <p>打者視点の目線・角度・構えも簡易モデルです。打者画像はAI生成した共通イメージで、選手本人の容姿やフォームを再現したものではありません。保存された右打ち・左打ちに合わせて向きを変えます。左右が不明な打者の目線は補完しません。</p>
-        <p>AIによる解釈は未接続です。投球意図は断定せず、将来のAI出力は実データと別の欄に表示する設計です。</p>
+        <p>AI ANALYSTは選択した1打席だけをサーバー経由でAIへ送り、実データとは別の欄に解説を表示します。投球意図や心理は推測しません。コースと再計算カウントの制約も解説に引き継ぎます。</p>
         <button id="replay-export">AI解説用JSONを保存</button>
       </details>
     </section>
     <noscript><p class="note">リプレイにはJavaScriptを有効にしてください。</p></noscript>
   </main>
-  <script src="pitch_replay_model.js?v=20260906-atbat-nav"></script>
-  <script src="pitch_replay.js?v=20260906-atbat-nav"></script>
+  <script src="pitch_replay_model.js?v=20260912-ai-analyst"></script>
+  <script src="pitch_replay.js?v=20260912-ai-analyst"></script>
+  <script src="backend/public/ai-contract.js?v=20260912-ai-analyst"></script>
+  <script src="ai_analyst_config.js?v=20260912-ai-analyst"></script>
+  <script src="ai_analyst_data.js?v=20260912-ai-analyst"></script>
+  <script src="ai_analyst_client.js?v=20260912-ai-analyst"></script>
+  <script src="ai_analyst_view.js?v=20260912-ai-analyst"></script>
+  <script src="ai_analyst.js?v=20260912-ai-analyst"></script>
 </body>
 </html>
