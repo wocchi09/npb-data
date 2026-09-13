@@ -3400,7 +3400,11 @@
            esc(LEAGUE_NAME[lg])+'</h3><div class="tblwrap">'+
            '<table class="stbl"><thead><tr><th></th><th class="nm">チーム</th>'+
            '<th>試合</th><th>得点</th><th>失点</th><th>得失差</th><th>安打</th><th>本塁打</th>'+
-           '<th title="本塁打などを除く打球をアウトにした割合">DER</th></tr></thead><tbody>';
+           '<th title="本塁打などを除く打球をアウトにした割合">DER</th>'+
+           '<th>OPS</th><th title="推定wOBA（固定線形加重）">wOBA</th>'+
+           '<th title="推定wRC+（球場未補正・リーグ平均100）">wRC+</th>'+
+           '<th>防御率</th><th title="守備・運の影響を除いた投手成績の推定値">FIP</th>'+
+           '</tr></thead><tbody>';
         rows.forEach(function(t){
           var diff=(t.runs||0)-(t.runs_allowed||0);
           h+='<tr><td>'+teamBadge(t.team)+'</td><td class="nm">'+esc(t.team)+'</td>'+
@@ -3410,10 +3414,15 @@
              '<td class="num'+(diff>0?' hi':'')+'">'+(diff>0?"+":"")+diff+'</td>'+
              '<td class="num">'+(t.hits||0)+'</td>'+
              '<td class="num">'+(t.hr||0)+'</td>'+
-             '<td class="num">'+fmtAvg(t.der)+'</td></tr>';
+             '<td class="num">'+fmtAvg(t.der)+'</td>'+
+             '<td class="num">'+(t.ops==null?"-":t.ops.toFixed(3).replace(/^0\./,"."))+'</td>'+
+             '<td class="num">'+fmtAvg(t.woba_est)+'</td>'+
+             '<td class="num'+((t.wrc_plus_est||0)>=100?' hi':'')+'">'+(t.wrc_plus_est==null?"-":Math.round(t.wrc_plus_est))+'</td>'+
+             '<td class="num hi">'+(t.p_era==null?"-":t.p_era.toFixed(2))+'</td>'+
+             '<td class="num">'+(t.p_fip==null?"-":t.p_fip.toFixed(2))+'</td></tr>';
         });
         h+='</tbody></table></div>'+
-           '<div class="sub" style="font-size:11px;margin-top:6px">DER＝本塁打・四死球・三振・犠打を除く打球を守備でアウトにした割合。球団単位の参考守備指標です。</div></div>';
+           '<div class="sub" style="font-size:11px;margin-top:6px">DER＝本塁打・四死球・三振・犠打を除く打球を守備でアウトにした割合。wOBA・wRC+・FIPは選手個々と同じ式をチーム合算値に適用した推定値（球場補正なし）。球団単位の参考指標です。</div></div>';
       });
     }
 

@@ -443,6 +443,33 @@ def calc_weighted_batting(b: dict, context: dict | None) -> dict:
     }
 
 
+def aggregate_team_batting_pitching(bat: dict, pit: dict, players: dict) -> tuple[dict, dict]:
+    """
+    選手単位の打撃・投球累計をチーム単位に合算する。
+    チームのセイバーメトリクス（wOBA・wRC+・FIP等）は、選手個々の値を
+    平均するのではなく、この合算値から選手と同じ式で計算し直す
+    （率指標は加重平均と同じ結果になるが、こちらの方が確実）。
+    """
+    team_bat, team_pit = {}, {}
+    for k, b in bat.items():
+        team = (players.get(k) or {}).get("team")
+        if not team:
+            continue
+        tb = team_bat.setdefault(team, blank_batting())
+        for key, val in b.items():
+            if key in tb and isinstance(val, (int, float)):
+                tb[key] += val
+    for k, p in pit.items():
+        team = (players.get(k) or {}).get("team")
+        if not team:
+            continue
+        tp = team_pit.setdefault(team, blank_pitching())
+        for key, val in p.items():
+            if key in tp and isinstance(val, (int, float)):
+                tp[key] += val
+    return team_bat, team_pit
+
+
 # シーズン成績に含めない試合の種別。
 # 交流戦は公式戦の一部なので除外しない。
 EXCLUDED_TYPES = ("オールスター", "CS", "日本シリーズ")
@@ -859,14 +886,47 @@ def rebuild(season, base="data"):
                "team": p["team"], "number": p["number"], "hand": p["hand"]}
               for p in player_out]
 
+    team_bat_totals, team_pit_totals = aggregate_team_batting_pitching(bat, pit, players)
+
     team_out = []
     for t, s in team_stats.items():
         info = team_info(t)
+        lg = info["league"]
         der = round(s["bip_outs"] / s["bip"], 3) if s.get("bip") else None
-        team_out.append({
-            "team": t, "mini": info["mini"], "league": info["league"],
+        entry = {
+            "team": t, "mini": info["mini"], "league": lg,
             **s, "der": der,
-        })
+        }
+
+        # チーム打撃のセイバーメトリクス（選手と同じ式を合算値に適用）
+        tb = team_bat_totals.get(t)
+        if tb:
+            filled = _fill(tb)
+            entry.update(calc_rate_stats(filled))
+            entry.update(calc_weighted_batting(filled, batting_contexts.get(lg)))
+
+        # チーム投球のセイバーメトリクス（FIPはリーグ共通定数を使う）
+        tp = team_pit_totals.get(t)
+        if tp:
+            prate = calc_pitching_rates(tp)
+            entry.update({f"p_{key}": val for key, val in prate.items()})
+            c = fip_constants.get(lg)
+            outs = tp.get("outs", 0)
+            ip = outs / 3
+            if c and c.get("constant") is not None and ip > 0:
+                fip = (
+                    13 * tp.get("hr_allowed", 0)
+                    + 3 * (tp.get("bb", 0) + tp.get("hbp", 0))
+                    - 2 * tp.get("so", 0)
+                ) / ip + c["constant"]
+                entry["p_fip"] = round(fip, 2)
+            else:
+                entry["p_fip"] = None
+            for cnt_key in ("outs", "batters_faced", "hits_allowed", "hr_allowed",
+                            "so", "bb", "hbp", "runs_allowed", "earned_runs"):
+                entry[f"p_{cnt_key}"] = tp.get(cnt_key, 0)
+
+        team_out.append(entry)
     team_out.sort(key=lambda x: (x.get("league") or "", -x.get("runs", 0)))
 
     # 「試合がなかった日」の記録があれば読み込む（未収集の日と区別するため）
@@ -946,7 +1006,11 @@ def rebuild(season, base="data"):
                },
                "players": player_out})
     save_json(f"{base}/{season}/teams/stats.json",
-              {"season": season, "teams": team_out})
+              {"season": season, "teams": team_out,
+               "advanced_metric_note":
+                   "打撃のセイバーメトリクス（woba_est/wrc_plus_est等）は選手成績と同じ式で"
+                   "チーム合算値から算出。投球側は p_ 接頭辞（p_era, p_fip 等）。"
+                   "FIP・wRC+の定数は players/stats.json と同じリーグ実測値。"})
 
     if skipped:
         print(f"[WARN] 名前が取得できない選手データ {skipped}件をスキップしました")

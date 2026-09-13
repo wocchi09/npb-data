@@ -212,6 +212,17 @@ SEASON_TEAM_COLS = [
     "season", "team", "mini", "league",
     "games", "wins", "losses", "runs", "runs_allowed", "run_diff", "hits", "hr",
     "bip", "bip_outs", "der",
+    # チーム打撃（選手と同じ式を合算値に適用したセイバーメトリクス）
+    "avg", "obp", "slg", "ops", "iso", "babip", "bb_pct", "k_pct", "bb_k",
+    "tb", "singles",
+    "woba_est", "wraa_est", "wrc_est", "wrc_plus_est",
+    "rc", "rc27", "xr", "xr27", "gpa", "seca", "ta",
+    "wsb", "ubr_est", "bsr_est",
+    # チーム投球（p_ 接頭辞）。FIPはリーグ実測定数を使用
+    "p_innings", "p_outs", "p_batters_faced", "p_hits_allowed", "p_hr_allowed",
+    "p_so", "p_bb", "p_hbp", "p_runs_allowed", "p_earned_runs",
+    "p_era", "p_fip", "p_whip", "p_k9", "p_bb9", "p_hr9", "p_k_bb",
+    "p_k_pct", "p_bb_pct", "p_lob_pct_est", "p_win_pct", "p_hp",
 ]
 
 GAME_COLS = [
@@ -327,7 +338,7 @@ def season_tables(season, base="data"):
     if os.path.exists(tpath):
         with open(tpath, encoding="utf-8") as f:
             for t in json.load(f).get("teams", []):
-                team_rows.append({
+                row = {
                     "season": season, "team": t.get("team"), "mini": t.get("mini"),
                     "league": t.get("league"), "games": t.get("games"),
                     "wins": t.get("wins"), "losses": t.get("losses"),
@@ -336,7 +347,13 @@ def season_tables(season, base="data"):
                     "hits": t.get("hits"), "hr": t.get("hr"),
                     "bip": t.get("bip"), "bip_outs": t.get("bip_outs"),
                     "der": t.get("der"),
-                })
+                }
+                # チームのセイバーメトリクス列はそのまま転記
+                # （teams/stats.json 側は rebuild_stats.py が選手成績から合算・算出済み）
+                for col in SEASON_TEAM_COLS:
+                    if col not in row:
+                        row[col] = t.get(col)
+                team_rows.append(row)
 
     return bat_rows, pit_rows, team_rows
 
