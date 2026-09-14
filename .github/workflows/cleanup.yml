@@ -64,6 +64,7 @@ jobs:
       - name: Build player matchup data
         if: ${{ github.event.inputs.apply == 'yes' }}
         run: |
+          python scraper/build_workbench.py --season "${{ github.event.inputs.season }}"
           python scraper/build_matchups.py --season "${{ github.event.inputs.season }}"
           python scraper/build_pitch_heatmaps.py --season "${{ github.event.inputs.season }}"
 

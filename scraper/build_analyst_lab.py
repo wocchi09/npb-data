@@ -9,6 +9,7 @@ from datetime import datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from lib.analyst_lab import build_all
+from build_workbench import build as build_workbench
 
 
 JST = timezone(timedelta(hours=9))
@@ -55,6 +56,7 @@ def build(season, base="data"):
         f"変化点{len(output['change_points']['batting']) + len(output['change_points']['pitching'])}件 / "
         f"{os.path.getsize(path) / 1024 / 1024:.2f}MB"
     )
+    build_workbench(season, base)
     return output
 
 

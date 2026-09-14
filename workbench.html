@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#14263c"><title>期間比較 | NPB ANALYST LAB</title>
+  <link rel="stylesheet" href="workbench.css?v=2">
+</head>
+<body>
+  <header><a href="analyst_lab.html">← ANALYST LAB</a><span>NPB / ANALYSIS WORKBENCH</span></header>
+  <main>
+    <section class="intro"><div><p class="eyebrow">変化を見つけ、打席で確かめる</p><h1>比較ワークベンチ</h1><p>2つの期間を比較して、配球・スイング・成績の変化をたどる。</p></div><p id="status" role="status">データを読み込み中…</p></section>
+    <details id="alerts"><summary>変化を自動検出 <span id="alert-count"></span></summary><p>収録最終日を基準に、直近30日とその前30日を比較。直球球速1.5km/h以上（各30球）、空振り率8ポイント以上（各50スイング）、球種割合10ポイント以上（各100球）を表示します。統計的有意差や好不調の確定ではありません。</p><label>対象 <select id="alert-role"><option value="">全選手</option><option value="batter">打者</option><option value="pitcher">投手</option></select></label><div id="alert-list"></div><button id="more-alerts" hidden>さらに表示</button></details>
+    <form id="filters" class="panel">
+      <div class="section-title"><h2>比較条件</h2><button type="button" id="reset">条件をリセット</button></div>
+      <div class="controls">
+        <label>対象<select id="role"><option value="batter">打者</option><option value="pitcher">投手</option></select></label>
+        <label>選手名で検索<input id="search" type="search" placeholder="選手名・球団"></label>
+        <label class="player-label">選手<select id="player" required></select></label>
+        <label>相手の左右<select id="hand"><option value="">すべて</option></select></label>
+        <label>走者条件<select id="risp"><option value="">すべて</option><option value="yes">得点圏</option><option value="no">非得点圏</option></select></label>
+      </div>
+      <div class="periods"><fieldset><legend>期間 A / 比較元</legend><label>開始<input id="a0" type="date" required></label><label>終了<input id="a1" type="date" required></label></fieldset><fieldset><legend>期間 B / 比較先</legend><label>開始<input id="b0" type="date" required></label><label>終了<input id="b1" type="date" required></label></fieldset></div>
+      <div class="controls"><label>球種<select id="type"><option value="">すべて</option></select></label><label>投球前カウント<select id="count"><option value="">すべて</option></select></label><label>コース<select id="zone"><option value="">すべて</option></select></label><button class="primary" type="submit" id="compare">この条件で比較</button></div>
+      <p class="muted">球種・カウント・コースを指定した場合、投球指標は該当球のみ、OPSは該当球を1球以上含む打席の最終結果を集計します。配球分析の条件は2球目に適用します。</p>
+      <div class="save-row"><label>保存名<input id="save-name" maxlength="60" placeholder="例：左打者への直球を比較"></label><button type="button" id="save">条件を保存</button><label>保存した条件<select id="saved"><option value="">選択してください</option></select></label><button type="button" id="restore">読み込む</button><button type="button" id="remove">削除</button></div>
+      <p id="message" role="status"></p>
+    </form>
+    <section id="results" hidden>
+      <div class="section-title"><div><p class="eyebrow">OBSERVED CHANGE</p><h2 id="result-title"></h2><p id="result-context"></p></div><div class="actions"><button id="card">分析カード PNG</button><button id="markdown">記事素材 Markdown</button></div></div>
+      <div id="metrics" class="metrics"></div>
+      <div class="two-col"><section class="panel"><h2>球種の割合</h2><p class="muted">A：青 / B：オレンジ。球種が取得できた球を分母にしています。</p><div id="mix"></div></section><section class="panel"><h2>コースの分布</h2><p class="muted">コース取得済みの球に占める割合。コース名は元データの表記です。</p><div id="zones"></div></section></div>
+      <section class="panel"><h2>分析の確かさ</h2><div id="quality"></div><p>空振り率・ボール球スイング率の区間はWilson法による95%信頼区間です。投球間の依存を考慮しない参考区間で、期間差の検定ではありません。対戦相手・球場・役割の変化は未調整です。収集されなかった試合はこの取得率の分母に含まれません。</p></section>
+      <section class="panel"><h2>連続2球の配球</h2><p>同じ打席の連続する投球番号だけを集計。前球の球種・コース → 次球の球種で比較します。空振り率の分母は次球へのスイング数です。</p><div id="sequences"></div><button id="more-sequences" hidden>配球をさらに表示</button></section>
+      <section class="panel" id="evidence-panel"><div class="section-title"><h2>根拠の打席</h2><button id="clear-evidence">全対象打席に戻す</button></div><p id="evidence-caption"></p><div id="evidence"></div><button id="more-evidence" hidden>打席をさらに表示</button></section>
+    </section>
+    <footer>観測結果から投球意図や因果関係を断定しません。対象期間・母数・取得状況を合わせて確認してください。</footer>
+  </main>
+  <dialog id="card-preview" aria-labelledby="preview-title"><div class="section-title"><h2 id="preview-title">分析カードのプレビュー</h2><button id="close-preview">閉じる</button></div><img id="preview-image" alt="期間比較の指標・母数・球種グラフをまとめた分析カード"><p><a id="preview-download">PNGを保存</a></p></dialog>
+  <script src="workbench_model.js?v=1"></script><script src="workbench.js?v=2"></script>
+</body></html>
