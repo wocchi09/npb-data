@@ -2230,6 +2230,15 @@
     return h;
   }
 
+  /* 順位表（公式の勝敗）に、自前集計のセイバーメトリクスを名前で突き合わせる */
+  function teamAdvByName(name){
+    var list=seasonTeams||[];
+    for(var i=0;i<list.length;i++){
+      if(list[i].team===name) return list[i];
+    }
+    return null;
+  }
+
   function renderStandTable(){
     var rows=(standings&&standings[standTab])||[];
     if(!rows.length) return '<div class="msg">データがありません</div>';
@@ -2239,10 +2248,14 @@
       '<th>順位</th><th class="nm">チーム</th><th>試合</th><th>勝</th><th>敗</th><th>分</th>'+
       '<th>勝率</th><th>勝差</th>'+(isInter?'':'<th>残</th>')+
       '<th>貯金</th><th>得点</th><th>失点</th><th>本</th><th>打率</th><th>防御率</th>'+
+      '<th>OPS</th><th title="推定wOBA（固定線形加重）">wOBA</th>'+
+      '<th title="推定wRC+（球場未補正・リーグ平均100）">wRC+</th>'+
+      '<th title="守備・運の影響を除いた投手成績の推定値">FIP</th>'+
       '</tr></thead><tbody>';
 
     rows.forEach(function(r){
       var d=r.diff||0;
+      var adv=teamAdvByName(r.team);
       h+='<tr style="border-left:4px solid '+(tColor(r.team)||"transparent")+'">'+
         '<td class="num rank">'+(r.rank==null?"-":r.rank)+'</td>'+
         '<td class="nm">'+teamBadge(r.team)+' '+esc(r.team)+'</td>'+
@@ -2259,13 +2272,16 @@
         '<td class="num">'+(r.hr==null?"-":r.hr)+'</td>'+
         '<td class="num">'+(r.avg==null?"-":r.avg.toFixed(3).replace(/^0\./,"."))+'</td>'+
         '<td class="num">'+(r.era==null?"-":r.era.toFixed(2))+'</td>'+
+        '<td class="num">'+(adv&&adv.ops!=null?adv.ops.toFixed(3).replace(/^0\./,"."):"-")+'</td>'+
+        '<td class="num">'+fmtAvg(adv&&adv.woba_est)+'</td>'+
+        '<td class="num'+(adv&&(adv.wrc_plus_est||0)>=100?' hi':'')+'">'+(adv&&adv.wrc_plus_est!=null?Math.round(adv.wrc_plus_est):"-")+'</td>'+
+        '<td class="num">'+(adv&&adv.p_fip!=null?adv.p_fip.toFixed(2):"-")+'</td>'+
         '</tr>';
     });
     h+='</tbody></table></div>';
-    if(isInter){
-      h+='<div class="sub" style="font-size:11px;margin-top:6px">'+
-         'セ・パ両リーグの球団が対戦する交流戦の成績です</div>';
-    }
+    h+='<div class="sub" style="font-size:11px;margin-top:6px">'+
+       'OPS・wOBA・wRC+・FIPは選手成績と同じ式を自チーム集計値に適用した推定値（球場補正なし）。'+
+       (isInter?'セ・パ両リーグの球団が対戦する交流戦の成績です。':'')+'</div>';
     return h;
   }
 
