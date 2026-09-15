@@ -141,9 +141,13 @@
     for (const x of [0, 1]) for (const y of [0, 1]) positions.push(M.viewPoint({ x, y }, view, batterHand));
     const minX = Math.min(-.16, ...positions.map(p => p.x)), maxX = Math.max(1.16, ...positions.map(p => p.x));
     const minY = Math.min(-.35, ...positions.map(p => p.y)), maxY = Math.max(1.14, ...positions.map(p => p.y));
+    // Keep a portrait zone (height / width = 1.35) while fitting every trajectory.
+    // Apply the same scales to the zone, ball and marks so recorded locations agree.
+    const scaleY = Math.min(320 / (maxY - minY), 430 * 1.35 / (maxX - minX));
+    const scaleX = scaleY / 1.35;
     project = (p, progress = 1) => {
       const v = M.viewPoint(p, view, batterHand, progress);
-      return { x: 35 + (v.x - minX) / (maxX - minX) * 430, y: 52 + (v.y - minY) / (maxY - minY) * 320 };
+      return { x: 250 + (v.x - (minX + maxX) / 2) * scaleX, y: 212 + (v.y - (minY + maxY) / 2) * scaleY };
     };
     const c = M.CHART, left = 1 - c.right / c.size, right = 1 - c.left / c.size, top = c.top / c.size, bottom = c.bottom / c.size;
     const point = (x, y) => { const p = project({ x, y }); return p.x + ' ' + p.y; };
