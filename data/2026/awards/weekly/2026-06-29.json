@@ -4,7 +4,7 @@
   "date_from": "2026-06-29",
   "date_to": "2026-07-05",
   "scoreVersion": "1.4.0",
-  "generated_at": "2026-09-26T00:38:40.157277+09:00",
+  "generated_at": "2026-09-26T19:10:01.778208+09:00",
   "note": "利用可能データのみで算出。期間内のチーム試合数を基準に、野手は試合数・打席、投手は登板数・投球回で出場量補正",
   "leagues": {
     "セ": {
@@ -2426,54 +2426,57 @@
           "under_min_pa": false
         },
         "指": {
-          "name": "柳田 悠岐",
-          "team": "ソフトバンク",
+          "name": "マッカスカー",
+          "team": "楽天",
           "position": "指",
-          "raw": 48.61,
-          "score": 52.27,
+          "raw": 56.67,
+          "score": 60.93,
           "available_max": 93,
-          "team_games": 6,
-          "sample_coverage": 0.95,
-          "sample_multiplier": 0.982,
+          "team_games": 5,
+          "sample_coverage": 1.0,
+          "sample_multiplier": 1.0,
           "breakdown": {
-            "battingContent": 34.09,
-            "runProduction": 7.8,
+            "battingContent": 38.22,
+            "runProduction": 10.02,
             "clutch": 0,
-            "playingTime": 9.17,
-            "defenseBaser": 0.0,
+            "playingTime": 10.0,
+            "defenseBaser": -0.4,
             "teamWin": 0,
-            "penalty": -1.58
+            "penalty": -1.18
           },
           "stats": {
             "games": 5,
-            "pa": 19,
-            "ab": 19,
+            "pa": 20,
+            "ab": 17,
             "hits": 7,
             "singles": 4,
-            "doubles": 2,
+            "doubles": 1,
             "triples": 0,
-            "hr": 1,
-            "rbi": 2,
-            "runs": 4,
+            "hr": 2,
+            "rbi": 4,
+            "runs": 2,
             "bb": 0,
             "hbp": 0,
-            "so": 3,
+            "so": 2,
             "sb": 0,
             "caught_stealing": 0,
-            "baserunning_outs": 0,
-            "baserunning_runs": 0,
-            "avg": 0.368,
-            "obp": 0.368,
-            "slg": 0.632,
-            "ops": 1.0
+            "baserunning_outs": 1,
+            "baserunning_runs": -0.4,
+            "avg": 0.412,
+            "obp": 0.5,
+            "slg": 0.824,
+            "ops": 1.324
           },
-          "stat_line": "5試合 19打席 19打数7安打 打率.368 OPS1.000 1本 2点",
+          "stat_line": "5試合 20打席 17打数7安打 打率.412 OPS1.324 2本 4点",
           "reasons": [
-            "OPS 1.000",
-            "1本塁打",
-            "2打点"
+            "OPS 1.324",
+            "2本塁打",
+            "4打点",
+            "走塁得点-0.40"
           ],
-          "minus_reasons": [],
+          "minus_reasons": [
+            "走塁死1"
+          ],
           "under_min_pa": false
         }
       },
@@ -2659,7 +2662,7 @@
         {
           "name": "マッカスカー",
           "team": "楽天",
-          "position": "左",
+          "position": "指",
           "raw": 56.67,
           "score": 60.93,
           "available_max": 93,
