@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>自由契約・契約動向 | NPB SCOREBOARD</title>
+  <link rel="stylesheet" href="article_lab.css"><link rel="stylesheet" href="contract_news.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="back" href="./">← NPB SCOREBOARD</a>
+    <div class="brand"><span class="eyebrow">NPB CONTRACT NEWS</span><h1>自由契約・契約動向</h1><p>選手の次の一歩を、12球団のニュースから。</p></div>
+  </header>
+  <main>
+    <section class="intro"><div><h2>契約関連ニュース</h2><p id="updated" role="status">読込中…</p></div></section>
+    <div class="notice">
+      <p>スポナビ掲載ニュースから契約関連の見出しを抽出しています。記事の掲載は、選手の自由契約確定を意味しません。来季契約の発表と正式な公示は区別してください。</p>
+      <p><a href="https://sports.yahoo.co.jp/list/news/npb?genre=npb" target="_blank" rel="noopener noreferrer">スポナビのニュース</a> · <a href="https://baseball.yahoo.co.jp/npb/transfer" target="_blank" rel="noopener noreferrer">入退団情報</a> · <a href="https://npb.jp/announcement/2026/pn_released.html" target="_blank" rel="noopener noreferrer">2026年 NPB自由契約公示</a></p>
+    </div>
+    <section class="filters" aria-label="ニュースの絞り込み">
+      <div class="field"><label for="team">見出しに登場する球団</label><select id="team"><option value="">全12球団・球団未特定</option></select></div>
+      <div class="field"><label for="query">選手名・キーワード</label><input id="query" type="search" placeholder="見出しから検索"></div>
+      <div class="field"><label for="kind">掲載範囲</label><select id="kind"><option value="news">契約関連ニュース</option><option value="all">回顧・コメント記事も含む</option></select></div>
+      <p class="selection-note" id="count" role="status"></p>
+    </section>
+    <p id="coverage" class="notice" hidden></p>
+    <section id="news" class="news-list" aria-live="polite"></section>
+  </main>
+  <footer>同じ記事URLは1件にまとめます。異なる媒体の記事は別々に掲載します。全文・写真は転載せず、元記事へのリンクから確認できます。</footer>
+  <script src="contract_news.js"></script>
+</body>
+</html>
