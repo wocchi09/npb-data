@@ -26,13 +26,15 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install requests==2.32.3 beautifulsoup4==4.12.3
+      - name: Collect structured player movements
+        run: python scraper/player_movements.py
       - name: Collect headline metadata
         run: python scraper/contract_news.py
       - name: Save successful collection
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email 'github-actions[bot]@users.noreply.github.com'
-          git add data/contract_news.json
+          git add data/contract_news.json data/player_movements.json
           if git diff --cached --quiet; then exit 0; fi
           git commit -m 'data: update contract news'
           git pull --rebase origin main

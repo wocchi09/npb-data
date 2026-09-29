@@ -150,6 +150,14 @@
   function addStoryLabHomeLink(){
     var nav=document.querySelector(".viewswitch");
     if(!nav) return;
+    if(!document.getElementById("movements-home-link")){
+      var movementsLink=makeLabHomeLink({
+        id:"movements-home-link",href:"contract_news.html",ariaLabel:"選手動向一覧を開く",icon:"↔",
+        title:"選手動向一覧",description:"12球団の自由契約・引退・FA・移籍を選手ごとの表で確認",
+        color:"var(--accent)",margin:"10px 0 4px"
+      });
+      nav.insertAdjacentElement("afterend",movementsLink);
+    }
 
     var storyLink=document.getElementById("story-lab-home-link");
     if(!storyLink){
