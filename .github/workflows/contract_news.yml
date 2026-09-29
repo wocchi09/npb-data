@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: write
+  pages: write
 
 concurrency:
   group: npb-data-write
@@ -36,3 +37,9 @@ jobs:
           git commit -m 'data: update contract news'
           git pull --rebase origin main
           git push origin HEAD:main
+      # GITHUB_TOKEN pushes alone do not trigger the legacy Pages build.
+      # Request even if collection was unchanged, so a failed build can be retried.
+      - name: Publish latest collected data
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api --method POST "repos/$GITHUB_REPOSITORY/pages/builds"

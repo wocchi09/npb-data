@@ -17,6 +17,7 @@ python -m unittest tests.test_contract_news -v
 
 `.github/workflows/contract_news.yml` は9〜12月の2時間ごとと手動実行に対応します。
 mainへの反映前には定期実行されません。既存のデータ書込ジョブと同じ concurrency group を利用します。
+取得・保存の成功後にGitHub Pagesの再ビルドを明示的に要求します。Actionsによるコミットだけでは公開が更新されないためです。
 
 ## 読み方・限界
 
