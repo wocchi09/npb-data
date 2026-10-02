@@ -30,6 +30,11 @@ setImmediate(()=>{
   assert.match(html,/&lt;script&gt;/);
   assert.doesNotMatch(html,/href="javascript:/);
   assert.match(element('movement-source-status').textContent,/日刊スポーツ：未取得/);
+  assert.match(element('movement-cards').innerHTML,/movement-card/);
+  assert.match(element('movement-cards').innerHTML,/team-eagles/);
+  assert.match(element('movement-cards').innerHTML,/team-pill/);
+  assert.match(element('movement-cards').innerHTML,/推定年俸/);
+  assert.match(element('movement-cards').innerHTML,/今季・通算成績/);
   element('movement-category').value='育成契約関連';
   element('movement-category').listeners.change();
   assert.match(element('movements-count').textContent,/1人/);

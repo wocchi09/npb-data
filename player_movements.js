@@ -4,7 +4,9 @@
   const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const norm=v=>String(v??"").normalize("NFKC").replace(/\s/g,"").toLowerCase();
   const categories=["自由契約","引退","引退（意向）","FA権取得","FA宣言","FA移籍","FA（区分未確認）","トレード","移籍","育成契約関連","契約解除","来季契約なし","入団","退団","その他"];
+  const teamClasses={"ソフトバンク":"hawks","日本ハム":"fighters","ロッテ":"marines","楽天":"eagles","西武":"lions","オリックス":"buffaloes","阪神":"tigers","広島":"carp","DeNA":"baystars","横浜DeNA":"baystars","巨人":"giants","ヤクルト":"swallows","中日":"dragons"};
   let rows=[],sort="updated_date",direction=-1;
+  const teamClass=team=>teamClasses[team]||"neutral";
   function sourceUrl(value){try{const u=new URL(value);return u.protocol==="https:"&&(
     (u.hostname==="baseball.yahoo.co.jp"&&u.pathname==="/npb/transfer")||
     (u.hostname==="www.nikkansports.com"&&/^\/baseball\/news\/\d+\.html$/.test(u.pathname))||
@@ -25,13 +27,16 @@
     return `<details class="movement-stats"><summary>${esc(s.season)}年・通算を見る</summary>${section(s.season+"年（一軍）",s.yearly)}${section("NPB通算（一軍）",s.career)}<small>${link(s.source_url,"NPB公式")}</small><small>取得 ${stamp(s.as_of)}${s.stale?" / 更新待ち":""}</small><small>OPSは掲載出塁率＋長打率（丸め誤差あり）。投球回の小数はアウト数です。</small></details>`;
   }
   function observationsView(r){const entries=r.observations||[r];return `<details><summary>${entries.length}件の掲載情報</summary>`+entries.map(o=>`<p>${link(o.source_url,o.source||"掲載元")}<small>${esc(o.name)}</small><small>${esc(o.date_kind||"掲載元の選手更新日")}：${esc(o.updated_date)}</small><small>${esc(o.note||o.status)}${o.stale?"（更新待ち・前回取得分）":""}</small></p>`).join("")+"</details>"}
+  function teamPill(team){return `<span class="team-pill team-${teamClass(team)}">${esc(team)}</span>`}
+  function cardsView(items){return items.length?items.map(r=>`<article class="movement-card team-${teamClass(r.team)}"><header><div><p class="movement-card-meta">${esc(r.updated_date)} · ${esc(r.date_kind||"掲載元の選手更新日")}</p><h3>${esc(r.name)} ${teamPill(r.team)}</h3><p class="movement-position">${esc(r.position)}${r.development_player?" · 育成":""}</p></div><div class="movement-card-badges">${(r.categories||[r.category]).map(c=>`<span class="movement-badge">${esc(c)}</span>`).join("")}</div></header><p class="movement-card-note">${esc(r.note||"掲載内容なし")}</p>${r.destination?`<p class="movement-destination"><b>移籍・入団先</b>${esc(r.destination)}</p>`:""}<div class="movement-card-details"><details><summary>推定年俸</summary>${salaryView(r.salary)}</details><details><summary>今季・通算成績</summary>${statsView(r.stats)}</details><details><summary>出典・掲載内容</summary>${observationsView(r)}</details></div></article>`).join(""):'<p class="movement-card-empty">この条件に該当する掲載情報はありません。未掲載・未発表の動きは補完していません。</p>'}
   function render(){
     const team=$("movement-team").value,kind=$("movement-category").value,year=$("movement-year").value,q=norm($("movement-query").value);
     const filtered=rows.filter(r=>(!team||r.team===team)&&(!kind||(r.categories||[r.category]).includes(kind))&&(!year||r.updated_date.startsWith(year))&&(!q||norm([r.name,r.team,r.note,r.destination].join(" ")).includes(q)));
     filtered.sort((a,b)=>direction*String(a[sort]??"").localeCompare(String(b[sort]??""),"ja")||a.name.localeCompare(b.name,"ja"));
     $("movements-count").textContent=`${filtered.length}人 / 掲載${rows.length}人（同球団の同一選手は統合）`;
+    $("movement-cards").innerHTML=cardsView(filtered);
     $("movements-body").innerHTML=filtered.length?filtered.map(r=>{
-      return `<tr><td class="date-cell">${esc(r.updated_date)}<small>${esc(r.date_kind||"掲載元の選手更新日")}</small></td><td>${esc(r.team)}</td><th scope="row">${esc(r.name)}<small>${esc(r.position)}${r.development_player?" · 育成":""}</small></th><td>${(r.categories||[r.category]).map(c=>`<span class="movement-badge">${esc(c)}</span>`).join(" ")}</td><td>${esc(r.destination||"記載なし")}</td><td class="movement-note">${esc(r.note||"記載なし")}</td><td class="movement-salary">${salaryView(r.salary)}</td><td>${statsView(r.stats)}</td><td class="movement-sources">${observationsView(r)}</td></tr>`;
+      return `<tr class="team-${teamClass(r.team)}"><td class="date-cell">${esc(r.updated_date)}<small>${esc(r.date_kind||"掲載元の選手更新日")}</small></td><td>${teamPill(r.team)}</td><th scope="row">${esc(r.name)}<small>${esc(r.position)}${r.development_player?" · 育成":""}</small></th><td>${(r.categories||[r.category]).map(c=>`<span class="movement-badge">${esc(c)}</span>`).join(" ")}</td><td>${esc(r.destination||"記載なし")}</td><td class="movement-note">${esc(r.note||"記載なし")}</td><td class="movement-salary">${salaryView(r.salary)}</td><td>${statsView(r.stats)}</td><td class="movement-sources">${observationsView(r)}</td></tr>`;
     }).join(""):'<tr><td colspan="9">この条件に該当する掲載情報はありません。未掲載・未発表の動きは補完していません。</td></tr>';
   }
   document.querySelectorAll("[data-movement-sort]").forEach(button=>{

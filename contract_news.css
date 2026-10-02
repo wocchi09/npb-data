@@ -13,6 +13,9 @@
 .movements-table small{display:block;font-weight:400;font-size:12px;color:var(--muted);margin-top:4px}
 .movements-table a{color:#9a3412;text-underline-offset:3px;white-space:nowrap}
 .movement-badge{display:inline-block;padding:3px 9px;border-radius:7px;background:#fff2e9;color:#9a3412;font-weight:700;white-space:nowrap}
+.team-pill{display:inline-block;padding:3px 8px;border-radius:999px;background:var(--team-color,#667085);color:var(--team-text,#fff);font-size:12px;font-weight:800;line-height:1.35;white-space:nowrap;vertical-align:middle}
+.team-hawks{--team-color:#f5c400;--team-text:#111}.team-fighters{--team-color:#0068b5}.team-marines{--team-color:#111827}.team-eagles{--team-color:#8b1e3f}.team-lions{--team-color:#004b9b}.team-buffaloes{--team-color:#b0163a}.team-tigers{--team-color:#f3c500;--team-text:#111}.team-carp{--team-color:#d4142a}.team-baystars{--team-color:#0069b4}.team-giants{--team-color:#f37021;--team-text:#111}.team-swallows{--team-color:#0054a6}.team-dragons{--team-color:#004a99}.team-neutral{--team-color:#667085}
+.movements-table tbody tr[class*="team-"] th[scope=row]{box-shadow:inset 3px 0 0 var(--team-color)}
 .movement-note{min-width:180px;max-width:300px;overflow-wrap:anywhere}
 .movement-salary{min-width:170px;font-variant-numeric:tabular-nums}
 .movement-stats{min-width:210px;font-variant-numeric:tabular-nums}
@@ -23,6 +26,11 @@
 .movements-table summary{cursor:pointer;color:#9a3412;font-weight:600;min-height:28px}
 .movement-badge{margin:0 3px 5px 0}
 #movement-source-status{overflow-wrap:anywhere}
+.movement-cards,.movement-mobile-hint{display:none}
 .related-news{margin-top:32px;border-top:1px solid var(--line);padding-top:20px}
 .related-news>summary{cursor:pointer;font-weight:700;font-size:17px;margin-bottom:20px}
-@media(max-width:700px){.movements-table th,.movements-table td{padding:12px}.brand h1{font-size:28px}}
+@media(max-width:700px){
+  .movement-desktop-hint,.movements-scroll{display:none}.movement-mobile-hint,.movement-cards{display:block}
+  .movement-cards{display:grid;gap:12px}.movement-card{background:#fff;border:1px solid var(--line);border-top:5px solid var(--team-color,#d0d5dd);border-radius:16px;padding:14px 16px 16px;box-shadow:var(--shadow)}
+  .movement-card header{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.movement-card h3{font-size:19px;line-height:1.45;margin:3px 0}.movement-card-meta,.movement-position{margin:0;color:var(--muted);font-size:12px}.movement-card-badges{text-align:right;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:4px}.movement-card-note{margin:14px 0 10px;padding:10px 12px;background:#fff7ed;border-radius:10px;line-height:1.65;color:#66432c;overflow-wrap:anywhere}.movement-destination{font-size:13px;margin:10px 0}.movement-destination b{display:block;color:var(--muted);font-size:11px;margin-bottom:2px}.movement-card-details{border-top:1px solid var(--line);margin-top:12px}.movement-card-details>details{border-bottom:1px solid var(--line);padding:11px 0;line-height:1.65}.movement-card-details summary{color:#9a3412;font-size:13px;font-weight:700;cursor:pointer}.movement-card-details details[open] summary{margin-bottom:10px}.movement-card-details .movement-stats{min-width:0}.movement-card-details .movement-stats h4{font-size:13px}.movement-card-details small{display:block;color:var(--muted);font-size:12px;margin-top:4px}.movement-card-empty{padding:20px;background:#fff;border:1px dashed var(--line);border-radius:14px;color:var(--muted);line-height:1.7}.brand h1{font-size:28px}
+}
