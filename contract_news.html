@@ -53,12 +53,16 @@
       <div class="field"><label for="kind">掲載範囲</label><select id="kind"><option value="news">契約関連ニュース</option><option value="all">回顧・コメント記事も含む</option></select></div>
       <p class="selection-note" id="count" role="status"></p>
     </section>
+    <div class="news-view-switch" role="group" aria-label="ニュースの表示形式">
+      <button type="button" class="active" data-news-view="cards" aria-pressed="true">カード表示</button>
+      <button type="button" data-news-view="list" aria-pressed="false">一覧表示</button>
+    </div>
     <p id="coverage" class="notice" hidden></p>
     <section id="news" class="news-list" aria-live="polite"></section>
     </details>
   </main>
   <footer>同じ記事URLは1件にまとめます。異なる媒体の記事は別々に掲載します。全文・写真は転載せず、元記事へのリンクから確認できます。</footer>
-  <script src="contract_news.js"></script>
+  <script src="contract_news.js?v=20261002-list"></script>
   <script src="player_movements.js?v=20261002"></script>
 </body>
 </html>
