@@ -22,7 +22,9 @@
         <div class="field"><label for="movement-query">選手名・備考で検索</label><input id="movement-query" type="search" placeholder="選手名など"></div>
         <p id="movements-count" class="selection-note" role="status"></p>
       </section>
-      <p class="table-hint">見出しを押すと並び替えできます。スマホでは表を横にスクロールできます。</p>
+      <p class="table-hint movement-desktop-hint">見出しを押すと並び替えできます。</p>
+      <p class="table-hint movement-mobile-hint">スマホでは選手ごとのカードで表示します。年俸・成績・掲載元は必要なときだけ開けます。</p>
+      <section id="movement-cards" class="movement-cards" aria-live="polite" aria-label="選手動向カード"></section>
       <div class="movements-scroll" tabindex="0" role="region" aria-label="選手動向表（横スクロール）">
         <table class="movements-table">
           <caption>12球団の選手動向・推定年俸・一軍成績（掲載情報のみ／出典欄で媒体別の内容を確認できます）</caption>
