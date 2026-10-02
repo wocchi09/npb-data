@@ -1,6 +1,6 @@
 import unittest
 from datetime import date
-from scraper.contract_news import article_url, collect, enrich_articles, parse_listing
+from scraper.contract_news import article_url, collect, enrich_articles, outlet_type, parse_listing
 
 
 def listing(title="【阪神】2選手と来季契約を結ばないと発表", stamp="2026/9/28 12:01", url="https://news.yahoo.co.jp/articles/abc123"):
@@ -14,6 +14,7 @@ class ContractNewsTest(unittest.TestCase):
         rows, _ = parse_listing(listing(), date(2026, 9, 28), date(2026, 9, 28))
         self.assertEqual(rows[0]["teams"], ["阪神"])
         self.assertEqual(rows[0]["publisher"], "テスト媒体")
+        self.assertEqual(rows[0]["outlet_type"], "その他の配信元")
         self.assertEqual(rows[0]["status"], "news_only")
         self.assertEqual(rows[0]["published_at"], "2026-09-28T12:01+09:00")
         for stamp in ("2025/9/28 12:01", "2026/9/27 12:01", "2026/9/29 12:01"):
@@ -37,6 +38,11 @@ class ContractNewsTest(unittest.TestCase):
     def test_non_npb_and_full_name_mentions(self):
         rows, _ = parse_listing(listing(title="BCリーグ 元阪神GMとの契約解除"), date(2026, 9, 28), date(2026, 9, 28))
         self.assertEqual(rows, [])
+
+    def test_featured_outlets_are_labeled_from_the_visible_credit_only(self):
+        self.assertEqual(outlet_type("スポニチアネックス"), "主要野球ニュース")
+        self.assertEqual(outlet_type("スポーツ報知"), "主要野球ニュース")
+        self.assertEqual(outlet_type("未知の配信元"), "その他の配信元")
         rows, _ = parse_listing(listing(title="【楽天】酒居知史に来季契約の通告"), date(2026, 9, 28), date(2026, 9, 28))
         enrich_articles(rows, [{"name": "酒居 知史", "team": "楽天"}, {"name": "酒居 別人", "team": "楽天"}])
         self.assertEqual(rows[0]["mentioned_players"], ["酒居 知史"])

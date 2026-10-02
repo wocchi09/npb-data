@@ -32,6 +32,10 @@ RELEVANT = re.compile(r"戦力外|自由契約|来季.{0,8}契約|契約.{0,6}(�
 SPECULATIVE = re.compile(r"予想|候補|可能性|去就|か[？?]|どうなる|振り返|あの時|昨年|当時")
 OUT_OF_SCOPE = re.compile(r"(?:BC|ＢＣ|独立|四国|九州アジア)リーグ|メジャー|MLB|ＭＬＢ")
 COMMENTARY = re.compile(r"ヤフコメ|期待外れ|終わった|振り返|あの時|当時|候補を予想")
+# These are publisher credits as shown by Sportsnavi / Yahoo! Sports.  We use
+# them only for filtering the already-public listing; articles are never
+# scraped from the individual publisher sites.
+FEATURED_OUTLETS = ("日刊スポーツ", "スポーツ報知", "スポニチアネックス", "サンケイスポーツ", "中日スポーツ", "デイリースポーツ")
 
 
 def normalize_name(value):
@@ -58,6 +62,12 @@ def article_url(value):
     if not re.match(r"^/(articles|column/detail)/[A-Za-z0-9_-]+/?$", parsed.path):
         return None
     return urlunsplit((parsed.scheme, parsed.netloc, parsed.path.rstrip("/"), "", ""))
+
+
+def outlet_type(publisher):
+    """Return a conservative label based solely on Sportsnavi's credit."""
+    normalized = unicodedata.normalize("NFKC", publisher or "")
+    return "主要野球ニュース" if any(outlet in normalized for outlet in FEATURED_OUTLETS) else "その他の配信元"
 
 
 def parse_listing(html, since, until):
@@ -89,11 +99,12 @@ def parse_listing(html, since, until):
         teams = [team for team, aliases in TEAMS.items() if any(alias in title for alias in aliases)]
         # Display heading is our neutral description. Original wording is retained separately.
         topic = "自由契約に関する記事" if "自由契約" in title else "来季契約・契約終了に関する記事"
+        publisher = credit.get_text(" ", strip=True) if credit else "配信元未確認"
         rows.append({
             "id": hashlib.sha256(url.encode()).hexdigest()[:20],
             "title": title, "display_title": topic, "teams": teams,
             "published_at": published.isoformat(timespec="minutes"),
-            "publisher": credit.get_text(" ", strip=True) if credit else "配信元未確認",
+            "publisher": publisher, "outlet_type": outlet_type(publisher),
             "url": url, "source": "スポーツナビ ニュース一覧",
             "context": "予想・回顧を含む可能性" if SPECULATIVE.search(title) else "関連報道・本文確認が必要",
             "status": "news_only",
