@@ -14,6 +14,15 @@
 .movements-table a{color:#9a3412;text-underline-offset:3px;white-space:nowrap}
 .movement-badge{display:inline-block;padding:3px 9px;border-radius:7px;background:#fff2e9;color:#9a3412;font-weight:700;white-space:nowrap}
 .movement-note{min-width:180px;max-width:300px;overflow-wrap:anywhere}
+.movement-salary{min-width:170px;font-variant-numeric:tabular-nums}
+.movement-stats{min-width:210px;font-variant-numeric:tabular-nums}
+.movement-stats h4{font-size:14px;margin:16px 0 6px}
+.movement-stats p{margin:8px 0;padding-bottom:8px;border-bottom:1px dashed var(--line)}
+.movement-sources{min-width:200px}
+.movement-sources p{margin:10px 0 16px}
+.movements-table summary{cursor:pointer;color:#9a3412;font-weight:600;min-height:28px}
+.movement-badge{margin:0 3px 5px 0}
+#movement-source-status{overflow-wrap:anywhere}
 .related-news{margin-top:32px;border-top:1px solid var(--line);padding-top:20px}
 .related-news>summary{cursor:pointer;font-weight:700;font-size:17px;margin-bottom:20px}
 @media(max-width:700px){.movements-table th,.movements-table td{padding:12px}.brand h1{font-size:28px}}

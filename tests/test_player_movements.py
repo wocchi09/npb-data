@@ -65,7 +65,7 @@ class PlayerMovementsTest(unittest.TestCase):
         self.assertIn('id:"movements-home-link"', (root / "game_story.js").read_text(encoding="utf-8"))
         html = (root / "contract_news.html").read_text(encoding="utf-8")
         self.assertIn('id="movements-body"', html)
-        self.assertIn('src="player_movements.js"', html)
+        self.assertIn('src="player_movements.js?v=', html)
 
 
 if __name__ == "__main__":

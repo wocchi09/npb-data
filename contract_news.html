@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <title>選手動向一覧（自由契約・引退・FA） | NPB SCOREBOARD</title>
-  <link rel="stylesheet" href="article_lab.css"><link rel="stylesheet" href="contract_news.css">
+  <link rel="stylesheet" href="article_lab.css"><link rel="stylesheet" href="contract_news.css?v=20261002">
 </head>
 <body>
   <header class="topbar">
@@ -13,7 +13,8 @@
   <main>
     <section aria-labelledby="movement-heading">
       <div class="intro"><div><h2 id="movement-heading">選手ごとの動き</h2><p id="movements-updated" role="status">入退団情報を読込中…</p></div></div>
-      <div class="notice">スポナビの入退団一覧をもとに整理しています。「更新日」はスポナビ掲載の更新日で、発表日・契約発効日ではありません。「自由契約」は掲載元の区分で、正式なNPB公示とは別です。FA権取得・FA宣言・FA移籍は区別し、未記載の移籍先や今後の進路は推測しません。</div>
+      <div class="notice">スポナビと日刊スポーツの掲載情報を統合しています。日付は「選手ごとの掲載更新日」または「記事全体の更新日」で、発表日・契約発効日ではありません。「自由契約」には来季契約なしの報道を含み、正式なNPB公示とは別です。育成再契約の打診・引退の意向と、契約・引退の確定は区別してください。年俸は掲載年度の推定額です。</div>
+      <p id="movement-source-status" class="table-hint" role="status"></p>
       <section class="filters" aria-label="選手動向の絞り込み">
         <div class="field"><label for="movement-team">球団（掲載元の所属欄）</label><select id="movement-team"><option value="">全12球団</option></select></div>
         <div class="field"><label for="movement-category">動きの種類</label><select id="movement-category"><option value="">すべて</option></select></div>
@@ -24,18 +25,18 @@
       <p class="table-hint">見出しを押すと並び替えできます。スマホでは表を横にスクロールできます。</p>
       <div class="movements-scroll" tabindex="0" role="region" aria-label="選手動向表（横スクロール）">
         <table class="movements-table">
-          <caption>スポナビ入退団情報に掲載された選手・更新履歴（未掲載の動きは含みません）</caption>
+          <caption>12球団の選手動向・推定年俸・一軍成績（掲載情報のみ／出典欄で媒体別の内容を確認できます）</caption>
           <thead><tr>
             <th scope="col" aria-sort="descending"><button data-movement-sort="updated_date">更新日 ↓</button></th>
             <th scope="col"><button data-movement-sort="team">球団</button></th>
             <th scope="col"><button data-movement-sort="name">選手</button></th>
             <th scope="col"><button data-movement-sort="category">動き</button></th>
-            <th scope="col">移籍・入団先</th><th scope="col">備考</th><th scope="col">出典</th>
+            <th scope="col">移籍・入団先</th><th scope="col">備考</th><th scope="col">推定年俸</th><th scope="col">今季・通算成績</th><th scope="col">出典・媒体別の掲載内容</th>
           </tr></thead>
-          <tbody id="movements-body"><tr><td colspan="7">読込中…</td></tr></tbody>
+          <tbody id="movements-body"><tr><td colspan="9">読込中…</td></tr></tbody>
         </table>
       </div>
-      <p class="table-hint">育成選手には「育成」を表示。元サイトの現掲載分を取得しているため、シーズン全件の履歴を保証するものではありません。</p>
+      <p class="table-hint">動向は約2時間ごと、年俸は1日ごとに取得を試行します（処理の遅延あり）。成績は既存のNPB公式プロフィール取得分で、表内に取得日時を表示。年俸・成績がない場合も0として扱いません。元サイトの現掲載分の一覧で、シーズン全件の履歴ではありません。日刊スポーツは2026年の指定記事が対象です。</p>
     </section>
     <details class="related-news"><summary>関連ニュースも見る（報道・回顧を含む）</summary>
     <section class="intro"><div><h2>契約関連ニュース</h2><p id="updated" role="status">読込中…</p></div></section>
@@ -55,6 +56,6 @@
   </main>
   <footer>同じ記事URLは1件にまとめます。異なる媒体の記事は別々に掲載します。全文・写真は転載せず、元記事へのリンクから確認できます。</footer>
   <script src="contract_news.js"></script>
-  <script src="player_movements.js"></script>
+  <script src="player_movements.js?v=20261002"></script>
 </body>
 </html>

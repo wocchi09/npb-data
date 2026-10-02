@@ -4,11 +4,17 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import time
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import requests
 from bs4 import BeautifulSoup
+
+try:
+    from .movement_details import NIKKAN, SALARY_INDEX, parse_nikkan, parse_salaries, salary_links, merge_and_enrich
+except ImportError:
+    from movement_details import NIKKAN, SALARY_INDEX, parse_nikkan, parse_salaries, salary_links, merge_and_enrich
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = "https://baseball.yahoo.co.jp/npb/transfer"
@@ -20,6 +26,8 @@ def category(status, note):
     text = status + " " + note
     if "引退" in text:
         return "引退"
+    if "契約解除" in text:
+        return "契約解除"
     if "FA" in text or "ＦＡ" in text:
         if "取得" in text:
             return "FA権取得"
@@ -100,16 +108,75 @@ def parse_transfers(html):
     return sorted(records.values(), key=lambda r: (r["updated_date"], r["team"], r["name"]), reverse=True)
 
 
+def read_json(path, default):
+    return json.loads(path.read_text(encoding="utf-8")) if path.exists() else default
+
+
+def save_json(path, value):
+    temp = path.with_suffix(".tmp")
+    temp.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    temp.replace(path)
+
+
+def collect_snapshot(fetch, url, parse, old, now):
+    try:
+        rows = parse(fetch(url))
+        return {"url": url, "checked_at": now, "last_success_at": now, "stale": False, "rows": rows}
+    except (requests.RequestException, ValueError, TypeError, KeyError) as exc:
+        print(f"WARNING {url}: {exc}")
+        return {**old, "url": url, "checked_at": now, "stale": True,
+                "error": "今回の取得・形式確認に失敗。前回取得分を表示します。" if old.get("rows") else "未取得。元サイトをご確認ください。",
+                "rows": old.get("rows", [])}
+
+
 def main():
-    response = requests.get(SOURCE, timeout=30)
-    response.raise_for_status()
-    rows = parse_transfers(response.content)
+    now_dt = datetime.now(JST)
+    now = now_dt.isoformat(timespec="seconds")
     output = ROOT / "data" / "player_movements.json"
-    result = {"schema_version": 1, "checked_at": datetime.now(JST).isoformat(timespec="seconds"),
-              "source_url": SOURCE, "teams": list(TEAMS), "movements": rows}
-    temp = output.with_suffix(".tmp")
-    temp.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    temp.replace(output)
+    old = read_json(output, {})
+    snapshots = old.get("snapshots", {})
+    if not snapshots and old.get("movements"):
+        snapshots["sportsnavi"] = {"rows": old["movements"], "last_success_at": old.get("checked_at")}
+    session = requests.Session()
+    session.headers["User-Agent"] = "NPB-data public movement collector (github.com/wocchi09/npb-data)"
+
+    def fetch(url):
+        response = session.get(url, timeout=30)
+        response.raise_for_status()
+        return response.content
+
+    snapshots = {
+        "sportsnavi": collect_snapshot(fetch, SOURCE, parse_transfers, snapshots.get("sportsnavi", {}), now),
+        "nikkan": collect_snapshot(fetch, NIKKAN, lambda html: parse_nikkan(html, TEAMS, category), snapshots.get("nikkan", {}), now),
+    }
+    salary_path = ROOT / "data" / "movement_salaries.json"
+    cache = read_json(salary_path, {"teams": {}})
+    # Full names, explicit year and 万円 only. Refresh each team at most daily.
+    due = [t for t in TEAMS if not cache["teams"].get(t, {}).get("last_success_at") or
+           now_dt - datetime.fromisoformat(cache["teams"][t]["last_success_at"]) >= timedelta(days=1)]
+    if due:
+        try:
+            links = salary_links(json.loads(fetch(SALARY_INDEX)), TEAMS)
+            for team in due:
+                cache["teams"][team] = collect_snapshot(fetch, links[team],
+                    lambda html, t=team: parse_salaries(html, t, links[t]), cache["teams"].get(team, {}), now)
+                time.sleep(0.5)
+        except (requests.RequestException, ValueError, TypeError, KeyError) as exc:
+            print(f"WARNING 年俸ナビ取得失敗: {exc}")
+            for team in due:
+                cache["teams"][team] = {**cache["teams"].get(team, {}), "stale": True, "checked_at": now, "error": "年俸一覧の取得に失敗"}
+        save_json(salary_path, cache)
+    profiles = read_json(ROOT / "data" / "masters" / "player_profiles.json", {"players": []})
+    # Use the existing dataset's season rather than silently relabeling old stats.
+    season = max((int(r["year"]) for p in profiles["players"] for kind in ("batting", "pitching")
+                  for r in (p.get("yearly_" + kind) or []) if str(r.get("year", "")).isdigit()), default=now_dt.year)
+    rows = merge_and_enrich(snapshots, profiles["players"], cache, season)
+    result = {"schema_version": 2, "checked_at": now, "source_url": SOURCE, "teams": list(TEAMS),
+              "season": str(season), "snapshots": snapshots,
+              "sources": {k: {a: b for a, b in v.items() if a != "rows"} for k, v in snapshots.items()},
+              "salary_sources": {k: {a: b for a, b in v.items() if a != "rows"} for k, v in cache["teams"].items()},
+              "movements": rows}
+    save_json(output, result)
     print(f"選手動向: {len(rows)}件 / {result['checked_at']}")
 
 
