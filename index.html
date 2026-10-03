@@ -2987,6 +2987,8 @@
   var curView = "games";      // games | season
   var seasonData = null;      // 読み込んだ選手成績
   var seasonTeams = null;
+  var seasonPeriod = "regular";
+  var postseasonData = {};
   var seasonSort = "avg";     // 並び替えキー
   var seasonTeamFilter = "all";
   var seasonLeagueFilter = "パ";
@@ -3112,6 +3114,22 @@
 
   async function loadSeason(){
     var sv=document.getElementById("seasonView");
+    if(seasonPeriod!=="regular"){
+      if(postseasonData[seasonPeriod]){ renderSeason(); return; }
+      sv.innerHTML='<div class="msg">読み込み中…</div>';
+      var y=(dp.value||todayJST()).split("-")[0];
+      try{
+        var root="data/"+y+"/postseason/"+seasonPeriod;
+        var pr=await fetch(root+"/players/stats.json?t="+Date.now());
+        var tr=await fetch(root+"/teams/stats.json?t="+Date.now());
+        if(!pr.ok||!tr.ok) throw 0;
+        postseasonData[seasonPeriod]={players:(await pr.json()).players||[],teams:(await tr.json()).teams||[]};
+        renderSeason();
+      }catch(e){
+        sv.innerHTML=periodTabs()+'<div class="msg">'+(seasonPeriod==="cs"?"CS":"日本シリーズ")+'の成績はまだありません</div>';
+      }
+      return;
+    }
     if(seasonData){ renderSeason(); return; }
     sv.innerHTML='<div class="msg">読み込み中…</div>';
     var year=(dp.value||todayJST()).split("-")[0];
@@ -3136,6 +3154,20 @@
       sv.innerHTML='<div class="msg">シーズン成績がまだありません<br>'+
         '<span style="font-size:12px">Actionsで収集すると自動生成されます</span></div>';
     }
+  }
+
+  function periodTabs(){
+    return '<div class="stabs">'+[["regular","公式戦"],["cs","CS"],["japan_series","日本シリーズ"]].map(function(x){
+      return '<button class="stab'+(seasonPeriod===x[0]?" on":"")+'" style="--sc:var(--accent)" onclick="setSeasonPeriod(\''+x[0]+'\')">'+x[1]+'</button>';
+    }).join('')+'</div>';
+  }
+
+  function setSeasonPeriod(period){
+    if(seasonPeriod===period) return;
+    seasonPeriod=period;
+    seasonTeamFilter="all";
+    seasonQualified="auto";
+    loadSeason();
   }
 
   /* 規定打席・規定投球回の目安（試合数ベースの簡易判定） */
@@ -3215,14 +3247,17 @@
 
   function renderSeason(){
     var sv=document.getElementById("seasonView");
-    if(!seasonData||!seasonData.length){
-      sv.innerHTML='<div class="msg">選手データがありません</div>';
+    var selected=seasonPeriod==="regular" ? {players:seasonData,teams:seasonTeams} : postseasonData[seasonPeriod];
+    var rowsData=selected&&selected.players||[];
+    var rowsTeams=selected&&selected.teams||[];
+    if(!rowsData.length){
+      sv.innerHTML=periodTabs()+'<div class="msg">'+(seasonPeriod==="regular"?"選手データがありません":"この大会の成績はまだありません")+'</div>';
       return;
     }
 
     // チーム一覧（リーグ順→略称順で並べる）
     var teams={};
-    seasonData.forEach(function(p){ if(p.team) teams[p.team]=1; });
+    rowsData.forEach(function(p){ if(p.team) teams[p.team]=1; });
     var teamList=Object.keys(teams).sort(function(a,b){
       var la=tLeague(a)||"ワ", lb=tLeague(b)||"ワ";
       if(la!==lb) return la==="セ"?-1:1;
@@ -3237,7 +3272,7 @@
     sorts.forEach(function(s){ if(s[0]===seasonSort) validSort=true; });
     if(!validSort) seasonSort=defaultSort(seasonGroup);
 
-    var h='<div class="stabs">';
+    var h=periodTabs()+'<div class="stabs">';
     [["セ","セ・リーグ","セ"],["パ","パ・リーグ","パ"],["all","両リーグ",null]].forEach(function(x){
       var col = x[2] ? LEAGUE_COLOR[x[2]] : "var(--accent)";
       h+='<button class="stab'+(seasonLeagueFilter===x[0]?" on":"")+'" style="--sc:'+col+'" '+
@@ -3265,16 +3300,16 @@
       }).map(function(t){
         return '<option value="'+esc(t)+'"'+(seasonTeamFilter===t?" selected":"")+'>'+esc(t)+'</option>';
       }).join("")+'</select>'+
-      '<span class="lb">対象</span><select id="squal" onchange="onSeasonChange()">'+
+      (seasonPeriod==="regular"?'<span class="lb">対象</span><select id="squal" onchange="onSeasonChange()">'+
       '<option value="auto"'+(seasonQualified==="auto"?" selected":"")+'>自動（率は規定者のみ）</option>'+
       '<option value="all"'+(seasonQualified==="all"?" selected":"")+'>全選手</option>'+
       '<option value="qualified"'+(seasonQualified==="qualified"?" selected":"")+'>規定到達のみ</option>'+
-      '</select></div>';
+      '</select>':'')+'</div>';
 
-    var mode = qualMode();
+    var mode = seasonPeriod==="regular" ? qualMode() : "all";
 
     // まず所属・成績の有無で絞る
-    var base=seasonData.filter(function(p){
+    var base=rowsData.filter(function(p){
       if(!p.name || !String(p.name).trim()) return false;   // 名前なしは除外
       if(seasonLeagueFilter!=="all" && tLeague(p.team)!==seasonLeagueFilter) return false;
       if(seasonTeamFilter!=="all" && p.team!==seasonTeamFilter) return false;
@@ -3354,7 +3389,7 @@
       list.slice(0,50).forEach(function(p,i){
         var q=p.pitching||{};
         h+='<tr onclick="showPlayer(\''+esc(p.key)+'\')"><td class="num">'+(i+1)+'</td>'+
-           '<td class="nm lnk">'+esc(p.name)+(isQualifiedPitcher(p)?'<span class="qmark" title="規定投球回到達">規</span>':'')+'</td><td>'+teamBadge(p.team)+'</td>'+
+           '<td class="nm lnk">'+esc(p.name)+(seasonPeriod==="regular"&&isQualifiedPitcher(p)?'<span class="qmark" title="規定投球回到達">規</span>':'')+'</td><td>'+teamBadge(p.team)+'</td>'+
            '<td class="num">'+(q.games||0)+'</td>'+
            '<td class="num">'+esc(q.innings||"0")+'</td>'+
            '<td class="num hi">'+(q.era==null?"-":q.era.toFixed(2))+'</td>'+
@@ -3374,7 +3409,7 @@
       list.slice(0,50).forEach(function(p,i){
         var b=p.batting||{};
         h+='<tr onclick="showPlayer(\''+esc(p.key)+'\')"><td class="num">'+(i+1)+'</td>'+
-           '<td class="nm lnk">'+esc(p.name)+(isQualifiedBatter(p)?'<span class="qmark" title="規定打席到達">規</span>':'')+'</td><td>'+teamBadge(p.team)+'</td>'+
+           '<td class="nm lnk">'+esc(p.name)+(seasonPeriod==="regular"&&isQualifiedBatter(p)?'<span class="qmark" title="規定打席到達">規</span>':'')+'</td><td>'+teamBadge(p.team)+'</td>'+
            '<td class="num">'+(b.games||0)+'</td><td class="num">'+(b.pa||0)+'</td>'+
            '<td class="num">'+(b.ab||0)+'</td><td class="num">'+(b.hits||0)+'</td>'+
            '<td class="num'+((b.hr||0)>0?' hi':'')+'">'+(b.hr||0)+'</td>'+
@@ -3388,13 +3423,13 @@
     }
     h+='</tbody></table></div>'+
        '<div class="sub" style="margin-top:8px;font-size:11px">'+
-       qualNote(isPitchStat, mode, fellBack)+'／選手名をタップで詳細</div></div>';
+       (seasonPeriod==="regular"?qualNote(isPitchStat, mode, fellBack):"大会別成績")+'／選手名をタップで詳細</div></div>';
 
     // チーム成績（セ・パでカードを分ける）
-    if(seasonTeams&&seasonTeams.length){
+    if(rowsTeams.length){
       ["セ","パ"].forEach(function(lg){
         if(seasonLeagueFilter!=="all" && seasonLeagueFilter!==lg) return;
-        var rows=seasonTeams.filter(function(t){
+        var rows=rowsTeams.filter(function(t){
           return (tLeague(t.team)||t.league)===lg;
         });
         if(!rows.length) return;
@@ -3444,8 +3479,9 @@
   /* 選手詳細カード */
   function showPlayer(key){
     var p=null;
-    for(var i=0;i<seasonData.length;i++){
-      if(seasonData[i].key===key){p=seasonData[i];break;}
+    var detailRows=seasonPeriod==="regular" ? seasonData : (postseasonData[seasonPeriod]||{}).players||[];
+    for(var i=0;i<detailRows.length;i++){
+      if(detailRows[i].key===key){p=detailRows[i];break;}
     }
     if(!p) return;
     var el=document.getElementById("playerDetail");

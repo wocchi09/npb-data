@@ -50,7 +50,7 @@ MANAGED_FILES = {
         "analysis_lab.json",
 }
 MANAGED_DIRS = (
-    "/players/", "/teams/", "/dataset/", "/masters/", "/awards/", "/matchups/", "/pitch_heatmaps/",
+    "/players/", "/teams/", "/dataset/", "/masters/", "/awards/", "/matchups/", "/pitch_heatmaps/", "/postseason/",
 )
 
 
@@ -488,7 +488,10 @@ def is_manually_excluded(rule: dict, day: str | None, gid) -> bool:
     return False
 
 
-def rebuild(season, base="data"):
+POSTSEASON = {"CS": "cs", "日本シリーズ": "japan_series"}
+
+
+def rebuild(season, base="data", competition="公式戦"):
     games = find_games(season, base)
     print(f"[INFO] {season}シーズン: {len(games)}試合を再集計")
     manual = load_manual_exclude(season, base)
@@ -566,7 +569,9 @@ def rebuild(season, base="data"):
             day_pitches[day] = day_pitches.get(day, 0) + (g.get("pitch_count") or 0)
 
         # ここから先が成績の集計。除外対象はここで抜ける
-        if reason:
+        if competition != "公式戦" and gtype != competition:
+            continue
+        if competition == "公式戦" and reason:
             excluded[reason] = excluded.get(reason, 0) + 1
             if day:
                 day_excluded[day] = day_excluded.get(day, 0) + 1
@@ -882,17 +887,18 @@ def rebuild(season, base="data"):
     # 日別の試合数（ダッシュボードのカレンダー・概況が参照する正しい集計）
     total_games = sum(day_games.values())
     total_pitches = sum(day_pitches.values())
-    save_json(f"{base}/{season}/calendar.json", {
-        "season": season,
-        "total_games": total_games,
-        "total_pitches": total_pitches,
-        "days": dict(sorted(day_games.items())),
-        "pitches_by_day": dict(sorted(day_pitches.items())),
-        "no_games": no_games,
-        # 成績には入れないが試合としては見られる日（オールスターなど）
-        "excluded_days": dict(sorted(day_excluded.items())),
-        "excluded_types": dict(sorted(day_excluded_type.items())),
-    })
+    if competition == "公式戦":
+        save_json(f"{base}/{season}/calendar.json", {
+            "season": season,
+            "total_games": total_games,
+            "total_pitches": total_pitches,
+            "days": dict(sorted(day_games.items())),
+            "pitches_by_day": dict(sorted(day_pitches.items())),
+            "no_games": no_games,
+            # 成績には入れないが試合としては見られる日（オールスターなど）
+            "excluded_days": dict(sorted(day_excluded.items())),
+            "excluded_types": dict(sorted(day_excluded_type.items())),
+        })
     if excluded:
         detail = "・".join(f"{k}{v}件" for k, v in sorted(excluded.items()))
         print(f"[INFO] シーズン成績から除外: {sum(excluded.values())}試合（{detail}）")
@@ -922,11 +928,15 @@ def rebuild(season, base="data"):
         print(f"[WARN] 同じ試合IDが別の日にも保存されています {len(dup_games)}件"
               f"（例: {dup_games[0]}）")
 
-    save_json(f"{base}/masters/players.json", {"count": len(master), "players": master})
-    save_json(f"{base}/masters/teams.json",
-              {"teams": [{"name": n, **v} for n, v in TEAMS.items()]})
-    save_json(f"{base}/{season}/players/stats.json",
-              {"season": season, "count": len(player_out),
+    if competition == "公式戦":
+        save_json(f"{base}/masters/players.json", {"count": len(master), "players": master})
+        save_json(f"{base}/masters/teams.json",
+                  {"teams": [{"name": n, **v} for n, v in TEAMS.items()]})
+        output = f"{base}/{season}"
+    else:
+        output = f"{base}/{season}/postseason/{POSTSEASON[competition]}"
+    save_json(f"{output}/players/stats.json",
+              {"season": season, "competition": competition, "count": len(player_out),
                "runner_event_diagnostics": runner_diag,
                "advanced_metric_context": {
                    "woba_weights": WOBA_WEIGHTS,
@@ -945,13 +955,13 @@ def rebuild(season, base="data"):
                    "note": "wOBA系は固定線形加重、wRC+は球場未補正の推定値",
                },
                "players": player_out})
-    save_json(f"{base}/{season}/teams/stats.json",
-              {"season": season, "teams": team_out})
+    save_json(f"{output}/teams/stats.json",
+              {"season": season, "competition": competition, "teams": team_out})
 
     if skipped:
         print(f"[WARN] 名前が取得できない選手データ {skipped}件をスキップしました")
     # FIP定数を診断用に保存（画面の説明表示にも使う）
-    save_json(f"{base}/{season}/fip_constants.json", {
+    save_json(f"{output}/fip_constants.json", {
         "season": season, "constants": fip_constants,
         "formula": "FIP = (13*被本塁打 + 3*(与四球+与死球) - 2*奪三振) / 投球回 + リーグ定数",
     })
@@ -994,6 +1004,8 @@ def main():
         return 1
 
     rebuild(season, args.base)
+    for competition in POSTSEASON:
+        rebuild(season, args.base, competition)
     return 0
 
 
